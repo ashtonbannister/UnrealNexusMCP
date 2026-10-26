@@ -1,0 +1,20 @@
+{
+  "name": "unreal-nexus-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Source-curated Unreal MCP operation catalogue and routing core; transport integration and live qualification pending.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/validate-catalog.mjs && node --test",
+    "catalog": "node src/cli.mjs",
+    "catalog:check": "node scripts/validate-catalog.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "enabledPacks": [
+    "authoring-core",
+    "editor-observation"
+  ],
+  "enabledCapabilities": [],
+  "allowWrites": false,
+  "timeoutMs": 120000,
+  "target": null
+}

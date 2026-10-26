@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "reviewDate": "2026-10-26",
+  "method": "Read-only source inspection, JSON parsing and Python AST literal extraction; no upstream imports or execution",
+  "scope": "Pinned inventory subsets and public adapter contracts; not exhaustive semantic deduplication or live verification",
+  "countsComparableAsPublicToolTotals": false,
+  "providers": {
+    "enginewire": {
+      "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+      "repository": "https://github.com/ChiR24/Unreal_mcp",
+      "catalogRevision": "0b875b14b2156784",
+      "counts": {
+        "canonicalRecords": 427,
+        "distinctLegacyToolActionPairs": 1582,
+        "recordsWithDispatchBy": 219,
+        "internalParentGroups": 23,
+        "nativePublicMcpToolNames": 1
+      },
+      "source": "src/tools/catalog/capabilities/generated/canonical-registry.generated.json",
+      "sha256": "5f01e136e9dc85745c7f811ec6fdb4ddf9ea16d4c4a435fc7fe35aab1615091b",
+      "caveat": "Canonical records and folded aliases are not comparable public tool counts; preserve selectors and native availability/policy gates."
+    },
+    "ue-mcp": {
+      "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+      "repository": "https://github.com/db-lyon/ue-mcp",
+      "counts": {
+        "builtInCategoryDeclarations": 30,
+        "recordedBridgeHandlerSpecs": 1206,
+        "recordedEpicToolsets": 52,
+        "recordedEpicTools": 830
+      },
+      "recordedEpicEngineAssociation": "5.8",
+      "sources": [
+        {
+          "path": "tests/golden/handler-specs.json",
+          "sha256": "58f34a96e98e500b024b90c16ff5528be34e251c9411581b7ea2b24fb21174e1"
+        },
+        {
+          "path": "tests/golden/epic-catalog.json",
+          "sha256": "3cdc25ececd56fdcaa34874408a8cfe964827f47fc37b937ce237805252e63d1"
+        }
+      ],
+      "caveat": "Recorded subsets can overlap and omit local/extension actions. Default micro public gateway is tools; live editor registration gates availability."
+    },
+    "unrealagentplayer": {
+      "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+      "repository": "https://github.com/ImagineTheGames/UnrealAgentPlayer",
+      "counts": {
+        "literalPublicMcpDescriptors": 44
+      },
+      "source": "mcp-server/src/unreal_agent_player/registry.py",
+      "sha256": "2e1c39b44485434758006588bb0f7176ffb52bd322ecbcfd40c57c7d991776a1",
+      "extraction": "ast.parse plus ast.literal_eval of Tool name/description/inputSchema keywords",
+      "caveat": "Static listing does not guarantee platform, rendering, PIE or runtime availability. Text JSON can contain operation failure."
+    },
+    "claireon": {
+      "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+      "repository": "https://github.com/believer-oss/Claireon",
+      "counts": {
+        "nativePublicMcpToolNames": 2,
+        "optionalProxyPublicDescriptors": 3
+      },
+      "source": "Source/Claireon/Private/ClaireonServer.cpp",
+      "sha256": "4ef0663a0276a19d90bc852df3e8ca6f417f1d75cb65de29c79e1cc294ca4258",
+      "caveat": "Internal catalog names are not direct MCP tools; no full internal count/schema extraction claimed. Reviewed typed wrapper required."
+    },
+    "hayba": {
+      "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+      "repository": "https://github.com/zajalist/hayba",
+      "counts": {
+        "legacySidecarCommands": 160,
+        "legacyGenerationCandidatesBeforeNameCollisionExclusion": 112,
+        "deferredRoutingBootstrapDeclarationsBeforePackLoads": 7
+      },
+      "source": "mcp-tools/hayba-mcp/src/legacy-commands/sidecar.json",
+      "sha256": "012a0b1e0188468f3d7c2fa956f1fb41ad5a97264cf6a6fa366b5c8e49e45a19",
+      "extraction": "JSON parsing; candidate filter agent_callable === true && has_ts_wrapper === false",
+      "caveat": "Counts are partial, before collisions and dynamic packs. No total public count established. via:ts can internally fall through to legacy if typed schema is absent."
+    },
+    "ivan-unreal-mcp": {
+      "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+      "repository": "https://github.com/IvanMurzak/Unreal-MCP",
+      "counts": {
+        "builtInStandardEditorToolDeclarations": 26,
+        "standardEditorFamilies": 6
+      },
+      "source": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "sha256": "ce406d809abbf56eefaaf67698fb75d125ca8021f9357bdd15a501b8cbbf2f26",
+      "caveat": "Family source inspection excludes system/extensions; external MCP server is not in repo; full schemas not extracted. Restricted RQL/Code-Exec source not copied."
+    }
+  }
+}
