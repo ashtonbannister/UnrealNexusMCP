@@ -30,25 +30,31 @@ Use stable full paths/GUIDs and explicit world/player selectors.
 save into save-all; retry an uncertain mutation; infer rollback from timeout,
 cancellation, Transaction.Cancel or an inverse-operation descriptor.
 
-The canonical catalogue is `catalog/operations.json`. Selected-but-unadapted
-functions below are not callable Nexus operations. Source evidence and scope
-boundaries are in `catalog/decisions.json` and the six audit reports.
+The canonical catalogue is `catalog/operations.json`. Only enabled entries are
+callable. The master document is served at `unreal-nexus://guidance/master`, its
+enabled subset at `unreal-nexus://guidance/enabled`, and the applicable workflow
+through prompt `nexus_workflow`. Source evidence and scope boundaries are in
+`catalog/decisions.json` and the six audit reports.
 
-## 1. Discovery, enablement and planning — implemented core
+## 1. Discovery, enablement and planning — implemented MCP gateway
 
 **Trigger:** choose a tool for a new task or an unfamiliar project.
 
-**Use:** `Gateway.list()`, `toolDefinitions()`, `describe(id)`, `plan(id,args)`; offline
-`npm run catalog -- list`, `describe` and `plan` inspect the complete catalogue.
-These are JavaScript APIs/offline commands, not yet a network MCP surface.
+**Use:** MCP `tools/list`, `nexus.status`, `nexus.describe`, `nexus.plan`, the four
+read-only resources and `nexus_workflow`. The library also exports `Gateway`;
+offline `npm run catalog -- list`, `describe` and `plan` inspect the complete
+catalogue without contacting a backend.
 
 - Enable a small set of capabilities or packs in trusted host configuration.
 - Default enablement is empty. Suggested base: authoring-core and editor-observation.
-- Playtesting is optional. Compile/material/test/trace specialist packs are held
-  until their dedicated adapters exist.
-- Before execution, the factory verifies installed revision, exact editor target
+- Playtesting and compile/material/test/trace packs are optional. Their fixed
+  adapters exist, but affected routes refuse stock backends without the exact
+  reviewed compatibility patches and corresponding live markers.
+- Before execution, the factory verifies the configured source revision, exact editor target
   and live inner capability availability. Do not treat a meta-tool's existence
   or a multi-editor discovery union as sufficient.
+- Source verification covers the checkout and reviewed patch; ignored build
+  products and the loaded native binary still require deployment acceptance.
 - Pin the chosen winner. New upstream code is a review candidate, not automatic
   replacement or a backup to try after failure.
 
@@ -63,6 +69,9 @@ postconditions and whether dispatch actually happened.
 
 **Preconditions:** intended editor attested; machine lock available; previous
 session ownership known; required packages saved only with user-authorized scope.
+The reviewed UAP compatibility patch disables replay at every Python dispatch
+layer and binds the MCP server to the configured project, editor PID and RC
+port. Require the live `bridge_status` marker to match that binding.
 
 1. Read current phase. Do not stop another workflow's session.
 2. Start the viewport route; mode and wait are fixed. Record phase and result.
@@ -188,26 +197,34 @@ a complete end-to-end keyboard/UI/hardware test. Remote relay is omitted until
 completion correlation is available. Raw keys, Slate analog input, UMG clicks
 and synthetic XR poses need separate contracts.
 
-## 9. Blueprint compile without save — Claireon, adapter required
+## 9. Blueprint compile without save — optional Claireon adapter
 
 **Trigger:** diagnose a Blueprint while preserving an explicit no-save boundary.
 
-**Preferred internal function:** bp_compile via public python_execute.
+**Use:** `blueprint.compile.memory.asset` or `blueprint.compile.memory.session`.
+Both delegate to the fixed bp_compile function via public python_execute.
 
 Use exactly one asset_path or session_id; preserve bounded diagnostics, severity,
 node GUIDs and truncation. Require actual compile status, not Python wrapper
 success. Do not auto-close sessions without checking whether close saves.
 
-**Adapter prerequisites:** fixed allowlisted function, safe argument encoding,
-unambiguous JSON result framing and explicit refusal for missing/truncated/spilled
-output. No model-supplied Python. Compile-and-save, batch/folder compile and
-helpers that reset the undo buffer remain distinct.
+**Required compatibility:** the reviewed no-autosave patch and live
+`nexus_skip_auto_save` parameter. Nexus supplies true on every fixed wrapper,
+including read-only schema probes. The unmodified outer Python runner can save
+before the inner compile begins; `SkipSave` alone does not establish no-save.
 
-## 10. Strict material parameter persistence — Hayba, adapter required
+Arguments are JSON/base64 encoded and outputs nonce-framed. Missing, ambiguous,
+truncated or spilled output leaves an unknown outcome. No model-supplied Python.
+Compile-and-save, batch/folder compile and helpers that reset the undo buffer
+remain distinct.
+
+## 10. Strict material parameter persistence — optional Hayba adapter
 
 **Trigger:** change one existing global material-instance parameter and save it.
 
-**Preferred internal function:** material_set_param through a confirmed typed route.
+**Use:** `material.parameter.scalar.persisted`,
+`material.parameter.vector.persisted`, `material.parameter.texture.persisted`.
+These use only the direct typed material_set_param tool.
 
 Validate instance, declared parameter, type and read-only state before mutation.
 Allow scalar, 3/4-element finite vector or nonempty texture path; enforce float32
@@ -217,13 +234,19 @@ memory may already have changed: retry persistence, not the entire mutation.
 Layer-associated parameters, undeclared override staging, static switches and
 unsaved sessions remain separate. The inspected public schema does not expose
 the native boolean branch. Verify the typed route exists; via=ts alone does not
-prevent Hayba's legacy fallback.
+prevent Hayba's legacy fallback. The reviewed compatibility patch adds a required
+`nexus_retry_policy: "never"` marker and removes material mutation from the
+transport-retry path. The host also pins `UE_TCP_PORT`; a private fixed read-only
+identity probe corroborates the editor before each call. Direct material and
+python tools must be preloaded by host settings; Nexus never loads a pack or
+falls back to hayba_invoke on demand.
 
-## 11. Strict engine automation — Claireon, adapter required
+## 11. Strict engine automation — optional Claireon adapter
 
 **Trigger:** run Unreal's actual automation tests.
 
-**Preferred internal functions:** test_run and test_poll.
+**Use:** `automation.tests.run` and `automation.tests.poll`; fixed native
+test_run/test_poll wrappers with the same no-autosave compatibility requirement.
 
 Use a narrow nonempty filter, strict=true, expected test set and reasoned allowed
 skips. Keep normal timeouts. Record run_id, then poll through a terminal result
@@ -231,20 +254,27 @@ with editor frames between requests. Save that terminal evidence: it is emitted
 once. Polling is required to release the gate; there is no autonomous expiry.
 
 Missing/not-run/unfinished/timed-out tests and unauthorized skips are not passes.
-Cancel explicitly if abandoning, then confirm release. Do not replace this with
+Cancel an owned run explicitly with `automation.tests.poll(cancel=true)` if
+abandoning, then confirm release. The adapter refuses an unowned run ID and
+retains the terminal strict evidence. Do not replace this with
 caller-recorded assertions, manual double-ticking or a synchronous game-thread
 runner that cannot service frame-dependent latent commands.
 
-## 12. Real Insights profiling — Claireon, adapter required
+## 12. Real Insights profiling — optional Claireon adapter
 
 **Trigger:** explain observed hitches or CPU/GPU timing from captured evidence.
 
-**Preferred internal functions:** pie_trace_start/stop, trace_open,
-trace_get_top_scopes, trace_get_frame_stats and trace_close.
+**Use:** `insights.capture.start/stop`, `insights.trace.open/scopes/frames/close`.
+These are fixed wrappers for pie_trace_start/stop, trace_open,
+trace_get_top_scopes, trace_get_frame_stats and trace_close, with the same
+no-autosave compatibility requirement.
 
 Capture to a fresh path with needed channels; restore previous trace/named-event
 settings on stop. Open the returned real trace, retain the analysis session ID,
 query bounded pages, and close the session afterward.
+The adapter owns the capture and reader handles it creates; it refuses to stop,
+query or close unowned state. Shutdown closes transport connections but does not
+silently stop recording, cancel tests, save assets or close native sessions.
 
 Disclose absent channels, sample range and truncation. Frame stats summarize the
 returned page, not necessarily the full capture. This implementation's
@@ -309,6 +339,11 @@ is not a sufficient master safety barrier.
 After uncertain transport outcome or contained native fault, stop dispatch.
 Keep logs/receipts, inspect actual editor state externally, reconcile outstanding
 work, then deliberately restart. No automatic provider fallback or reset tool.
+Cancellation before dispatch prevents the operation. Cancellation after dispatch
+does not prove native work stopped. Modern HTTP cancellation and original-request
+disconnect are propagated; a separate legacy cancellation notification cannot
+cancel a different request in the stateless HTTP serving mode. The operation's
+deadline and serialized queue still apply.
 
 Before promoting a candidate, run a matrix in the target engine/project:
 happy path; invalid input; ambiguous world/object; no-op; unavailable capability;

@@ -1,0 +1,62 @@
+diff --git a/mcp-tools/hayba-mcp/src/tools/tool-executor.ts b/mcp-tools/hayba-mcp/src/tools/tool-executor.ts
+--- a/mcp-tools/hayba-mcp/src/tools/tool-executor.ts
++++ b/mcp-tools/hayba-mcp/src/tools/tool-executor.ts
+@@ -121,7 +121,9 @@
+   'blueprint_remove_node',
+   // Material authoring
+   'material_create',
+-  'material_create_instance',
++  'material_create_instance',
++  // Nexus compatibility: a lost reply is not permission to repeat a save/edit.
++  'material_set_param',
+   // Material add-element family (append mutations — duplicate nodes/edges on retry)
+   'material_add_node',
+   'material_add_comment',
+diff --git a/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts b/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts
+--- a/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts
++++ b/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts
+@@ -10,7 +10,8 @@
+   not_when: 'applying a material to an actor (use material_apply)',
+ };
+ 
+-export const schema = z.object({
++export const schema = z.object({
++  nexus_retry_policy: z.literal('never').describe('Nexus reviewed no-retry compatibility v1; required typed-route marker'),
+   instance_path: z.string().min(1).describe('Path to the material instance'),
+   param_name: z.string().min(1).describe('Name of the parameter to set'),
+   value: z.union([
+@@ -20,4 +21,6 @@
+   ]).describe('Parameter value: scalar, vector (1-4 elements), or texture asset path'),
+ });
+ 
+-export const materialSetParamHandler: ToolHandler = ueTool('material_set_param', schema);
++// The marker proves the reviewed TS route and is never forwarded to native UE.
++export const materialSetParamHandler: ToolHandler = ueTool('material_set_param',
++  schema.transform(({ nexus_retry_policy: _nexusRetryPolicy, ...params }) => params));
+diff --git a/mcp-tools/hayba-mcp/src/tools/index.ts b/mcp-tools/hayba-mcp/src/tools/index.ts
+--- a/mcp-tools/hayba-mcp/src/tools/index.ts
++++ b/mcp-tools/hayba-mcp/src/tools/index.ts
+@@ -2088,14 +2088,15 @@
+     },
+   },
+   {
+-    name: 'material_set_param',
+-    description: 'Set a scalar, vector (rgba), or texture parameter on a material instance.',
+-    meta: materialSetParamMeta,
+-    handler: materialSetParamHandler,
+-    cost: 'low',
+-    returns: '{ok}',
+-    niche: M,
+-    schema: {
++    name: 'material_set_param',
++    description: 'Set a scalar, vector (rgba), or texture parameter on a material instance.',
++    meta: materialSetParamMeta,
++    handler: materialSetParamHandler,
++    cost: 'low',
++    returns: '{ok}',
++    niche: M,
++    schema: {
++      nexus_retry_policy: z.literal('never').describe('Nexus reviewed no-retry compatibility v1; required typed-route marker'),
+       instance_path: z.string().min(1).describe('Path to the material instance'),
+       param_name: z.string().min(1).describe('Name of the parameter to set'),
+       value: z

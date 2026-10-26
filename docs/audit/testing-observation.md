@@ -1,5 +1,7 @@
 # Testing and observation selection audit
 
+**Snapshot scope:** This report records the initial upstream source-selection review. Current adapter/patch availability is recorded in [implementation selection](../IMPLEMENTATION_SELECTION.md), [runtime setup](../RUNTIME_SETUP.md) and [the master guidance](../MASTER_SKILL_GUIDANCE_DRAFT.md). References below to an adapter still being required describe that original review stage.
+
 Reviewed 2026-10-26 from source. No native plugin was compiled or exercised in
 Unreal. Simulated gateway tests do not establish engine compatibility. Exclusion
 means Nexus callable/default selection, not deletion of upstream code.

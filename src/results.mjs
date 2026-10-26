@@ -1,3 +1,5 @@
+import { nativeOutcomeUnknown } from './native-outcomes.mjs';
+
 // Interpret only one unambiguous provider JSON envelope, never nested asset data.
 // UE-MCP may append editor attribution or prepend modal notices as prose.
 function payloadOf(result) {
@@ -20,7 +22,7 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
   const payload = payloadOf(result);
   let failed = result.isError === true || payload?.ok === false || payload?.success === false || payload?.bIsError === true;
   let policy = 'backend-response-only';
-  let outcomeUnknown = false;
+  let outcomeUnknown = nativeOutcomeUnknown(operation.provider,result);
   if (operation.provider === 'unrealagentplayer') {
     policy = 'uap-json-envelope';
     if (!payload || typeof payload.ok !== 'boolean' || typeof payload.phase !== 'string' || !payload.phase) failed = true;
@@ -32,6 +34,8 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     // Native start deadlines return a normal MCP response while queued work can
     // still take effect. Stop can likewise return before teardown is complete.
     outcomeUnknown = !payload
+      || typeof payload.phase !== 'string' || !['NotPlaying','Starting','Playing','Paused','Stopping'].includes(payload.phase)
+      || ['UE_CONNECTION_RESET','UE_CROSSED_RESPONSE','PYTHON_RUNTIME'].includes(payload.error?.code)
       || (payload.queued === true && payload.confirmed !== true)
       || ['Starting','Stopping'].includes(payload.phase)
       || (operation.id === 'pie.stop' && payload.stopped === false
@@ -52,6 +56,7 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
       || payload.runId !== expectedArgs.runId || payload.lastRun?.id !== expectedArgs.runId
       || payload.lastRun?.state !== 'generated') failed = true;
   }
+  if (outcomeUnknown) failed = true;
   return {
     ...result,
     ...(failed ? { isError: true } : {}),

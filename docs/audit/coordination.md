@@ -1,5 +1,7 @@
 # Coordination and lifecycle audit
 
+**Snapshot scope:** This report records the initial upstream source-selection review. Current adapter/patch availability is recorded in [implementation selection](../IMPLEMENTATION_SELECTION.md), [runtime setup](../RUNTIME_SETUP.md) and [the master guidance](../MASTER_SKILL_GUIDANCE_DRAFT.md). References below to an adapter still being required describe that original review stage.
+
 Review date: 2026-10-26. Static inspection of six immutable revisions. No native
 build, live concurrent-backend test or transport fault injection was performed.
 Nexus is a dependency-free routing core; real backend transports remain deferred.

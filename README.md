@@ -1,146 +1,161 @@
 # Unreal Nexus MCP
 
-**One canonical capability set. One reviewed winning implementation per function.
+**One canonical tool set. One reviewed winning implementation per function.
 Only the backends needed by enabled capabilities. Optional specialists.**
 
-This first implementation is a **source-curated catalogue, lazy routing core and
-offline planning CLI**. It is not yet a network-facing MCP server, a merged native
-Unreal plugin, or a live-tested integration. No Unreal project is modified by
-installing or inspecting this repository.
+Nexus is an MCP gateway with a curated catalogue of **29 canonical operations**.
+It serves local stdio or authenticated loopback HTTP, starts selected backend
+connections on first execution, and applies the
+[master skill guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md) through MCP
+instructions, resources and a workflow prompt.
 
-## What is included
+The protocol integration is tested with real MCP clients and fixture backends.
+**Native Unreal compilation and live editor qualification remain pending.** This
+repository does not merge or install the upstream Unreal plugins.
 
-- 16 narrowly defined canonical operations, with exactly one selected route each.
-- 23 evidence-backed decision groups covering six pinned upstream projects.
-- 25 competing-default exclusion entries; useful semantic variants are preserved.
-- Per-capability/per-pack enablement and lazy, cached backend factories.
-- Fixed public call envelopes for UE-MCP micro mode, EngineWire and UAP.
-- Disabled-by-default writes; explicit target/source/capability attestation by
-  host adapters; no generic backend/Python/console escape hatch.
-- One-process execution queue; no blind retry/failover after uncertain outcomes.
-- Native images, diagnostics, warnings and partial-result fields preserved.
-- A [master skill guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md) with triggers,
-  preconditions, verification and failure handling.
+## Start the gateway
 
-**Important scope:** the repository initially contained only LICENSE. There were
-no existing integrated native functions to delete. The weaker duplicates are
-excluded from the new Nexus allowlist, not removed from upstream plugin source.
-
-## Inspect and test
-
-Node 22+ is required. There are no external dependencies or install scripts.
+Use Node.js 22 or newer and Git. SDK dependencies are locked in `package-lock.json`.
 
 ```sh
+npm ci --ignore-scripts
 npm run check
+node src/main.mjs --config examples/config.example.json
+```
+
+The example starts a stdio MCP server with every editor capability off. It waits
+for an MCP client on stdin; it is not an interactive terminal prompt. You can
+already discover the master guidance and use the read-only Nexus controls.
+
+To execute Unreal operations, copy and edit
+[the authoring configuration](examples/config.authoring.example.json), install
+the pinned upstream backends, and set the exact project file, live editor PID,
+source checkout paths, endpoints and credentials. Follow the
+[runtime setup guide](docs/RUNTIME_SETUP.md). Writes remain off until the host
+configuration explicitly enables them. No backend starts during discovery,
+resource reads, prompts or planning.
+
+For an MCP client that launches commands, use an absolute executable and paths:
+
+```json
+{
+  "mcpServers": {
+    "unreal-nexus": {
+      "command": "node",
+      "args": [
+        "C:/Tools/UnrealNexusMCP/src/main.mjs",
+        "--config",
+        "C:/Tools/UnrealNexusMCP/nexus.config.json"
+      ]
+    }
+  }
+}
+```
+
+This is a local host configuration example. Connecting a remote hosted client
+requires a separately designed deployment/authentication boundary; this change
+does not publish a public service.
+
+## Public MCP surface
+
+| Surface | Purpose |
+|---|---|
+| Enabled canonical tools | The exact reviewed operations in `catalog/operations.json` |
+| `nexus.status` | Enablement, loaded backends, identity evidence and queue state |
+| `nexus.describe` | Selected route, source pin, schema, effects and postconditions |
+| `nexus.plan` | Validate and preview a call, with `dispatched: false` |
+| `unreal-nexus://guidance/master` | The complete master guidance draft |
+| `unreal-nexus://guidance/enabled` | Governing rules and workflows for enabled capabilities |
+| `unreal-nexus://catalog/enabled` | The enabled canonical catalogue |
+| `unreal-nexus://runtime/status` | Read-only runtime status |
+| Prompt `nexus_workflow` | The appropriate workflow for one enabled capability |
+
+The master document is loaded and its section mapping checked when the runtime
+starts. Its SHA-256 is reported in status. It remains a draft, not an installed
+personal skill. Nexus exposes no raw provider multiplexer, arbitrary Python,
+console command, configuration mutation or uncertainty-reset tool.
+
+## Capability packs
+
+| Pack | Canonical operations | Selected backend(s) | Additional condition |
+|---|---:|---|---|
+| `authoring-core` | 7 | UE-MCP | Live micro-mode handler/schema parity |
+| `editor-observation` | 1 | EngineWire | Direct editor-owned HTTP endpoint |
+| `playtesting` | 8 | UnrealAgentPlayer + UE-MCP | Reviewed UAP no-replay/target-binding patch |
+| `blueprint-compile` | 2 | Claireon | Reviewed no-autosave patch; direct editor endpoint |
+| `material-strict` | 3 | Hayba | Reviewed no-retry patch; fixed native port; typed tools |
+| `automation-tests` | 2 | Claireon | Same compatibility patch; owned run and terminal receipt |
+| `insights-analysis` | 6 | Claireon | Same compatibility patch; owned capture/readers |
+
+Every pack is off by default. Individual capability IDs can be enabled instead
+of packs. Enabling a capability registers its backend factory; only executing
+that capability connects or starts the backend. Failed startup is cached instead
+of being silently retried. Specialists that are never enabled or used do not
+start their backend servers.
+
+The first 16 operations remain the core set. Thirteen fixed specialist adapters
+implement the compile, material, test and trace workflows. They verify source
+patches and live capability markers before using those paths. The stock upstream
+versions do not satisfy all of these contracts; merely setting a config flag is
+insufficient. See [compatibility patches](patches/README.md).
+
+## Targeting and execution
+
+The host pins an exact `.uproject` file and an OS process start identity, then
+corroborates that target with native PID/project evidence or a direct
+editor-owned listener. The runtime currently supports local Windows and Linux
+identity inspection. Backend-specific platform restrictions still apply.
+
+Source verification checks the pinned Git revision, tracked changes, unignored
+new files and exact reviewed compatibility deltas. **It does not independently
+prove which compiled DLL or ignored build output the editor loaded.** Live schema
+markers and handler parity add checks; final native build provenance and engine
+compatibility still need acceptance in the intended project.
+
+All calls in one runtime share one serialized editor queue, including separate
+HTTP requests. Preparation, native capability checks and dispatch have bounded
+deadlines. Cancellation before dispatch prevents the operation; timeout,
+disconnect or cancellation after dispatch leaves its outcome unknown and fences
+further execution. Native queued lifecycle or contained-fault receipts can also
+fence the queue. Received images, diagnostics, warnings and partial results are
+preserved. There is no automatic mutation retry, provider failover or reset.
+
+Reconcile uncertain work externally before deliberately restarting Nexus. A
+request cancellation is not an Unreal rollback. The queue is local to one
+gateway process and cannot coordinate other gateways, direct clients, game-thread
+events or editor restarts atomically. Endpoint/identity checks reduce wrong-target
+risk but are not an editor-native epoch lock.
+
+## Offline catalogue
+
+```sh
 npm run catalog -- list
 npm run catalog -- describe asset.save.exact
 npm run catalog -- plan asset.save.exact '{"assetPaths":["/Game/Blueprints/BP_Demo"],"force":true}'
 ```
 
-The CLI only lists/describes/plans; it never connects to Unreal or executes a
-mutation. A plan includes the fixed provider route and postconditions, and says
-`dispatched: false`.
+The offline CLI never connects to Unreal. It shows the complete reviewed
+catalogue, while the MCP manifest shows only host-enabled operations.
 
-## Backend composition
+## Selection policy and evidence
 
-| Pack | Selected backend(s) | Default |
-|---|---|---|
-| authoring-core | UE-MCP | Off; suggested base |
-| editor-observation | EngineWire | Off; suggested base |
-| playtesting | UnrealAgentPlayer + UE-MCP | Optional, off |
-| blueprint-compile | Claireon | Adapter required, cannot enable |
-| material-strict | Hayba | Adapter required, cannot enable |
-| automation-tests | Claireon | Adapter required, cannot enable |
-| insights-analysis | Claireon | Adapter required, cannot enable |
+The catalogue contains 23 decision groups, 13 selected groups, six immutable
+upstream source pins and 25 competing-default exclusions. A winner is selected
+for its exact target, validation, completion, persistence and failure semantics.
+New upstream releases are review candidates; routing does not follow floating
+`latest` releases or fall back to a different implementation after a failure.
 
-Individual capability IDs can be enabled instead of a pack. Enabling a pack does
-not immediately load its backends. The first execution of an enabled capability
-loads its chosen provider; later calls reuse it. A provider that is never used is
-never started. A disabled function cannot trigger a loader.
+The original repository contained only `LICENSE`. Duplicate defaults are
+excluded from Nexus's public allowlist; native function bodies were not deleted
+from external repositories. Ivan's backend is not required by these 29 routes,
+but its distinct capabilities are not declared universally redundant.
 
-Ivan's backend is not required by this first executable set. Its distinct
-capabilities are documented rather than falsely classified as redundant.
-
-## Host integration contract
-
-The exported `Gateway` is a transport-independent library. `toolDefinitions()`
-returns only enabled canonical MCP names/schemas/annotations, without loading a
-backend; a host server can register those and dispatch through `execute(id,args)`.
-A host must provide
-a factory for each enabled provider it intends to use. Factories receive
-`{provider, source, target}` and return:
-
-```js
-{
-  tools: new Set(/* actually advertised public MCP tool names */),
-  sourceCommit: "...",        // verified installed revision matching source lock
-  target: { projectRoot: "...", editorInstanceId: "..." },
-  identityVerified: true,     // determined by the host adapter, never guessed
-  supports: async (operation) => true, // query actual editor capability/schema
-  call: async (request, timeoutMs) => { /* full MCP CallToolResult */ },
-  close: async () => { /* close owned connection/process */ }
-}
-```
-
-This is an interface sketch, **not an implemented connector**. Never hardcode
-`supports=true` or `identityVerified=true` in a real adapter without verification.
-The core checks the attested values; it cannot independently establish them.
-Installed revision verification may need local installation metadata in addition
-to the MCP handshake.
-
-Trusted host configuration provides `enabledPacks`, `enabledCapabilities`,
-`backendFactories`, `target`, `allowWrites` and `timeoutMs`.
-See [the example configuration](examples/config.example.json) for enablement;
-it intentionally has no target and cannot dispatch until configured.
-
-Native guards, authorization, leases and lifecycle ownership remain mandatory.
-Top-level tool discovery does not prove an inner capability exists. Callers must
-not access uncurated backends directly to bypass a refusal.
-
-## Selection and update policy
-
-“Best” is assessed per semantic contract: target identity, validation,
-verification, save scope, completion, failure behavior and recovery. A memory
-edit is not a persisted edit; a file path is not an inspected image; a queued job
-is not finished work.
-
-Current reviewed source revisions are pinned in
-[catalog/upstreams.lock.json](catalog/upstreams.lock.json). New releases are
-replacement candidates, not automatic winners. Review and test the affected
-function before changing its route. Never silently fail over after a mutation.
-
-- [Implementation selections and limitations](docs/IMPLEMENTATION_SELECTION.md)
-- [Machine-readable decisions and exclusions](catalog/decisions.json)
-- [Canonical operations and schemas](catalog/operations.json)
-- [Full audit inventory](docs/audit/inventory.md)
-- [Integration acceptance checklist](docs/INTEGRATION_ACCEPTANCE.md)
+- [Runtime setup and supported transports](docs/RUNTIME_SETUP.md)
+- [Master skill guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md)
+- [Implementation decisions](docs/IMPLEMENTATION_SELECTION.md)
+- [Canonical operations](catalog/operations.json) and [source evidence](catalog/decisions.json)
+- [Compatibility patch manifest](catalog/compatibility-patches.json)
+- [Source audit inventory](docs/audit/inventory.md)
 - [Validation record](docs/VALIDATION.md)
-- [Third-party boundaries](THIRD_PARTY_NOTICES.md)
-
-## Safety and maturity
-
-Timeout, disconnect and malformed transport output fence further execution in
-that gateway instance. There is no model-callable reset. Reconcile editor state
-externally before deliberately restarting. Some native error replies can still
-describe partial changes; read the result and do not blindly rerun the mutation.
-
-The queue coordinates **only this process**. It is not a native game-thread lock,
-cross-process mutex, undo guarantee or cancellation mechanism.
-
-Tests use simulated backends. Native compilation, actual MCP transport wiring,
-live editor identity, engine-version compatibility and plugin coexistence remain
-unqualified. See the acceptance checklist before enabling real writes.
-
-### Execution outcomes
-
-Backend startup and read-only attestation run inside the serialized preparation
-stage. Refusals preserve their actual error codes and do not imply a dispatched
-editor edit. Preparation and dispatch each have a separate bounded deadline;
-late preparation completion cannot dispatch the operation. Factories and
-`supports` checks must not perform the requested mutation.
-
-After dispatch, timeout/disconnect/malformed transport output fences the queue.
-A normal UAP response reporting an outstanding queued start or incomplete stop
-also fences it and retains the original receipt. All further calls, including
-`pie.stop`, require external operator/host reconciliation before a new gateway
-instance is started. There is no automatic retry, fallback or reset tool.
+- [Live acceptance checklist](docs/INTEGRATION_ACCEPTANCE.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)

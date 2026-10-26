@@ -1,13 +1,15 @@
 # Integration acceptance checklist
 
-The routing core is tested without a live editor. These checks must precede
-claims that Nexus works end to end. Use a disposable copy of a representative
+The MCP host, transports and adapters are tested with fixtures, without a live
+editor. The live checks below must precede claims that Nexus works end to end.
+Use a disposable copy of a representative
 project, a recorded source pin, an identified editor instance, and explicit
 authority for every mutation.
 
 ## Adapter and identity gates
 
-- [ ] Implement stdio/Streamable HTTP adapters using a maintained MCP SDK.
+- [x] Implement stdio/Streamable HTTP adapters using a maintained MCP SDK;
+      protocol fixture tests pass. Explicit legacy SSE is also covered.
 - [ ] Use UE-MCP micro mode (`tools`), EngineWire `unreal`, and UAP's registered
       direct tools. Do not call internal functions as public MCP names.
 - [ ] Verify installed source revisions, protocol/schema versions and licences.
@@ -19,6 +21,11 @@ authority for every mutation.
 - [ ] Preserve errors, image blocks, resource links, progress and full metadata.
 - [ ] Forward native consent faithfully where needed; never fabricate a grant.
 - [ ] Reject stale identities after reconnect; do not auto-replay uncertain work.
+
+Implemented gates are covered in `VALIDATION.md`, but these unchecked items
+require observation in the actual editor and project. Native binary provenance,
+Windows listener/process inspection, loaded plugin coexistence and engine
+behavior are not established by Linux protocol/fixture tests.
 
 ## Functional matrix
 
@@ -44,15 +51,24 @@ authority for every mutation.
 
 ## Specialist adapter acceptance
 
-Claireon: call fixed internal functions through python_execute, safely encode
+Claireon adapters are implemented: call fixed internal functions through python_execute, safely encode
 arguments, frame exactly one JSON result and fail on missing/truncated/spilled
 output. Do not inherit proxy automatic mutation retry. Test native errors inside
-successful Python execution. Keep broad lifecycle autosave side effects explicit.
+successful Python execution. Require the exact no-autosave compatibility patch
+and live outer marker before even a schema probe. Test both outer autosave sites
+in the rebuilt native plugin; a clean source patch application is insufficient.
 
-Hayba: confirm the typed material route and full schema refinement. Do not allow
+Hayba: require the exact no-retry compatibility patch, fixed native TCP binding,
+direct read-only identity tool, typed material route and full schema refinement. Do not allow
 `hayba_invoke(via=ts)` to silently fall through to legacy dispatch. Require
 3/4 finite float32-range vector elements and actual verified/saved outcomes.
 Do not expose the native static-switch branch through a schema that lacks bool.
+
+UAP: require exact project/PID/RC binding, the complete live dispatch marker and
+the no-replay compatibility patch. Test dropped sockets after the actual editor
+begins executing, not only before connection. Confirm no duplicate start/stop,
+correct success-boolean handling and retained machine grant after uncertain
+Python failure. Reconcile/release the grant through the operator recovery path.
 
 Ivan: review component-level PolyForm Shield restrictions for RQL/Code-Exec before
 incorporation; the root Apache licence does not relicense vendored components.

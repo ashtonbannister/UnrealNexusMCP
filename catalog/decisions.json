@@ -67,6 +67,16 @@
           ],
           "note": "Waits on state but lacks the same queued-start cancellation.",
           "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorPlay.cpp#L9-L98"
+        },
+        {
+          "provider": "unrealagentplayer",
+          "path": "mcp-server/src/unreal_agent_player/transport.py",
+          "lines": [
+            377,
+            408
+          ],
+          "note": "Outer connection-reset retries can replay submitted Python; the reviewed compatibility delta also removes inner post-send resend and rediscovery fallthrough.",
+          "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/transport.py#L377-L408"
         }
       ],
       "excludedDefaults": [
@@ -101,7 +111,8 @@
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
         "Only PlayInViewport; no map_path interpolation or separate-window claim.",
-        "UAP Remote Control getters default some missing values; host qualification must test malformed responses."
+        "UAP Remote Control getters default some missing values; host qualification must test malformed responses.",
+        "The stock Python transport can replay after send and public exec_python checks the wrong success field. Require uap-nexus-no-replay-v1, exact project/PID/RC client binding and the live bridge_status marker."
       ]
     },
     {
@@ -570,13 +581,16 @@
     },
     {
       "id": "blueprint-compile-memory",
-      "status": "adapter-required",
+      "status": "selected",
       "scope": "Compile one Blueprint without saving; structured bounded compiler diagnostics.",
       "winner": {
         "provider": "claireon",
         "native": "python_execute -> claireon.bp_compile"
       },
-      "operations": [],
+      "operations": [
+        "blueprint.compile.memory.asset",
+        "blueprint.compile.memory.session"
+      ],
       "evidence": [
         {
           "provider": "claireon",
@@ -617,6 +631,26 @@
           ],
           "note": "Compiler helper may reset whole undo history.",
           "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Foundation/BridgeHelpers/Blueprints/McpBPDiag.h#L102-L137"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp",
+          "lines": [
+            566,
+            567
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp#L566-L567"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/ClaireonAutoSave.cpp",
+          "lines": [
+            14,
+            99
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/ClaireonAutoSave.cpp#L14-L99"
         }
       ],
       "excludedDefaults": [
@@ -644,18 +678,23 @@
       ],
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
-        "Adapter must call a fixed function, safely encode arguments and strictly parse marked results; no arbitrary Python exposure."
+        "Adapter must call a fixed function, safely encode arguments and strictly parse marked results; no arbitrary Python exposure.",
+        "Conditional on exact reviewed Claireon compatibility patch and live marker; native compile status is parsed from status-mode summary plus structured diagnostics, not invented upstream JSON status."
       ]
     },
     {
       "id": "material-parameter-strict",
-      "status": "adapter-required",
+      "status": "selected",
       "scope": "Existing global scalar/vector/texture parameter; finite value, actual readback and checked persistence.",
       "winner": {
         "provider": "hayba",
-        "native": "hayba_invoke -> material_set_param (typed route required)"
+        "native": "direct material_set_param (reviewed no-retry compatibility patch required)"
       },
-      "operations": [],
+      "operations": [
+        "material.parameter.scalar.persisted",
+        "material.parameter.vector.persisted",
+        "material.parameter.texture.persisted"
+      ],
       "evidence": [
         {
           "provider": "hayba",
@@ -676,6 +715,26 @@
           ],
           "note": "Read-only preflight, declared parameters, true readback, saved/dirty receipts.",
           "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPMaterialHandler.cpp#L1326-L1460"
+        },
+        {
+          "provider": "hayba",
+          "path": "mcp-tools/hayba-mcp/src/tools/tool-executor.ts",
+          "lines": [
+            83,
+            233
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/tool-executor.ts#L83-L233"
+        },
+        {
+          "provider": "hayba",
+          "path": "mcp-tools/hayba-mcp/src/tools/tool-executor.ts",
+          "lines": [
+            291,
+            346
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/tool-executor.ts#L291-L346"
         }
       ],
       "excludedDefaults": [
@@ -704,18 +763,22 @@
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
         "Require verified=true AND saved=true; failed persistence may leave memory changed.",
-        "Vectors must be 3 or 4 finite float32-range values; verify typed route exists and block Hayba legacy fallthrough."
+        "Vectors must be 3 or 4 finite float32-range values; verify typed route exists and block Hayba legacy fallthrough.",
+        "Unmodified pin is HELD: TS executor silently retries material_set_param after transport error. Only exact reviewed no-retry patch + required live direct typed marker qualifies; no legacy fallback."
       ]
     },
     {
       "id": "automation-tests",
-      "status": "adapter-required",
+      "status": "selected",
       "scope": "Strict asynchronous Unreal automation run and poll, with exact run identity and explicit incomplete outcomes.",
       "winner": {
         "provider": "claireon",
         "native": "python_execute -> claireon.test_run / test_poll"
       },
-      "operations": [],
+      "operations": [
+        "automation.tests.run",
+        "automation.tests.poll"
+      ],
       "evidence": [
         {
           "provider": "claireon",
@@ -778,18 +841,26 @@
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
         "Continue polling: gate has no autonomous expiry. Capture terminal result because it is emitted once.",
-        "Pin strict=true; expected tests and allowed skips must be explicit."
+        "Pin strict=true; expected tests and allowed skips must be explicit.",
+        "Optional fixed native strict test wrappers with run ownership and terminal report parsing; exact no-autosave compatibility required."
       ]
     },
     {
       "id": "trace-analysis",
-      "status": "adapter-required",
+      "status": "selected",
       "scope": "Analyze real Insights timing/frame providers from a captured trace, not file metadata.",
       "winner": {
         "provider": "claireon",
         "native": "python_execute -> trace_open / trace_get_top_scopes / trace_get_frame_stats / trace_close"
       },
-      "operations": [],
+      "operations": [
+        "insights.capture.start",
+        "insights.capture.stop",
+        "insights.trace.open",
+        "insights.trace.scopes",
+        "insights.trace.frames",
+        "insights.trace.close"
+      ],
       "evidence": [
         {
           "provider": "claireon",
@@ -830,6 +901,26 @@
           ],
           "note": "Null avg/p99/hitches in stop result.",
           "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/tools/perf.py#L49-L65"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStart.cpp",
+          "lines": [
+            54,
+            155
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_PIETraceStart.cpp#L54-L155"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStop.cpp",
+          "lines": [
+            29,
+            54
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_PIETraceStop.cpp#L29-L54"
         }
       ],
       "excludedDefaults": [
@@ -851,7 +942,8 @@
       ],
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
-        "Frame averages are returned-page statistics; game_thread_ms is frame duration here, not separately sampled CPU cost."
+        "Frame averages are returned-page statistics; game_thread_ms is frame duration here, not separately sampled CPU cost.",
+        "Optional fixed trace wrappers with owned capture/readers, bounded results and native caveats; exact no-autosave compatibility required."
       ]
     },
     {

@@ -7,8 +7,8 @@ import decisions from '../catalog/decisions.json' with {type:'json'};
 import {buildCall} from '../src/routing.mjs';
 
 const catalog=loadCatalog();
-test('all 16 exposed operations have a selected decision, source pin and valid example',()=>{
-  assert.equal(catalog.size,16);
+test('all 29 exposed operations have a selected decision, source pin and valid example',()=>{
+  assert.equal(catalog.size,29);
   for(const op of catalog.list()) {
     assert.equal(catalog.validate(op.id,op.example),op);
     assert.match(catalog.describe(op.id).source.commit,/^[a-f0-9]{40}$/);
@@ -83,6 +83,13 @@ test('unimplemented adapter or nonselected winner cannot become executable',()=>
   assert.throws(()=>new Catalog(doc,upstreams,ds),/selection evidence/);
   doc.operations[0].route.kind='raw-python';
   assert.throws(()=>new Catalog(doc,upstreams,decisions),/Unimplemented/);
+});
+test('specialist variants stay distinct and cannot remove their compatibility requirement',()=>{
+  const doc=structuredClone(operations);
+  const op=doc.operations.find(o=>o.id==='blueprint.compile.memory.asset');
+  assert.equal(catalog.get('blueprint.compile.memory.session').route.tool,op.route.tool);
+  delete op.requiredCompatibility;
+  assert.throws(()=>new Catalog(doc,upstreams,decisions),/compatibility requirement/);
 });
 test('search is bounded and returns canonical entries only',()=>{
   assert.ok(catalog.search('PCG').every(x=>typeof x.id==='string'));

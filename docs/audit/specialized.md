@@ -1,5 +1,7 @@
 # Specialized capability selection audit
 
+**Snapshot scope:** This report records the initial upstream source-selection review. Current adapter/patch availability is recorded in [implementation selection](../IMPLEMENTATION_SELECTION.md), [runtime setup](../RUNTIME_SETUP.md) and [the master guidance](../MASTER_SKILL_GUIDANCE_DRAFT.md). References below to an adapter still being required describe that original review stage.
+
 Source-reviewed draft, 2026-10-26. No live Unreal/native qualification.
 Selections are scoped; the executable catalogue remains authoritative.
 Adapter-required/conditional candidates are not callable defaults.

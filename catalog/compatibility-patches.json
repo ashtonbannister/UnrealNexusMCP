@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "reviewedOn": "2026-10-26",
+  "qualification": "Authored compatibility deltas, apply-checked against reviewed pins; no native Unreal compilation or runtime qualification.",
+  "patches": [
+    {
+      "id": "claireon-nexus-no-autosave-v1",
+      "provider": "claireon",
+      "baseCommit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+      "file": "patches/claireon-nexus-no-autosave.patch",
+      "sha256": "9856cd8b5a69cfd129574b8b331a6d0faebb8a400e0837df75b3738ff264861c",
+      "capabilityMarker": {
+        "tool": "python_execute",
+        "parameter": "nexus_skip_auto_save",
+        "type": "boolean",
+        "required": false,
+        "value": true
+      },
+      "files": [
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp",
+          "beforeSha256": "fe1882f87c619fbd0c51c80e56b5ba13833cb6462974652f1162b0008a171e2c",
+          "afterSha256": "e1a3e354e83f9e68f9ed6eb89effdf55e9230c2f8798e6239b257086f0041abe"
+        }
+      ],
+      "notes": [
+        "Optional explicit skip only; existing clients keep existing autosave defaults.",
+        "No suppression of explicit saves by native tools. Fixed Nexus wrappers do not call save/deferred-world-transition functions.",
+        "Requires native plugin rebuild; not compiled or tested in Unreal here."
+      ]
+    },
+    {
+      "id": "hayba-nexus-no-retry-v1",
+      "provider": "hayba",
+      "baseCommit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+      "file": "patches/hayba-nexus-no-retry.patch",
+      "sha256": "e60e4c5b3f2e0495a820ac53bfad52471a7018a1a95d31e6416834f10291f7b7",
+      "capabilityMarker": {
+        "tool": "material_set_param",
+        "parameter": "nexus_retry_policy",
+        "type": "string",
+        "required": true,
+        "value": "never"
+      },
+      "files": [
+        {
+          "path": "mcp-tools/hayba-mcp/src/tools/tool-executor.ts",
+          "beforeSha256": "78af1004a65ba5d08f4c987dafcfe3849dd6ce2919193db91485cece80a8214e",
+          "afterSha256": "de044e731def922dadf84b4305786794f46462fbd5662697b2a502ca2073e169"
+        },
+        {
+          "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts",
+          "beforeSha256": "7b9b5d08371cdffdc1d7f734a57a229d0f8a0bba329362e647dd564c06f5726e",
+          "afterSha256": "ce582ea264e0360bce4b8a9d63ee04c439c1198b9a21c8cfe6699a7cf1ce361b"
+        },
+        {
+          "path": "mcp-tools/hayba-mcp/src/tools/index.ts",
+          "beforeSha256": "71c5833bf97f50be9cc56c1d8313bb1261287656918e1696d74f2df45343ed59",
+          "afterSha256": "860ff852ef8d0e417d09784b85498fc76151fc31337c91a9dde4568e2217366c"
+        }
+      ],
+      "notes": [
+        "Only direct material_set_param typed route is approved; material pack must be exposed by trusted backend host.",
+        "The marker is required, validated, then stripped before native UE dispatch.",
+        "Original pin silently retries this mutation once on transport error; this patch disables that retry. Requires TS build."
+      ]
+    },
+    {
+      "id": "uap-nexus-no-replay-v1",
+      "provider": "unrealagentplayer",
+      "baseCommit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+      "file": "patches/uap-nexus-no-replay.patch",
+      "sha256": "a727f7677ea65b2d999815f3773018ee3cfb2dfbf0b43683f719c1c81159794d",
+      "capabilityMarker": {
+        "tool": "bridge_status",
+        "responseField": "nexus_python_dispatch",
+        "value": {
+          "attempts": 1,
+          "success_field": "success",
+          "post_send_replay": false,
+          "holds_machine_on_python_error": true
+        }
+      },
+      "files": [
+        {
+          "path": "mcp-server/src/unreal_agent_player/transport.py",
+          "beforeSha256": "679f823812f742b08ce47d12f0dc3a529cc1300bf18a02567a6a8c4323db5c09",
+          "afterSha256": "7975c635d4f8009646e45fc3aa9c8e5b8b727cdc00ef993dfd10a5922e4aec91"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/server.py",
+          "beforeSha256": "85de28d1969291baffbe7ad3d0cc53802ddf1d249a472d892938c84c2224a79e",
+          "afterSha256": "fe80ed67184801a61b41279e7c3e02ff216ebf8c4aa5cae5bfa2c24ebd706728"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/status.py",
+          "beforeSha256": "6dc3c5d57abcf1fe1fa6b5d0b77355d8d23ed2832dab1fb985b1b591950a0968",
+          "afterSha256": "3dca0a10cc253706bec470b269dfe8a59fa391303c5a17bb73ef42405879b537"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/python_exec.py",
+          "beforeSha256": "3ae4add23e722e5b8b5b364b232a7762585218e706d2cd01f6ffd93b9fb6276e",
+          "afterSha256": "067200d7a81a06c55e2e2898d05eaa0388f3daab3b624bc85407ddf5c6836299"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+          "beforeSha256": "923ded7d04c606cee171b8255cc9280c8e2f1be37a0f872bc4113d245a961b09",
+          "afterSha256": "ec8d8fc297153fd81c6d646627b034e4290a8627f01a2f008edfaf54322bc9c2"
+        }
+      ],
+      "notes": [
+        "Nexus MCP host must supply all NEXUS_UAP_PROJECT_FILE, NEXUS_UAP_EDITOR_PID, NEXUS_UAP_RC_PORT; stock no-env behavior is unchanged.",
+        "Nexus mode fixes exact project, editor PID and RC port, with live binding marker and single-dispatch semantics.",
+        "Pre-send discovery/connect retries remain; after any command send, absent/crossed/failed replies are never automatically replayed.",
+        "Public exec_python uses the actual wire success boolean instead of comparing the expression result string to success.",
+        "Requires exact reviewed installed-source delta plus live marker and independent native identity/listener checks. No live Unreal execution performed.",
+        "Nexus-mode PIE start retains its machine grant on any Python exception; operator must reconcile then explicitly stop/release before restarting the fenced gateway. No rollback is claimed."
+      ]
+    }
+  ]
+}

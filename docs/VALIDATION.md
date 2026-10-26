@@ -1,79 +1,140 @@
 # Validation record
 
-Date: 2026-10-26.
+Date: 2026-10-26. Current implementation: Nexus 0.2.0, on
+`codex/implementation-curation`.
 
-## Executed
+## Current gateway result
 
-- Source/default-branch HEAD recheck for all six upstream repositories:
-  all six reviewed pins still matched the current default-branch HEAD.
-- Source-evidence check: all 65 decision-register evidence entries and 114 unique
-  immutable source links across the catalogue/reports resolved to paths and valid
-  line ranges in the pinned local checkouts. Seven inventory file hashes matched.
-- All Markdown relative file links resolved within the intended commit tree.
-- Catalogue validation: 16 canonical operations, 23 decision groups, nine selected
-  groups, 25 excluded competing-default entries, six immutable source pins.
-- Node.js v24.22.1 execution of the repository's unit-test sources using simulated
-  backend factories: **47 tests passed, zero failed or skipped**.
-- Offline CLI smoke: exact-asset-save plan produced the fixed UE micro envelope
-  with dispatched=false and no backend startup.
+**`npm run check`: 154 passed, 0 failed, 0 cancelled, 0 skipped.**
 
-## Execution method
+Executed from the completed writable checkout using Node.js v24.22.1 on Linux,
+with the official pinned SDK dependencies installed. The final full run took
+approximately 6.1 seconds of Node test time. This was a real filesystem/package
+run, including fixture child processes and loopback HTTP servers.
 
-The workspace denied file writes. The final source/catalogue/test contents were
-therefore loaded directly into Node's module system in memory, without replacing
-the implementation modules with mocks. The backend transports were intentional
-test doubles. No dependency installation was required.
+The environment's ordinary sandbox blocked child-process/loopback operations;
+those protocol tests were rerun with the approved local process/network
+permissions. No Unreal editor or external production backend was contacted.
 
-This was not a successful filesystem invocation of `npm run check` in a completed
-checkout. The committed test command is `npm run check` and is intended to run on
-a normal writable checkout with Node 22+. The in-memory run exercised the same
-module and test source contents; it did not test Git checkout/file packaging.
+Catalogue validation also passed:
 
-## Coverage
+| Item | Result |
+|---|---:|
+| Canonical operations | 29 |
+| Decision groups | 23 |
+| Selected groups | 13 |
+| Competing-default exclusions | 25 |
+| Immutable upstream pins | 6 |
+| Current decision evidence entries with verified paths/line ranges | 72 |
 
-- One selected source route per canonical contract; no duplicate route aliases.
-- Unsupported/raw/Python/adapter-required operations are not callable.
-- Strict input subset, nonfinite values, fixed-selector overrides and extra fields.
-- Exact save scope; explicit world/player/run identities.
-- All-off defaults, per-pack selection and lazy per-provider startup/reuse.
-- Disabled capabilities, write gates and missing editor identity refuse before load.
-- Source-pin/editor/capability mismatches refuse before tool dispatch.
-- Preserved image blocks, warnings, structured fields and metadata.
-- UAP JSON errors, confirmed lifecycle conditions and PCG exact generated-run state.
-- Serialized work, queue admission limit, uncertain timeout/transport fences.
-- No automatic retry or alternate-provider fallback.
-- Request argument snapshotting and owned-backend closure.
+The CLI help and offline exact-asset-save plan passed; planning reported
+`dispatched: false`. Markdown relative links in the updated runtime/setup,
+master guidance, selection, acceptance and patch documents resolved. `git diff
+--check` passed.
 
-## Not executed / not established
+## What the tests establish
 
-No native plugin was compiled. No real Unreal editor, remote MCP server, Windows
-UI automation, rendering pipeline or live asset was exercised. No actual backend
-transport adapter is shipped in this change. Multi-plugin coexistence, native
-locks, engine compatibility, real source-install attestation, end-to-end undo,
-persistent files and gameplay behavior remain unqualified.
+### Real MCP transport and public server fixtures
 
-This record does not turn source-preferred candidates into production guarantees.
-Follow `INTEGRATION_ACCEPTANCE.md` before enabling real writes.
+- **14 transport tests:** actual stdio handshake/tool pagination, explicit child
+  environment inheritance, Streamable HTTP and explicit legacy SSE, multimodal
+  result preservation, startup/call/close bounds, cancellation and no request
+  replay after 401/500, redirects, timeout or dropped streams.
+- **13 front-door tests:** actual SDK clients access canonical tools, all guidance
+  resources and the workflow prompt over stdio/HTTP. Tests cover lazy loading,
+  read/write gates, bearer/Host/Origin/path/body checks, one shared queue across
+  separate HTTP clients, and a fence that survives subsequent HTTP requests.
+- The production `src/main.mjs` entrypoint was launched with the all-off example,
+  not just a fixture server factory. It advertised exactly three controls,
+  returned the master draft, loaded no providers and closed its actual child
+  process on stdin EOF.
+- Modern HTTP cancellation and original legacy POST disconnection reached the
+  backend signal and fenced dispatched work. A standalone legacy cancellation
+  notification is **not** claimed to cancel another stateless request instance.
+- A normal MCP error result containing UE's native `MACHINE_ERROR` timeout tail
+  preserved its original content and fenced another client's operation.
 
-## Independent regression review
+### Routing, configuration, identity and outcomes
 
-A second reviewer reproduced three defects in the intermediate core: pre-dispatch
-refusals incorrectly fenced the editor, native queued PIE timeouts did not fence
-it, and cloning arguments could invoke accessors before validation. All three
-were corrected and covered by the final passing tests. Preparation and dispatch
-are distinct phases; outstanding native lifecycle work preserves its result and
-fences subsequent calls; original inputs and array descriptors are validated
-before cloning.
+- Exactly one selected route per contract, explicit optional packs and all-off
+  defaults; no raw backend/Python/console tool in the public manifest.
+- Strict input subsets, immutable selectors, original-argument validation before
+  cloning, bounds and finite numbers, exact world/player/run/asset selectors.
+- Lazy per-provider startup, cached startup failure, source/target/capability
+  refusal before canonical dispatch and no alternate-provider fallback.
+- Configuration validation and source-proof checks, including untracked additions
+  and assume-unchanged/skip-worktree flags that can hide tracked edits.
+- The UAP launch bindings are derived from the attested target and explicit RC
+  endpoint, overriding stale environment values. Its module search path is fixed
+  to the verified source checkout.
+- **27 provider-probe tests:** source-derived schemas for all 12 UE routes, actual
+  selected EngineWire descriptor shape, UAP two-channel proof and required native
+  dependency/reflection checks, direct Claireon listener proof without Python,
+  and fixed read-only Hayba identity with listener corroboration.
+- A real Linux self-process start identity was observed. Windows process/listener
+  code is source-reviewed and fixture-covered; it was **not executed on Windows**.
+- **10 native outcome tests:** exact reviewed timeout/connection-loss and contained
+  fault/quarantine envelopes, bounded parsing, no recursive actor-data scanning,
+  preserved images and no assumption that an ordinary error proves rollback.
+- Queue admission, serialized preparation/dispatch, cancellation before dispatch,
+  late preparation, cancellation after dispatch, unknown-outcome fences and native
+  queued lifecycle receipts.
 
-Source inspection also showed that EngineWire's editor_viewport mode can select
-PIE. The canonical operation was renamed screenshot.viewport.current and its
-guidance preserves the actual view/shader-wait receipt.
+### Optional specialists and source patches
 
-Final test run: 47 passed, 0 failed, 0 skipped. Catalogue validation: 16 routes,
-23 decision groups, 9 selected groups, 25 competing-default exclusions and 6
-source pins. CLI plan smoke test passed without loading or dispatching a backend.
+- **25 specialist tests:** fixed recipes, safe argument encoding, nonce framing,
+  missing/ambiguous/spilled/truncated output, live schema drift, compiler
+  diagnostics/status, strict owned automation runs, capture/trace ownership,
+  bounded profiling pages, typed material readback/persistence, no generic
+  fallback and no implicit native cleanup on shutdown.
+- A generated fixed Python wrapper was actually parsed/executed by CPython with
+  injection-looking text supplied as data; it invoked one fake allowed callable.
+- All three compatibility patches pass `git apply --check` against pristine pins.
+  Exact patched temporary clones for Claireon, Hayba and UAP passed the actual
+  `verifySourceSnapshot` implementation. The corresponding missing-patch states
+  were rejected. Original upstream checkouts were not edited.
+- UAP's patch was applied in memory to exact source files and selected patched
+  methods were compiled into isolated Python namespaces with fake sockets/clients.
+  Tests demonstrated one send after timeout, EOF, foreign reply or send failure;
+  pre-send connection attempts remain allowed. They also checked exact project/PID
+  selectors, actual `success` boolean handling, live binding markers and retention
+  of the machine grant on uncertain Python failure.
 
-The independent reviewer reran focused probes on the corrected core and confirmed
-all three original findings fixed, including the late-preparation race. No new
-blocking regression was found within that focused review; this is not a claim of
-exhaustive correctness.
+For reproducing the complete run, provide `python3` and a pristine UAP checkout
+via `NEXUS_UAP_SOURCE_ROOT` or the documented sibling location. Without that
+snapshot the UAP isolated-method test skips explicitly; the recorded run had the
+snapshot and no skipped tests. No full upstream Python modules were imported.
+
+## Explicitly not established
+
+No Unreal native plugin was compiled or run. No production Hayba TypeScript build,
+real project asset, screenshot/rendering pipeline, gameplay run, Windows GUI,
+complete native automation run or actual Insights capture was exercised.
+
+A clean source checkout plus exact patch does not independently prove which
+compiled DLL/ignored build product is loaded. Live marker checks do not replace
+that deployment proof. Multi-plugin coexistence, engine-version compatibility,
+physical input, native locks under real contention, complete workflow behavior,
+disk persistence and undo remain live acceptance tasks.
+
+The one-process queue is not a cross-process mutex or native editor epoch lock.
+The reviewed UE micro path sends once after dispatch, but it can reconnect before
+sending or in the background through a new project lockfile port. There remains
+a race between per-call identity attestation and native execution. No universal
+exactly-once, atomic targeting or rollback guarantee is claimed.
+
+See `INTEGRATION_ACCEPTANCE.md` before describing these workflows as qualified in
+an actual editor/project.
+
+## Earlier source-curation baseline
+
+The preceding commit `9db3b105956902b08606c4b6a8e1d9e45bf9e367` contained the
+16-operation routing core and master draft. Its 47 tests were executed through
+an in-memory loader while that session's filesystem was read-only; no transport
+adapter was shipped then. The current implementation supersedes that execution
+method and adds the real protocol tests described above.
+
+That baseline rechecked all six reviewed pins against their default-branch HEADs
+and verified 65 decision evidence entries, 114 immutable source links and seven
+inventory hashes. This wiring change retains those pins and adds the reviewed
+compatibility deltas; it does not silently update to a newer upstream revision.

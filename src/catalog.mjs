@@ -1,6 +1,8 @@
 import operations from '../catalog/operations.json' with { type: 'json' };
 import upstreams from '../catalog/upstreams.lock.json' with { type: 'json' };
 import decisions from '../catalog/decisions.json' with { type: 'json' };
+import compatibility from '../catalog/compatibility-patches.json' with { type: 'json' };
+import { specialistNativeToolName } from './specialist-adapters.mjs';
 import { compileSchema } from './validation.mjs';
 import { NexusError } from './errors.mjs';
 
@@ -43,14 +45,24 @@ export class Catalog {
       if (!operation.contract || contracts.has(operation.contract)) throw new Error('Duplicate semantic contract');
       contracts.add(operation.contract);
       const route = operation.route;
+      let specialistRoute = false;
+      if (['claireon-specialist','hayba-specialist'].includes(route?.kind)) {
+        try { specialistRoute = specialistNativeToolName(operation) === route.tool; } catch { /* Invalid recipes remain uncallable. */ }
+        if (!operation.requiredCompatibility) throw new Error('Specialist route lacks reviewed compatibility requirement');
+      }
       const validRoute = (route?.kind === 'direct' && operation.provider === 'unrealagentplayer' && typeof route.tool === 'string')
         || (route?.kind === 'ue-micro' && operation.provider === 'ue-mcp' && typeof route.category === 'string' && typeof route.method === 'string')
-        || (route?.kind === 'enginewire' && operation.provider === 'enginewire' && typeof route.tool === 'string' && typeof route.action === 'string');
+        || (route?.kind === 'enginewire' && operation.provider === 'enginewire' && typeof route.tool === 'string' && typeof route.action === 'string')
+        || specialistRoute;
       if (!validRoute) throw new Error('Unimplemented provider/adapter for ' + operation.id);
       const routeKey = [operation.provider, route.kind, route.tool ?? route.category,
-        route.action ?? route.method ?? '', JSON.stringify(Object.entries(route.fixed ?? {}).sort())].join('|');
+        route.action ?? route.method ?? '', route.variant ?? '', JSON.stringify(Object.entries(route.fixed ?? {}).sort())].join('|');
       if (routes.has(routeKey)) throw new Error('Duplicate native route for ' + operation.id);
       routes.add(routeKey);
+      if (operation.requiredCompatibility && !compatibility.patches.some(p => p.id === operation.requiredCompatibility
+        && p.provider === operation.provider && p.baseCommit === this.upstreams.sources[operation.provider].commit)) {
+        throw new Error('Missing reviewed compatibility patch for ' + operation.id);
+      }
       if (operation.parameters.type !== 'object' || operation.parameters.additionalProperties !== false) {
         throw new Error('Parameters must reject unreviewed fields for ' + operation.id);
       }

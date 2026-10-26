@@ -5,7 +5,7 @@ import { BackendPool } from './backends.mjs';
 import { selectCapabilities } from './packs.mjs';
 import { NexusError } from './errors.mjs';
 
-// Canonical routing core, not a network-facing MCP server.
+// Canonical routing core shared by all connections to the MCP host.
 // Only trusted host code supplies backend factories, enablement and write grants.
 export class Gateway {
   #enabled;
@@ -66,7 +66,7 @@ export class Gateway {
       call: buildCall(operation, args), postconditions: operation.postconditions, dispatched: false };
   }
 
-  async execute(id, args = {}) {
+  async execute(id, args = {}, {signal} = {}) {
     if (this.#closed) throw new NexusError('GATEWAY_CLOSED', 'Gateway is closed.');
     this.#operation(id);
     this.catalog.validate(id, args); // Reject accessors before structuredClone can invoke them.
@@ -80,18 +80,19 @@ export class Gateway {
       throw new NexusError('WRITES_DISABLED', 'Mutations are disabled. Only trusted host/operator configuration may enable them.');
     }
     const result = await this.queue.run(async (backend) => {
-      return normalizeResult(operation, await backend.call(plan.call, this.timeoutMs), expectedArgs);
+      return normalizeResult(operation, await backend.call(plan.call, this.timeoutMs, {signal}), expectedArgs);
     }, {
-      effect:operation.effect, timeoutMs:this.timeoutMs, operation:id,
+      effect:operation.effect, timeoutMs:this.timeoutMs, operation:id, signal,
       prepare:async () => {
         if (this.#closed) throw new NexusError('GATEWAY_CLOSED', 'Gateway is closed.');
         const backend = await this.#pool.get(operation.provider);
         if (!backend.tools.has(nativeToolName(operation))) {
           throw new NexusError('BACKEND_SURFACE_MISMATCH', 'Selected public tool is not advertised; check surface mode.');
         }
-        if (await backend.supports(operation) !== true) {
+        if (await backend.supports(operation,{signal,timeoutMs:this.timeoutMs}) !== true) {
           throw new NexusError('CAPABILITY_UNAVAILABLE', 'Selected operation is not confirmed available in the connected editor.');
         }
+        await backend.preflight?.(plan.call);
         if (this.#closed) throw new NexusError('GATEWAY_CLOSED', 'Gateway closed during preparation.');
         return backend;
       },

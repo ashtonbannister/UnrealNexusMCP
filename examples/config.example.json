@@ -1,10 +1,10 @@
 {
-  "enabledPacks": [
-    "authoring-core",
-    "editor-observation"
-  ],
+  "version": 1,
+  "enabledPacks": [],
   "enabledCapabilities": [],
   "allowWrites": false,
   "timeoutMs": 120000,
-  "target": null
+  "target": null,
+  "server": { "transport": "stdio" },
+  "backends": {}
 }

@@ -16,25 +16,26 @@ capabilities individually or in packs. A backend factory starts only when an
 enabled capability assigned to it is executed. Listing, describing and planning
 do not start anything. Unused specialists impose no startup dependency.
 
-The catalogue keeps 16 executable routing contracts in nine selected groups.
-Four further groups have source-preferred candidates but need dedicated adapters.
-Other choices remain conditional, preserved variants or holds. The 25 excluded
+The catalogue now has 29 executable routing contracts in 13 selected groups.
+Thirteen optional specialist routes extend the original 16 core routes, with
+explicit reviewed compatibility requirements. Other choices remain conditional,
+preserved variants or holds. The 25 excluded
 default candidates are **not 25 deleted native functions**: some entries name a
 family or a behavior that must not be imported as Nexus's default.
 
 | Responsibility | Source-preferred implementation | State |
 |---|---|---|
-| Confirmed viewport PIE lifecycle | UnrealAgentPlayer | Selected, restricted schema |
+| Confirmed viewport PIE lifecycle | UnrealAgentPlayer | Selected, restricted schema; no-replay/target-binding patch required |
 | Current viewport image (editor or PIE) | EngineWire | Selected |
 | Exact PIE client capture with UMG | UE-MCP | Selected; host file output |
 | Exact actor/world inspection | UE-MCP | Selected |
 | Current level and exact package saves | UE-MCP | Selected; no broad-save selector |
 | Persisted PCG connection and run-aware generation | UE-MCP | Selected |
 | Explicit-world Enhanced Input and named holds | UE-MCP | Selected |
-| Blueprint compile without saving | Claireon | Adapter required |
-| Strict material parameter readback/save | Hayba | Adapter required |
-| Strict asynchronous engine automation | Claireon | Adapter required |
-| Real Insights timing/frame analysis | Claireon | Adapter required |
+| Blueprint compile without saving | Claireon | Optional fixed adapter; no-autosave patch required |
+| Strict material parameter readback/save | Hayba | Optional typed adapter; no-retry patch required |
+| Strict asynchronous engine automation | Claireon | Optional fixed adapter; no-autosave patch required |
+| Real Insights timing/frame analysis | Claireon | Optional fixed adapter; no-autosave patch required |
 
 “Selected” means best-supported **for the stated contract at the inspected
 revision**. It does not mean bug-free or proven in the user's engine/project.
@@ -75,20 +76,26 @@ failed mutation. Deprecate a canonical ID only if its contract itself changes.
 `authoring-core` and `editor-observation` are the suggested base selection,
 but all packs are off by default. `playtesting` adds UAP lifecycle and UE
 gameplay observations/input. Specialist packs for compile, strict materials,
-automation and Insights are explicit but blocked as adapter-required.
+automation and Insights are implemented and opt-in. Source patches and live
+markers are required before the affected routes can execute.
 
-Ivan's backend is not required by the first 16 routes. This is not a finding
+Ivan's backend is not required by the 29 selected routes. This is not a finding
 that every Ivan capability is redundant: isolated/camera rendering and queries
 are distinct. Component licensing must be assessed before incorporating its
 PolyForm Shield RQL/Code-Exec components. No such source is copied here.
 
 ## Runtime boundary
 
-This is a transport-independent routing core and offline catalogue CLI,
-**not an installed MCP server, working remote connector or merged Unreal plugin**.
-Host-supplied factories must connect the actual native MCP transports, verify the
-reviewed installation revision, attest the intended project/editor process
-instance, and confirm exact capability availability.
+The routing core now has a runnable MCP host, stdio/Streamable HTTP/explicit SSE
+backend transports, provider identity probes and fixed specialist adapters.
+The public server supports stdio and authenticated loopback HTTP. Its production
+runtime verifies source checkout/patch evidence, OS process identity, independent
+native/listener targeting and live capability availability. See
+[runtime setup](RUNTIME_SETUP.md) and [compatibility patches](../patches/README.md).
+
+This is not a merged native plugin or a remotely deployed connector. Source
+checkout hashes do not independently establish loaded native binary provenance,
+and per-call identity checks are not an atomic native editor-epoch lock.
 
 A public meta tool existing does not establish that an inner action is enabled.
 The core requires `supports(operation)` confirmation before dispatch, and keeps
@@ -118,9 +125,10 @@ warnings, per-package receipts, task IDs, images and partial-state diagnostics.
 - Actionable workflow draft: [master skill guidance](MASTER_SKILL_GUIDANCE_DRAFT.md).
 - Machine-readable routing: `catalog/operations.json`.
 - Decisions and rejected defaults: `catalog/decisions.json`.
-- Local test command: `npm run check` on Node 22+, no dependencies required.
+- Local test command: `npm ci --ignore-scripts` then `npm run check` on Node 22+.
 
-Gateway tests use simulated backends. No native Unreal plugin was compiled or
-run here. Engine-version compatibility, multi-plugin coexistence, schema
-availability, identity attestation and the end-to-end workflows remain live
-acceptance tasks. Nothing was installed in or changed in an Unreal project.
+Gateway tests include real protocol clients/processes/HTTP listeners backed by
+fixtures, source-derived schemas and isolated patched-method checks. No native
+Unreal plugin was compiled or run here. Engine-version compatibility,
+multi-plugin coexistence and complete end-to-end workflows remain live acceptance
+tasks. Nothing was installed in or changed in an Unreal project.

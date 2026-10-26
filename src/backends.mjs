@@ -58,7 +58,10 @@ export class BackendPool {
       this.#closed = true;
       this.#closePromise = (async () => {
         const results = await Promise.allSettled([...this.#promises.values()]);
-        await Promise.allSettled(results.filter((r) => r.status === 'fulfilled').map((r) => r.value.close?.()));
+        const closed = await Promise.allSettled(results.filter((r) => r.status === 'fulfilled').map((r) => r.value.close?.()));
+        if (closed.some(r => r.status === 'rejected')) {
+          throw new NexusError('BACKEND_CLEANUP_INCOMPLETE', 'One or more backend connections did not confirm shutdown. Inspect the host before restarting.');
+        }
       })();
     }
     return this.#closePromise;

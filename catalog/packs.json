@@ -37,35 +37,59 @@
         "input.action.hold.start",
         "input.action.hold.update",
         "input.action.hold.stop"
-      ]
+      ],
+      "requiredCompatibility": {
+        "unrealagentplayer": "uap-nexus-no-replay-v1"
+      }
     },
     {
       "id": "blueprint-compile",
       "optional": true,
-      "status": "adapter-required",
+      "status": "available-with-compatibility",
       "provider": "claireon",
-      "operations": []
+      "operations": [
+        "blueprint.compile.memory.asset",
+        "blueprint.compile.memory.session"
+      ],
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
     },
     {
       "id": "material-strict",
       "optional": true,
-      "status": "adapter-required",
+      "status": "available-with-compatibility",
       "provider": "hayba",
-      "operations": []
+      "operations": [
+        "material.parameter.scalar.persisted",
+        "material.parameter.vector.persisted",
+        "material.parameter.texture.persisted"
+      ],
+      "requiredCompatibility": "hayba-nexus-no-retry-v1"
     },
     {
       "id": "automation-tests",
       "optional": true,
-      "status": "adapter-required",
+      "status": "available-with-compatibility",
       "provider": "claireon",
-      "operations": []
+      "operations": [
+        "automation.tests.run",
+        "automation.tests.poll"
+      ],
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
     },
     {
       "id": "insights-analysis",
       "optional": true,
-      "status": "adapter-required",
+      "status": "available-with-compatibility",
       "provider": "claireon",
-      "operations": []
+      "operations": [
+        "insights.capture.start",
+        "insights.capture.stop",
+        "insights.trace.open",
+        "insights.trace.scopes",
+        "insights.trace.frames",
+        "insights.trace.close"
+      ],
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
     }
   ]
 }

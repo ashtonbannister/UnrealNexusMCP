@@ -49,7 +49,7 @@ test('packs enable capabilities without creating loaders or silently enabling sp
   assert.deepEqual(g.status().requiredProviders,['enginewire','ue-mcp']);
   assert.deepEqual(g.status().backends,[]);
   assert.ok(!g.list().some(x=>x.provider==='unrealagentplayer'));
-  assert.throws(()=>selectCapabilities(catalog,{enabledPacks:['material-strict']}),{code:'ADAPTER_REQUIRED'});
+  assert.equal(selectCapabilities(catalog,{enabledPacks:['material-strict']}).length,3);
   assert.throws(()=>selectCapabilities(catalog,{enabledPacks:['made-up']}),{code:'UNKNOWN_PACK'});
 });
 test('discovery and planning do not start providers; execution starts only its selected provider',async()=>{
@@ -111,6 +111,19 @@ test('PIE stop must report stopped and NotPlaying, not just transport success',a
   for(const body of [{ok:true,phase:'Playing',stopped:false},{ok:true,phase:'NotPlaying'}]) {
     const {gateway:g}=fixture({reply:()=>json(body)});
     assert.equal((await g.execute('pie.stop')).isError,true);
+  }
+});
+test('native UAP transport/runtime failure and missing lifecycle phase fence without retry',async()=>{
+  for(const body of [
+    {ok:false,error:{code:'UE_CONNECTION_RESET',message:'Socket closed'}},
+    {ok:false,phase:'NotPlaying',error:{code:'PYTHON_RUNTIME',message:'Script failed after dispatch'}},
+    {ok:true,playing:true},
+  ]) {
+    const {gateway:g,calls}=fixture({reply:()=>json(body)});
+    const out=await g.execute('pie.start.viewport');
+    assert.equal(out.isError,true);assert.equal(g.status().queue.blocked,true);
+    await assert.rejects(g.execute('pie.start.viewport'),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);
   }
 });
 test('UE JSON envelope tolerates attribution prose and still rejects native failures',async()=>{

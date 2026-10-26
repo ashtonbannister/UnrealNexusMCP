@@ -1,5 +1,7 @@
 # Capability inventory and audit index
 
+**Snapshot scope:** This report records the initial upstream source-selection review. Current adapter/patch availability is recorded in [implementation selection](../IMPLEMENTATION_SELECTION.md), [runtime setup](../RUNTIME_SETUP.md) and [the master guidance](../MASTER_SKILL_GUIDANCE_DRAFT.md). References below to an adapter still being required describe that original review stage.
+
 Reviewed 2026-10-26. Read-only source inspection, JSON parsing and Python AST
 literal extraction; no upstream modules were imported or executed.
 

@@ -1,5 +1,7 @@
 # World and asset selection audit
 
+**Snapshot scope:** This report records the initial upstream source-selection review. Current adapter/patch availability is recorded in [implementation selection](../IMPLEMENTATION_SELECTION.md), [runtime setup](../RUNTIME_SETUP.md) and [the master guidance](../MASTER_SKILL_GUIDANCE_DRAFT.md). References below to an adapter still being required describe that original review stage.
+
 Review date: 2026-10-26. Static source review, not Unreal runtime validation.
 The target initially contained only LICENSE. Exclusions concern competing Nexus
 defaults, not upstream safety internals.

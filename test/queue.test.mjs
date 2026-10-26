@@ -61,3 +61,30 @@ test('late preparation cannot dispatch after preparation deadline',async()=>{
   await q.run(async()=>{calls++;},options());
   assert.equal(calls,1);
 });
+test('cancellation while queued never prepares or dispatches that call',async()=>{
+  const q=new EditorQueue();const abort=new AbortController();let release,prepared=0,called=0;
+  const first=q.run(()=>new Promise(r=>{release=r;}),options('first'));
+  const cancelled=q.run(()=>{called++;},{...options('cancelled'),signal:abort.signal,prepare:()=>{prepared++;}});
+  const rejection=assert.rejects(cancelled,{code:'REQUEST_CANCELLED'});
+  await new Promise(r=>setImmediate(r));abort.abort();release();
+  await Promise.all([first,rejection]);
+  assert.equal(prepared,0);assert.equal(called,0);assert.equal(q.status.blocked,false);
+});
+test('cancellation during preparation discards late success without dispatch or fence',async()=>{
+  const q=new EditorQueue();const abort=new AbortController();let finish,called=0;
+  const job=q.run(()=>{called++;},{...options(),signal:abort.signal,prepare:()=>new Promise(r=>{finish=r;})});
+  const rejection=assert.rejects(job,{code:'REQUEST_CANCELLED'});
+  await new Promise(r=>setImmediate(r));abort.abort();await rejection;
+  finish({});await new Promise(r=>setImmediate(r));
+  assert.equal(called,0);assert.equal(q.status.blocked,false);
+});
+test('cancellation after dispatch fences further work even if the backend later completes',async()=>{
+  const q=new EditorQueue();const abort=new AbortController();let finish,called=0;
+  const job=q.run(()=>{called++;return new Promise(r=>{finish=r;});},{...options('mutate'),signal:abort.signal});
+  const rejection=assert.rejects(job,{code:'EDITOR_OUTCOME_UNKNOWN'});
+  await new Promise(r=>setImmediate(r));abort.abort();await rejection;
+  assert.equal(q.status.blocked,true);assert.equal(q.status.reason.code,'REQUEST_CANCELLED');
+  finish({ok:true});await new Promise(r=>setImmediate(r));
+  await assert.rejects(q.run(()=>{called++;},options()),{code:'EDITOR_OUTCOME_UNKNOWN'});
+  assert.equal(called,1);
+});
