@@ -172,8 +172,11 @@ separate decisions.
   further work rather than retrying or assuming an input was omitted.
 - Decide force intentionally: unmarked-dirty edits may need force=true, but
   ordinary save should not silently resave unrelated clean assets.
-- Current-level save acts on the currently edited level, not a supplied map
-  path. Verify that target first. Loaded external packages are included. The
+- `level.save.current` is held before dispatch: the native handler has no atomic
+  expected-level/world precondition and can mutate landscape before selecting
+  the current level. A prior target check cannot prevent a direct-client race.
+  A future reviewed route must compare the target before any mutation. Loaded
+  external packages are included. The
   native save may delete dirty, empty external actor/object package files even
   with commitDeletes=false. It requires explicit trusted-host
   `allowLevelExternalPackageDeletion: true` in addition to `allowWrites`;

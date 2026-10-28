@@ -26756,9 +26756,30 @@
       "category": "trace",
       "operation": "get_scope_details",
       "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetScopeDetails.cpp",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization.",
+      "canonicalRouteReferences": [],
+      "blockReason": "The internal handler accepts and touches a global trace session ID without a caller-ownership check, builds an aggregation and sorts all matching rows before applying maxResults. Its callers and callees arrays are always empty placeholders.",
+      "reopeningCondition": "Review a distinct owner- and editor-epoch-bound scope-details contract with bounded work and output, honest returned-page aggregation and explicit unsupported call-graph fields, plus live evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetScopeDetails.cpp",
+          "lines": [
+            98,
+            233
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/ClaireonTraceSession.cpp",
+          "lines": [
+            142,
+            163
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",
@@ -26767,9 +26788,30 @@
       "category": "trace",
       "operation": "get_session_info",
       "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetSessionInfo.cpp",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization.",
+      "canonicalRouteReferences": [],
+      "blockReason": "The internal handler accepts a global trace session ID without a caller-ownership check and enumerates metadata and a capture manifest without an explicit output bound. Native FindSession touches or removes the selected global session.",
+      "reopeningCondition": "Review a distinct owner- and editor-epoch-bound session-information contract with bounded metadata, explicit unavailable or partial fields, sensitive-path handling and live evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetSessionInfo.cpp",
+          "lines": [
+            45,
+            116
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/ClaireonTraceSession.cpp",
+          "lines": [
+            142,
+            163
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",
@@ -26778,9 +26820,30 @@
       "category": "trace",
       "operation": "get_threads",
       "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetThreads.cpp",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization.",
+      "canonicalRouteReferences": [],
+      "blockReason": "The internal handler accepts a global trace session ID without a caller-ownership check and materializes all enumerated threads without an output or pagination bound. Native FindSession touches or removes the selected global session.",
+      "reopeningCondition": "Review a distinct owner- and editor-epoch-bound thread-discovery contract with bounded enumeration, explicit truncation and live evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetThreads.cpp",
+          "lines": [
+            43,
+            91
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/ClaireonTraceSession.cpp",
+          "lines": [
+            142,
+            163
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",

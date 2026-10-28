@@ -294,7 +294,7 @@
     },
     {
       "id": "level.save.current",
-      "description": "Save the current level and loaded external packages; may delete dirty empty external actor/object package files. Requires an explicit host deletion grant. The broad commitDeletes sweep remains disabled.",
+      "description": "Held before dispatch: the native save cannot atomically verify the intended current level before mutating; it can delete dirty empty external packages.",
       "provider": "ue-mcp",
       "decision": "level-save",
       "effect": "write",

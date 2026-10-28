@@ -185,12 +185,13 @@ test('runtime passes the separate level external package deletion grant to the g
   const {events,adapters}=fixture();
   const raw={version:1,target,allowWrites:true,enabledCapabilities:['level.save.current'],backends:{'ue-mcp':backend()}};
   const denied=await createRuntime(parseConfig(raw),adapters);
-  await assert.rejects(denied.gateway.execute('level.save.current',{}),{code:'LEVEL_EXTERNAL_PACKAGE_DELETION_DISABLED'});
+  await assert.rejects(denied.gateway.execute('level.save.current',{}),{code:'LEVEL_SAVE_TARGET_UNVERIFIED'});
   assert.equal(events.filter(e=>e[0]==='connect').length,0);
   await denied.close();
   const allowed=await createRuntime(parseConfig({...raw,allowLevelExternalPackageDeletion:true}),adapters);
-  await allowed.gateway.execute('level.save.current',{});
-  assert.equal(events.filter(e=>e[0]==='call').length,1);
+  await assert.rejects(allowed.gateway.execute('level.save.current',{}),{code:'LEVEL_SAVE_TARGET_UNVERIFIED'});
+  assert.equal(events.filter(e=>e[0]==='call').length,0);
+  assert.equal(events.filter(e=>e[0]==='connect').length,0);
   assert.equal(allowed.status().allowLevelExternalPackageDeletion,true);
   await allowed.close();
 });

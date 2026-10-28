@@ -67,6 +67,8 @@ test('blocked source records require owner, reason, reopening condition and pinn
   const blocked=coverage.entries.filter(e=>e.disposition==='blocked');
   const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
   for(const name of ['perf_stat','pie_pause','pie_resume','screenshot_viewport','log_tail','log_since','helper_list','actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_list','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
+  const blockedClaireon=new Set(blocked.filter(e=>e.provider==='claireon').map(e=>e.sourceEntry));
+  for(const name of ['trace_get_threads','trace_get_session_info','trace_get_scope_details']) assert.ok(blockedClaireon.has(name));
   assert.equal(validateCapabilityCoverage().status,'partial-unreviewed');
   for (const change of [
     row=>{row.blockReason='';}, row=>{row.reopeningCondition='';},

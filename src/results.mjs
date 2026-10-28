@@ -23,6 +23,13 @@ function payloadOf(result) {
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const nonempty = value => typeof value === 'string' && value.length > 0;
 const count = value => Number.isSafeInteger(value) && value >= 0;
+// Only ASCII spaces at the end are normalized. Unreal's treatment of other
+// Unicode whitespace is not established for the selected engine.
+const savePath = value => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.replace(/ +$/u, '');
+  return trimmed === value.trim() ? trimmed : null;
+};
 function coherentExactAssetSave(payload, args, isFailure = false) {
   if (!Array.isArray(args.assetPaths) || !args.assetPaths.length || !Array.isArray(payload.results)
     || payload.results.length < 1 || payload.results.length > args.assetPaths.length
@@ -33,7 +40,9 @@ function coherentExactAssetSave(payload, args, isFailure = false) {
     || Object.hasOwn(payload,'refused') || payload.rollbackPossible !== false || !nonempty(payload.rollbackNote)) return false;
   if (payload.savedCount > 0 ? payload.updated !== true || Object.hasOwn(payload,'unchanged')
     : payload.updated !== false || payload.unchanged !== true) return false;
-  const requested = new Set(args.assetPaths.map(path => typeof path === 'string' ? path.trim() : path));
+  const normalized = args.assetPaths.map(savePath);
+  if (normalized.includes(null)) return false;
+  const requested = new Set(normalized);
   if (payload.results.length !== requested.size) return false;
   const paths = new Set(), packages = new Set();
   let saved = 0, clean = 0, failed = 0;
@@ -65,9 +74,17 @@ function exactAssetPreflightRefusal(payload, args) {
   if (!Array.isArray(args.assetPaths) || !args.assetPaths.length || !Array.isArray(payload.refused)
     || !payload.refused.length || payload.refused.length > args.assetPaths.length
     || Object.keys(payload).length !== 3 || !nonempty(payload.error)) return false;
-  const requested = new Set(args.assetPaths.map(path => typeof path === 'string' ? path.trim() : path));
-  if (!payload.refused.every(row => record(row) && nonempty(row.path) && requested.has(row.path)
-    && row.status === 'refused' && nonempty(row.reason))) return false;
+  const remaining = new Map();
+  for (const path of args.assetPaths) {
+    const normalized = savePath(path);
+    if (normalized === null) return false;
+    remaining.set(normalized, (remaining.get(normalized) ?? 0) + 1);
+  }
+  for (const row of payload.refused) {
+    if (!record(row) || !nonempty(row.path) || row.status !== 'refused' || !nonempty(row.reason)
+      || !remaining.get(row.path)) return false;
+    remaining.set(row.path, remaining.get(row.path) - 1);
+  }
   const first = payload.refused[0];
   return payload.error === `${payload.refused.length} of ${args.assetPaths.length} assetPaths cannot be saved, so nothing was written. The first: '${first.path}' - ${first.reason}`;
 }

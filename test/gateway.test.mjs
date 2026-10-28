@@ -292,27 +292,20 @@ test('backend contract refusal reports failed cleanup on shutdown',async()=>{
 });
 
 
-test('current-level save requires a separate host deletion grant before backend startup',async()=>{
-  const options={config:{enabledCapabilities:['level.save.current']}};
-  const denied=fixture(options);
-  await assert.rejects(denied.gateway.execute('level.save.current',{}),{code:'LEVEL_EXTERNAL_PACKAGE_DELETION_DISABLED'});
-  assert.deepEqual(denied.starts,[]);assert.deepEqual(denied.calls,[]);
-  assert.equal(denied.gateway.status().allowLevelExternalPackageDeletion,false);
-  assert.throws(()=>denied.gateway.plan('level.save.current',{allowLevelExternalPackageDeletion:true}),{code:'INVALID_ARGUMENTS'});
-  const receipt=json({...levelReceipt(),deletedCount:1,deleted:[{package:'/Game/Map/__ExternalActors__/A',emptyPackage:true,deleted:true}],rollbackPossible:false,rollbackNote:'The previous package files cannot be restored.'});
-  const granted=fixture({config:{enabledCapabilities:['level.save.current'],allowLevelExternalPackageDeletion:true},reply:()=>receipt});
-  const out=await granted.gateway.execute('level.save.current',{});
-  assert.deepEqual(out.content,receipt.content);
-  assert.equal(granted.gateway.status().allowLevelExternalPackageDeletion,true);
-  assert.deepEqual(granted.calls[0].call.arguments.args,{commitDeletes:false,includeExternalActors:true});
-  assert.equal(granted.calls.length,1);
-  await granted.gateway.close();
+test('current-level save stays held regardless of the separate host deletion grant',async()=>{
+  for(const grant of [false,true]) {
+    const {gateway:g,starts,calls}=fixture({config:{enabledCapabilities:['level.save.current'],allowLevelExternalPackageDeletion:grant}});
+    assert.equal(g.plan('level.save.current',{}).dispatched,false);
+    await assert.rejects(g.execute('level.save.current',{}),{code:'LEVEL_SAVE_TARGET_UNVERIFIED'});
+    assert.equal(g.status().allowLevelExternalPackageDeletion,grant);
+    assert.deepEqual(g.status().heldCapabilities,[{id:'level.save.current',reason:'native save cannot atomically verify the intended current level before mutation'}]);
+    assert.throws(()=>g.plan('level.save.current',{allowOverride:true}),{code:'INVALID_ARGUMENTS'});
+    assert.deepEqual(starts,[]);assert.deepEqual(calls,[]);await g.close();
+  }
   const readOnly=fixture({config:{enabledCapabilities:['level.save.current'],allowWrites:false,allowLevelExternalPackageDeletion:true}});
   await assert.rejects(readOnly.gateway.execute('level.save.current',{}),{code:'WRITES_DISABLED'});
-  assert.deepEqual(readOnly.starts,[]);
+  assert.deepEqual(readOnly.starts,[]);await readOnly.gateway.close();
 });
-
-
 test('persisted PCG connection requires verified edge and explicit successful save receipt',async()=>{
   const args={assetPath:'/Game/PCG/Graph',sourceNode:'A',sourcePin:'Out',targetNode:'B',targetPin:'In'};
   const identity={assetPath:args.assetPath,sourceNodeName:args.sourceNode,targetNodeName:args.targetNode,
@@ -495,20 +488,22 @@ test('exact asset save fences ambiguous aliases and malformed receipt evidence',
   }
 });
 
+function saveReceiptQueue(id,args,reply) {
+  const queue=new EditorQueue(),calls=[];
+  return {queue,calls,run:()=>queue.run(async()=>{calls.push(id);return normalizeResult(catalog.get(id),reply,args);},
+    {effect:'write',timeoutMs:1000,operation:id,isUncertain:out=>out._meta['unreal-nexus/result-policy'].outcomeUnknown})};
+}
+
 test('current-level save requires coherent counts and package receipt rows',async()=>{
   const valid={...levelReceipt(),deletedCount:1,deleted:[{package:'/Game/Demo/__ExternalActors__/A',emptyPackage:true,deleted:true}],rollbackPossible:false,rollbackNote:'The previous package files cannot be restored.'};
-  const opts={config:{enabledCapabilities:['level.save.current'],allowLevelExternalPackageDeletion:true}};
-  const ok=fixture({...opts,reply:()=>json(valid)});
-  assert.notEqual((await ok.gateway.execute('level.save.current',{})).isError,true);
-  assert.equal(ok.gateway.status().queue.blocked,false);await ok.gateway.close();
+  const ok=saveReceiptQueue('level.save.current',{},json(valid));
+  assert.notEqual((await ok.run()).isError,true);assert.equal(ok.queue.status.blocked,false);
   const neverOnDisk={...valid,deleted:[{package:'/Game/Demo/__ExternalActors__/A',emptyPackage:true,deleted:false,neverOnDisk:true}]};
-  const clean=fixture({...opts,reply:()=>json(neverOnDisk)});
-  assert.notEqual((await clean.gateway.execute('level.save.current',{})).isError,true);
-  assert.equal(clean.gateway.status().queue.blocked,false);await clean.gateway.close();
+  const clean=saveReceiptQueue('level.save.current',{},json(neverOnDisk));
+  assert.notEqual((await clean.run()).isError,true);assert.equal(clean.queue.status.blocked,false);
   const written={...levelReceipt(),saved:[{package:'/Game/Demo',saved:true}],savedCount:1,skipped:undefined,skippedCount:0,rollbackPossible:false,rollbackNote:'The previous package files cannot be restored.'};
-  const saved=fixture({...opts,reply:()=>json(written)});
-  assert.notEqual((await saved.gateway.execute('level.save.current',{})).isError,true);
-  assert.equal(saved.gateway.status().queue.blocked,false);await saved.gateway.close();
+  const saved=saveReceiptQueue('level.save.current',{},json(written));
+  assert.notEqual((await saved.run()).isError,true);assert.equal(saved.queue.status.blocked,false);
   for(const body of [
     {success:true},
     {...valid,levelPackage:undefined},
@@ -525,19 +520,19 @@ test('current-level save requires coherent counts and package receipt rows',asyn
     {...valid,saved:[{package:'/Game/Demo/__ExternalActors__/A',saved:true}],savedCount:1},
   ]) {
     const reply={...json(body),_meta:{'fixture/original':'preserved'}};
-    const {gateway:g,calls}=fixture({...opts,reply:()=>reply});
-    const out=await g.execute('level.save.current',{});
+    const {queue,calls,run}=saveReceiptQueue('level.save.current',{},reply);
+    const out=await run();
     assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);
     assert.equal(out._meta['fixture/original'],'preserved');
     assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
-    await assert.rejects(g.execute('level.save.current',{}),{code:'EDITOR_OUTCOME_UNKNOWN'});
-    assert.equal(calls.length,1);await g.close();
+    await assert.rejects(run(),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);
   }
   const contradictory={...json(valid),isError:true};
-  const conflict=fixture({...opts,reply:()=>contradictory});
-  const out=await conflict.gateway.execute('level.save.current',{});
+  const conflict=saveReceiptQueue('level.save.current',{},contradictory);
+  const out=await conflict.run();
   assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
-  assert.equal(conflict.gateway.status().queue.blocked,true);await conflict.gateway.close();
+  assert.equal(conflict.queue.status.blocked,true);
 });
 
 test('reported native partial save failures stay visible as failures without retry',async()=>{
@@ -546,12 +541,12 @@ test('reported native partial save failures stay visible as failures without ret
     ['level.save.current',{}, {...levelReceipt(),success:false,skipped:undefined,skippedCount:0,failedCount:1,failed:[{package:'/Game/Demo',saved:false,error:'read only'}],error:'read only'}],
   ]) {
     const reply={...json(body),_meta:{'fixture/original':'preserved'}};
-    const {gateway:g,calls}=fixture({config:{enabledCapabilities:[id],allowLevelExternalPackageDeletion:true},reply:()=>reply});
-    const out=await g.execute(id,args);
+    const {queue,calls,run}=saveReceiptQueue(id,args,reply);
+    const out=await run();
     assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);
     assert.equal(out._meta['fixture/original'],'preserved');
     assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
-    assert.equal(g.status().queue.blocked,false);assert.equal(calls.length,1);await g.close();
+    assert.equal(queue.status.blocked,false);assert.equal(calls.length,1);
   }
 });
 
@@ -562,10 +557,10 @@ test('source-shaped save preflight refusals remain known failures',async()=>{
     ['asset.save.exact',{assetPaths:[path]},{success:false,error:"1 of 1 assetPaths cannot be saved, so nothing was written. The first: '/Game/A' - not loaded",refused:[{path,status:'refused',reason:'not loaded'}]}],
     ['level.save.current',{},{success:false,error:'Play In Editor is running; stop it before saving the level. Saving during PIE is what produced an unexplained failure before.'}],
   ]) {
-    const {gateway:g,calls}=fixture({config:{enabledCapabilities:[id],allowLevelExternalPackageDeletion:true},reply:()=>json(body)});
-    const out=await g.execute(id,args);
+    const {queue,calls,run}=saveReceiptQueue(id,args,json(body));
+    const out=await run();
     assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
-    assert.equal(g.status().queue.blocked,false);assert.equal(calls.length,1);await g.close();
+    assert.equal(queue.status.blocked,false);assert.equal(calls.length,1);
   }
 });
 
@@ -581,12 +576,12 @@ test('unrecognized or contradictory save failures fence subsequent editor work',
     ['level.save.current',{}, {...levelReceipt(),success:false,failedCount:1,failed:[{package:'/Game/Demo',saved:false,error:'read only'}],error:'save failed'}],
   ]) {
     const reply={...json(body),_meta:{'fixture/original':'preserved'}};
-    const {gateway:g,calls}=fixture({config:{enabledCapabilities:[id],allowLevelExternalPackageDeletion:true},reply:()=>reply});
-    const out=await g.execute(id,args);
+    const {queue,calls,run}=saveReceiptQueue(id,args,reply);
+    const out=await run();
     assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);assert.equal(out._meta['fixture/original'],'preserved');
     assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
-    await assert.rejects(g.execute(id,args),{code:'EDITOR_OUTCOME_UNKNOWN'});
-    assert.equal(calls.length,1);await g.close();
+    await assert.rejects(run(),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);
   }
 });
 
@@ -950,4 +945,27 @@ test('material texture mutation stays held without source-backed target and read
   assert.equal(starts,0);
   assert.equal(g.status().heldCapabilities[0].id,id);
   await g.close();
+});
+
+
+test('asset preflight refusal preserves normalized input multiplicity',async()=>{
+  const row={path:'/Game/A',status:'refused',reason:'not loaded'};
+  const body={success:false,refused:[row,row],error:"2 of 2 assetPaths cannot be saved, so nothing was written. The first: '/Game/A' - not loaded"};
+  const reply={...json(body),_meta:{'fixture/original':'retained'}};
+  const wrong=fixture({config:{enabledCapabilities:['asset.save.exact']},reply:()=>reply});
+  const bad=await wrong.gateway.execute('asset.save.exact',{assetPaths:['/Game/A','/Game/B']});
+  assert.equal(bad.isError,true);assert.deepEqual(bad.content,reply.content);
+  assert.equal(bad._meta['fixture/original'],'retained');
+  assert.equal(bad._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+  await assert.rejects(wrong.gateway.execute('asset.save.exact',{assetPaths:['/Game/A','/Game/B']}),{code:'EDITOR_OUTCOME_UNKNOWN'});
+  assert.equal(wrong.calls.length,1);await wrong.gateway.close();
+  const alias=fixture({config:{enabledCapabilities:['asset.save.exact']},reply:()=>reply});
+  const known=await alias.gateway.execute('asset.save.exact',{assetPaths:['/Game/A','/Game/A ']});
+  assert.equal(known.isError,true);assert.equal(known._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
+  assert.equal(alias.gateway.status().queue.blocked,false);assert.equal(alias.calls.length,1);await alias.gateway.close();
+  const unicode=fixture({config:{enabledCapabilities:['asset.save.exact']},reply:()=>json({
+    success:false,refused:[row],error:"1 of 1 assetPaths cannot be saved, so nothing was written. The first: '/Game/A' - not loaded"})});
+  const ambiguous=await unicode.gateway.execute('asset.save.exact',{assetPaths:['/Game/A\u00a0']});
+  assert.equal(ambiguous._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+  assert.equal(unicode.gateway.status().queue.blocked,true);await unicode.gateway.close();
 });

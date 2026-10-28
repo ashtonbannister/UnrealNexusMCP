@@ -81,7 +81,11 @@ Copy `examples/config.authoring.example.json` to a host-owned file such as
 packs select UE-MCP and EngineWire; remove either pack and its backend if unused.
 You may instead set `enabledCapabilities` to individual IDs. Writes/lifecycle
 actions require `allowWrites: true`; this host setting does not replace the
-user's task-specific authority. `level.save.current` can delete dirty, empty
+user's task-specific authority. `level.save.current` is held before dispatch:
+its native handler cannot atomically compare the intended current level before
+any mutation. A direct client's level change can race a separate target check.
+The separate deletion grant is retained for a future reviewed native route and
+cannot bypass this hold. The native operation can delete dirty, empty
 external actor/object package files even when `commitDeletes` is false. It also
 requires the separate host setting `allowLevelExternalPackageDeletion: true`,
 which defaults to false. Grant it only when that scoped deletion is authorized.

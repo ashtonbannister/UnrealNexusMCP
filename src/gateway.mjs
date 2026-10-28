@@ -8,6 +8,7 @@ import { NexusError } from './errors.mjs';
 // These reviewed routes remain held where native target or ownership
 // boundaries cannot be established before dispatch.
 const held = new Map([
+  ['level.save.current',{code:'LEVEL_SAVE_TARGET_UNVERIFIED',reason:'native save cannot atomically verify the intended current level before mutation'}],
   ...['pie.start.viewport','pie.stop','pie.status'].map(id =>
     [id,{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED',reason:'native PIE ownership and phase attestation unverified'}]),
   ['screenshot.pie',{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED',reason:'native output ownership and target identity unverified'}],
@@ -100,16 +101,14 @@ export class Gateway {
     if (operation.effect !== 'read' && !this.allowWrites) {
       throw new NexusError('WRITES_DISABLED', 'Mutations are disabled. Only trusted host/operator configuration may enable them.');
     }
-    // This native save can delete dirty, empty external package files even
-    // with commitDeletes=false. Only trusted host configuration grants it.
+    // Held routes cannot establish their required target or ownership before mutation.
+    const hold = held.get(id);
+    if (hold) throw new NexusError(hold.code, 'Capability is held: ' + hold.reason + '.');
+    // Retain the separate host deletion grant for a future reviewed level-save route.
     if (id === 'level.save.current' && !this.#allowLevelExternalPackageDeletion) {
       throw new NexusError('LEVEL_EXTERNAL_PACKAGE_DELETION_DISABLED',
         'Current-level save may delete dirty empty external actor/object package files. An explicit host grant is required.');
     }
-    // The native screenshot and hold routes do not establish the required
-    // physical-output or local hold-ownership boundaries before mutation.
-    const hold = held.get(id);
-    if (hold) throw new NexusError(hold.code, 'Capability is held: ' + hold.reason + '.');
     const result = await this.queue.run(async (backend) => {
       return normalizeResult(operation, await backend.call(plan.call, this.timeoutMs, {signal}), expectedArgs);
     }, {
