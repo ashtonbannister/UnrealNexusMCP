@@ -4,6 +4,10 @@ Status: workflow-authoring draft, not an installed skill. Review date: 2026-10-2
 The implementation comparisons are source-backed; live Unreal qualification is
 pending. “Selected” is a scoped winning candidate, not a universal guarantee.
 
+Development priorities and planned capabilities are tracked in the
+[master roadmap](../MASTER_ROADMAP.md). A planned operation is not callable unless
+it is present in the canonical catalogue and enabled by host configuration.
+
 ## 0. Governing contract
 
 **Trigger:** any request to inspect, create, change, test or profile an Unreal

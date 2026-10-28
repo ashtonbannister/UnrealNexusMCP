@@ -13,6 +13,15 @@ The protocol integration is tested with real MCP clients and fixture backends.
 **Native Unreal compilation and live editor qualification remain pending.** This
 repository does not merge or install the upstream Unreal plugins.
 
+## Roadmap and current work
+
+The [master roadmap](MASTER_ROADMAP.md) defines priorities, dependencies, owner
+roles and completion evidence. Its [capability backlog](docs/CAPABILITY_BACKLOG.md)
+covers authoring beyond the current 29 operations, and the
+[native qualification plan](docs/QUALIFICATION_PLAN.md) maps every current
+operation to required live evidence. The two open gateway reliability findings
+from PR #1 are tracked as FIX-01 and FIX-02; they are not resolved by the roadmap.
+
 ## Start the gateway
 
 Use Node.js 22 or newer and Git. SDK dependencies are locked in `package-lock.json`.

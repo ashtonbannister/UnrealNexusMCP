@@ -5,6 +5,9 @@ It contains a catalogue, MCP host and lazy backend adapters, not a merged native
 plugin or live-qualified Unreal installation. Read `docs/IMPLEMENTATION_SELECTION.md` and
 `docs/MASTER_SKILL_GUIDANCE_DRAFT.md` before changing routing.
 
+- For task priorities and progress, read `MASTER_ROADMAP.md` and its linked task
+  registers. Planned work does not change the executable allowlist or relax the
+  requirements below; record completion with the stated evidence.
 - Keep revisions pinned in `catalog/upstreams.lock.json`.
 - Every exposed operation needs an evidence-backed decision. Unreviewed and
   adapter-required operations must not become callable by accident.
