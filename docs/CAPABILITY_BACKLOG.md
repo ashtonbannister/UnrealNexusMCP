@@ -39,7 +39,7 @@ Common authoring follows under CAP-03–05 and CAP-07–10. PCG expansion under 
 
 ### CAP-01
 
-**Discovery and read prerequisites** — Priority: **Now**; state: **blocked**; owner role: **Catalog and read-adapter maintainer**; assignee: **unassigned**.
+**Discovery and read prerequisites** — Priority: **Now**; state: **in_progress**; owner role: **Catalog and read-adapter maintainer**; assignee: **Codex source review workstream**.
 
 **Dependencies:** [FIX-01](../MASTER_ROADMAP.md#fix-01), [FIX-02](../MASTER_ROADMAP.md#fix-02). Additional scope-specific prerequisites are stated below.
 
@@ -49,7 +49,7 @@ Define explicit stable paths/GUIDs, world/client identity, pagination and trunca
 
 **Done when:** An agent can discover an exact actor/asset and inspect PCG node/pin identities through fixed canonical reads. Ambiguous labels, stale identities and unsupported worlds refuse; large results stay bounded. Native read evidence and source comparison identify every admitted route.
 
-**Source progress:** [Prerequisite research](CAP_PREREQUISITES_RESEARCH.md) and the [PCG graph contract analysis](CAP01_PCG_CONTRACT.md) identify missing stable identities and revision checks. No new route is selected.
+**Source progress:** [Prerequisite research](CAP_PREREQUISITES_RESEARCH.md), [asset discovery contract](CAP01_ASSET_DISCOVERY_CONTRACT.md) and [PCG graph contract](CAP01_PCG_CONTRACT.md) identify missing bounded snapshots, stable identities and revision checks. No new route is selected.
 
 **Source basis:** [world](audit/world-assets.md); [graphs](audit/graphs-materials-ui.md); [specialized](audit/specialized.md). Preserve the pinned upstream evidence in those records.
 
