@@ -28,6 +28,9 @@ function fixture(overrides={}) {
         callTool:async(name,args,options)=>{
           events.push(['call',name,args,options]);
           if(name==='unreal') return {content:[{type:'image',mimeType:'image/png',data:'AAAA'}]};
+          if(args.category==='level' && args.method==='get_actor_details') {
+            return json({success:true,actorPath:args.args.actorPath,path:args.args.actorPath});
+          }
           return json(args.category==='level' && args.method==='save' ? levelReceipt() : {success:true});
         },close:async()=>{events.push(['close',transport.type]);}};
     },

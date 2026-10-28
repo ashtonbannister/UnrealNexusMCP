@@ -92,7 +92,7 @@
     },
     {
       "id": "screenshot.viewport.current",
-      "description": "Capture the currently visible viewport as an MCP image. During PIE this can be a game/ejected view, not editor-world-only.",
+      "description": "Capture the current viewport as an MCP image; the level-editor tab may be brought to the foreground. During PIE this can be a game/ejected view, not editor-world-only.",
       "provider": "enginewire",
       "decision": "editor-screenshot",
       "effect": "read",
@@ -123,7 +123,7 @@
         }
       },
       "postconditions": [
-        "Require an MCP image block before claiming visual inspection; preserve actual dimensions, view and shaderWait receipt.",
+        "Require one PNG image with source-shaped dimensions/view and bounded scanline integrity. Conservative limits of 4,194,304 pixels, 40 MiB inflated scanlines and 4096 PNG chunks, and a static-PNG-only policy, can reject valid images. Checks occur after MCP receipt allocation and do not prove full decoding, pixels or editor identity. Preserve shaderWait.",
         "mode=editor_viewport can select a possessed PIE viewport or an ejected view. Inspect the returned view; require separately reconciled NotPlaying for editor-world-only intent.",
         "Resolution is downscaling, not rerendering. Shader waiting can expire with outstanding compilation.",
         "This is not exact PIE-client selection, guaranteed UMG capture or full-window capture."
@@ -229,7 +229,7 @@
         }
       },
       "postconditions": [
-        "Check returned path and world. Respect truncation flags; do not treat a truncated container as complete."
+        "Require matching returned actor paths; exact string matching can conservatively fence native case or whitespace normalization. Independently verify resolved world: the native receipt does not report it. Respect truncation flags."
       ],
       "example": {
         "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube",
@@ -285,7 +285,7 @@
         }
       },
       "postconditions": [
-        "Verify returned identity and PIE instance; never substitute the editor-world actor."
+        "Require matching returned actor paths; exact string matching can conservatively fence native case or whitespace normalization. Independently verify PIE instance: the native receipt does not report it; never substitute the editor-world actor."
       ],
       "example": {
         "actorPath": "/Game/Maps/UEDPIE_1_Demo.Demo:PersistentLevel.Cube",
@@ -544,7 +544,7 @@
       },
       "postconditions": [
         "Require state=generated. cancelled, cleaned, not_started, idle and timed_out are not generation success.",
-        "Preserve lastRun and warning fields; do not retry execute on a wait timeout."
+        "Require the returned component name to match; the pinned waiter drops native actorPath and echoes the requested runId, so independently corroborate the actor. Preserve lastRun and warnings; do not retry execute on a wait timeout."
       ],
       "example": {
         "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.PCGActor",
@@ -555,7 +555,7 @@
     },
     {
       "id": "input.action.once",
-      "description": "Inject one Enhanced Input action into an explicit local PIE player, not Slate/UI key dispatch.",
+      "description": "Inject one Enhanced Input action into an explicit local PIE player, not Slate/UI key dispatch. The native receipt does not independently attest the resolved world or player.",
       "provider": "ue-mcp",
       "decision": "enhanced-input",
       "effect": "write",
@@ -627,7 +627,7 @@
     },
     {
       "id": "input.action.hold.start",
-      "description": "Start a tracked Enhanced Input hold in an explicit local PIE player.",
+      "description": "Enhanced Input hold start is held: native hold ownership and local-only routing cannot be established.",
       "provider": "ue-mcp",
       "decision": "enhanced-input",
       "effect": "write",
@@ -708,7 +708,7 @@
     },
     {
       "id": "input.action.hold.update",
-      "description": "Update a known workflow-owned Enhanced Input hold by its ID.",
+      "description": "Enhanced Input hold update is held: native hold ownership and local-only routing cannot be established.",
       "provider": "ue-mcp",
       "decision": "enhanced-input",
       "effect": "write",
@@ -767,7 +767,7 @@
     },
     {
       "id": "input.action.hold.stop",
-      "description": "Stop a known workflow-owned Enhanced Input hold; preserve already-stopped reporting.",
+      "description": "Enhanced Input hold stop is held: native hold ownership and local-only routing cannot be established; reconcile any existing holds externally.",
       "provider": "ue-mcp",
       "decision": "enhanced-input",
       "effect": "write",

@@ -107,7 +107,14 @@ pause through this restricted lifecycle route.
 | Current viewport (editor or PIE) | `screenshot.viewport.current` | Actual MCP image block and output dimensions |
 | Exact PIE client including UMG | `screenshot.pie` | Matching world/instance, actual dimensions, successful PNG write |
 
+- Current-viewport capture can bring the level-editor tab to the foreground
+  when another tab covers it; it is not a focus-neutral observation.
 - Viewport resolution is a downscale bounding box, not a rerender resolution.
+  After MCP receipt, Nexus checks static PNG framing and scanline integrity
+  with conservative limits of 4,194,304 pixels, 40 MiB of inflated scanlines
+  and 4096 chunks. These limits and the static-only policy can reject valid
+  images. This is not full pixel decoding, editor attestation or a preallocation
+  limit.
 - EngineWire editor_viewport mode can show PIE. Inspect the view receipt; require
   reconciled NotPlaying for strict editor-world-only intent. Preserve shaderWait:
   its cap can expire before compilation drains.
@@ -132,6 +139,9 @@ pause through this restricted lifecycle route.
 Require a full object path; the PIE route also requires a world instance.
 Compare the returned actor path with the requested path and independently
 corroborate the actual editor/PIE world and instance before acting on properties.
+Nexus requires exact string matches for both returned path fields; Unreal's
+case-insensitive path fallback and whitespace trimming may therefore be
+conservatively fenced.
 At the reviewed UE pin, the native actor-detail receipt does not report its
 resolved world or PIE instance. The requested selector and the gateway's editor
 attestation are not a world/instance readback; do not claim the receipt verifies
@@ -205,8 +215,11 @@ separate, not weaker duplicates of this exact persisted contract.
    componentName input selector.
 2. Trigger once. Save returned actorPath, componentName and runId.
 3. Wait with those exact identifiers and a bounded deadline.
-4. Require state=generated and matching run identity. Native success=true may
-   also mean idle, cancelled, cleaned or not_started; those are not generation.
+4. Require state=generated, the requested component name, and matching run
+   identity. The pinned waiter echoes the requested run ID and drops the native
+   actorPath, so its receipt alone cannot independently prove the actor; verify
+   it separately. Native success=true may also mean idle, cancelled, cleaned or
+   not_started; those are not generation.
 5. Inspect the generated content appropriate to the graph. Nonzero ISM count
    alone is not a universal completion or correctness test.
 
@@ -217,18 +230,23 @@ existing run/state first; generation may still be active.
 
 **Trigger:** exercise gameplay at the InputAction layer.
 
-**Use:** `input.action.once`, `input.action.hold.start`,
-`input.action.hold.update`, `input.action.hold.stop`.
+**Use:** `input.action.once`. The `input.action.hold.start`,
+`input.action.hold.update`, and `input.action.hold.stop` routes are held before
+dispatch until native local-only routing and ownership are established. Native
+local hold IDs and remote relay IDs occupy separate registries; an independent
+client can cause update or stop to relay despite a local hold with the same ID.
+A gateway-local registry cannot atomically prevent that collision. Reconcile any
+existing hold externally; the held stop route cannot release it.
 
 Require an explicit PIE world and local-player index. These are not the remote
 client relay index or Slate user index. Keep input values finite/in engine-float
-range. Assign a unique workflow-owned hold ID, track it, update intentionally,
-and release in cleanup. Confirm stopped/already-stopped rather than guessing.
+range. The one-shot receipt identifies the requested action and value type but
+does not independently report the resolved world or local player; corroborate
+target and gameplay effect independently. Injection has no automatic rollback.
 
-Observe gameplay as well as dispatch. This bypasses physical input and is not
-a complete end-to-end keyboard/UI/hardware test. Remote relay is omitted until
-completion correlation is available. Raw keys, Slate analog input, UMG clicks
-and synthetic XR poses need separate contracts.
+This bypasses physical input and is not a complete end-to-end keyboard/UI/
+hardware test. Raw keys, Slate analog input, UMG clicks and synthetic XR poses
+need separate contracts.
 
 ## 9. Blueprint compile without save — optional Claireon adapter
 

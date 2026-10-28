@@ -23442,16 +23442,40 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "exec_console",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The public tool forwards a caller-chosen console command to the native console. Nexus forbids an arbitrary console escape.",
+      "reopeningCondition": "Do not admit this unrestricted record. A distinct fixed, bounded operation requires its own source-backed decision, authorization and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/console.py",
+          "lines": [
+            9,
+            13
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "exec_python",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The public tool forwards caller-supplied Python to editor remote execution. Nexus forbids arbitrary Python execution.",
+      "reopeningCondition": "Do not admit this unrestricted record. A distinct fixed, bounded operation requires its own source-backed decision, authorization and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/python_exec.py",
+          "lines": [
+            8,
+            11
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -23517,9 +23541,21 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "actor_call_function",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The public tool accepts a caller-selected object path, function and arguments and invokes that method through Python. Nexus forbids arbitrary backend and Python calls.",
+      "reopeningCondition": "Do not admit this unrestricted record. A distinct fixed, bounded operation requires its own source-backed decision, authorization and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/actor.py",
+          "lines": [
+            68,
+            76
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",

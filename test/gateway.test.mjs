@@ -7,6 +7,15 @@ import {selectCapabilities} from '../src/packs.mjs';
 const catalog=loadCatalog();
 const target={projectRoot:'C:/Projects/NexusDemo/NexusDemo.uproject',editorInstanceId:'PID1234-start-unique'};
 const json=(body)=>({content:[{type:'text',text:JSON.stringify(body)}]});
+const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
+const screenshot=(extra={})=>({content:[{type:'image',data:png,mimeType:'image/png'}],structuredContent:{success:true,operation:'execute',data:{width:1,height:1,view:'editor_viewport',sizeBytes:70,mimeType:'image/png',...extra}}});
+function rewritePngCrc(bytes,offset) {
+  const length=bytes.readUInt32BE(offset);let crc=0xffffffff;
+  for(const byte of bytes.subarray(offset+4,offset+8+length)) {crc^=byte;for(let i=0;i<8;i++) crc=(crc&1)?0xedb88320^(crc>>>1):crc>>>1;}
+  bytes.writeUInt32BE((crc^0xffffffff)>>>0,offset+8+length);
+}
+function mutatedPng(mutate) {const bytes=Buffer.from(png,'base64');mutate(bytes);return bytes.toString('base64');}
+
 const assetReceipt=(paths,force=false)=>({success:true,force,results:paths.map(path=>({path,package:path,wasDirty:true,status:'saved',stillDirty:false})),savedCount:paths.length,notDirtyCount:0,failedCount:0,updated:true,rollbackPossible:false,rollbackNote:'A save has no inverse.'});
 const levelReceipt=()=>({success:true,levelName:'Demo',levelPath:'/Game/Demo.Demo',levelPackage:'/Game/Demo',usesExternalActors:false,externalPackagesLoaded:0,landscapesMerged:0,savedCount:0,failedCount:0,skippedCount:1,deletedCount:0,saved:[],skipped:[{package:'/Game/Demo',saved:false,skipped:true}]});
 function fixture(options={}) {
@@ -23,7 +32,7 @@ function fixture(options={}) {
       call:async(call)=>{
         calls.push({provider,call});
         if(options.reply) return options.reply(provider,call);
-        if(provider==='enginewire') return {content:[{type:'image',data:'AAAA',mimeType:'image/png'}]};
+        if(provider==='enginewire') return screenshot();
         if(call.name==='pie_start') return json({ok:true,playing:true,phase:'Playing'});
         if(call.name==='pie_stop') return json({ok:true,stopped:true,phase:'NotPlaying'});
         if(call.name==='pie_status') return json({ok:true,phase:'NotPlaying',elapsed:0});
@@ -83,8 +92,8 @@ test('write and identity gates refuse before starting a backend',async()=>{
   assert.deepEqual(noTarget.starts,[]);
 });
 test('call results keep images, metadata, warnings and structured payloads',async()=>{
-  const result={content:[{type:'text',text:'Warning: not a rerender.'},{type:'image',data:'AAAA',mimeType:'image/png'}],
-    structuredContent:{width:1280,height:720,warnings:['shader wait']},_meta:{original:true}};
+  const result={...screenshot({warnings:['shader wait']}),_meta:{original:true}};
+  result.content.unshift({type:'text',text:'Warning: not a rerender.'});
   const {gateway:g}=fixture({reply:()=>result});
   const out=await g.execute('screenshot.viewport.current');
   assert.deepEqual(out.content,result.content);
@@ -141,7 +150,7 @@ test('UE JSON envelope tolerates attribution prose and still rejects native fail
 test('PCG wait requires generated for the exact requested run',async()=>{
   const args={actorPath:'/Game/A',componentName:'PCG',runId:7,timeoutSeconds:30};
   for(const state of ['cancelled','cleaned','not_started','idle','timed_out','generated']) {
-    const {gateway:g}=fixture({reply:()=>json({success:true,state,runId:7,lastRun:{id:7,state}})});
+    const {gateway:g}=fixture({reply:()=>json({success:true,state,runId:7,componentName:'PCG',lastRun:{id:7,state}})});
     const out=await g.execute('pcg.generation.wait',args);
     assert.equal(out.isError===true,state!=='generated');
   }
@@ -272,12 +281,11 @@ test('execute rejects original accessors without invoking getters or starting a 
   assert.equal(read,0);assert.deepEqual(starts,[]);
 });
 test('current viewport capture preserves a PIE source without claiming an editor-only image',async()=>{
-  const native={content:[{type:'image',data:'AAAA',mimeType:'image/png'}],
-    structuredContent:{view:'pie_game',width:1280,height:720,shaderWait:{remaining:3}}};
+  const native=screenshot({view:'pie_game',shaderWait:{remaining:3}});
   const {gateway:g}=fixture({reply:()=>native});
   const result=await g.execute('screenshot.viewport.current');
-  assert.equal(result.structuredContent.view,'pie_game');
-  assert.deepEqual(result.structuredContent.shaderWait,{remaining:3});
+  assert.equal(result.structuredContent.data.view,'pie_game');
+  assert.deepEqual(result.structuredContent.data.shaderWait,{remaining:3});
   assert.throws(()=>g.plan('screenshot.editor'),{code:'OPERATION_NOT_EXPOSED'});
 });
 
@@ -618,4 +626,234 @@ test('unrecognized or contradictory save failures fence subsequent editor work',
     await assert.rejects(g.execute(id,args),{code:'EDITOR_OUTCOME_UNKNOWN'});
     assert.equal(calls.length,1);await g.close();
   }
+});
+
+
+test('actor inspection fences a missing or different native actor identity',async()=>{
+  for(const id of ['actor.inspect.editor','actor.inspect.pie']) {
+    const args={actorPath:'/Game/Expected',...(id==='actor.inspect.pie'?{pieInstance:1}:{})};
+    for(const body of [{success:true},{success:true,actorPath:'/Game/Wrong',path:'/Game/Wrong'},
+      {success:true,actorPath:'/Game/Expected',path:'/Game/Wrong'},
+      {success:true,actorPath:'/game/expected',path:'/game/expected'}]) {
+      const receipt={...json(body),_meta:{'fixture/original':'retained'}};
+      const {gateway:g,calls}=fixture({config:{enabledCapabilities:[id]},reply:()=>receipt});
+      const out=await g.execute(id,args);
+      assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+      assert.deepEqual(out.content,receipt.content);assert.equal(out._meta['fixture/original'],'retained');
+      await assert.rejects(g.execute(id,args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
+    }
+    const spaced={...args,actorPath:'/Game/Expected '};
+    const normalized=fixture({config:{enabledCapabilities:[id]},reply:()=>json({success:true,actorPath:'/Game/Expected',path:'/Game/Expected'})});
+    const spacedOut=await normalized.gateway.execute(id,spaced);
+    assert.equal(spacedOut._meta['unreal-nexus/result-policy'].outcomeUnknown,true);await normalized.gateway.close();
+    const {gateway:g}=fixture({config:{enabledCapabilities:[id]},reply:()=>json({success:true,actorPath:args.actorPath,path:args.actorPath})});
+    const out=await g.execute(id,args);assert.notEqual(out.isError,true);
+    // A matching path is not proof of resolved world or PIE instance.
+    assert.match(out._meta['unreal-nexus/result-policy'].note,/not independent proof/);await g.close();
+  }
+});
+
+test('generated PCG wait fences contradictory run or component receipts',async()=>{
+  const args={actorPath:'/Game/A',componentName:'PCG',runId:7,timeoutSeconds:30};
+  const valid={success:true,state:'generated',runId:7,componentName:'PCG',lastRun:{id:7,state:'generated'}};
+  for(const changes of [{componentName:'Other'},{componentName:undefined},{runId:8},
+    {lastRun:{id:8,state:'generated'}},{actorPath:'/Game/Wrong'}]) {
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.generation.wait']},reply:()=>json({...valid,...changes})});
+    const out=await g.execute('pcg.generation.wait',args);assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    await assert.rejects(g.execute('pcg.generation.wait',args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
+  }
+  const {gateway:g}=fixture({config:{enabledCapabilities:['pcg.generation.wait']},reply:()=>json(valid)});
+  const out=await g.execute('pcg.generation.wait',args);assert.notEqual(out.isError,true);
+  // The native waiter omits actorPath; matching the component does not attest the actor.
+  assert.equal(Object.hasOwn(JSON.parse(out.content[0].text),'actorPath'),false);await g.close();
+});
+
+
+test('non-generated PCG waits fence contradictory reported targets without fencing valid supersession',async()=>{
+  const args={actorPath:'/Game/A',componentName:'PCG',runId:7,timeoutSeconds:30};
+  const cancelled={success:true,state:'cancelled',runId:7,componentName:'PCG',lastRun:{id:8,state:'generated'}};
+  for(const changes of [{componentName:'Other'},{componentName:undefined},{actorPath:'/Game/Wrong'},{runId:8},{runId:undefined},
+    {state:'cleaned',lastRun:{id:8,state:'generated'}},{state:'cleaned',lastRun:{id:7,state:'cancelled'}},
+    {state:'idle',lastRun:{id:7,state:'idle'}},{lastRun:undefined}]) {
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.generation.wait']},reply:()=>json({...cancelled,...changes})});
+    const out=await g.execute('pcg.generation.wait',args);assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    await assert.rejects(g.execute('pcg.generation.wait',args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
+  }
+  for(const body of [cancelled]) {
+    const {gateway:g}=fixture({config:{enabledCapabilities:['pcg.generation.wait']},reply:()=>json(body)});
+    const out=await g.execute('pcg.generation.wait',args);assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);assert.equal(g.status().queue.blocked,false);await g.close();
+  }
+});
+
+
+test('viewport capture validates bounded native PNG framing and metadata without claiming full decode',async()=>{
+  const valid=screenshot();
+  for(const change of [
+    r=>{r.content[0].data='!';},
+    r=>{const truncated=Buffer.from(r.content[0].data,'base64').subarray(0,33);r.content[0].data=truncated.toString('base64');r.structuredContent.data.sizeBytes=truncated.length;},
+    r=>{const broken=Buffer.from(r.content[0].data,'base64');broken[broken.length-1]^=1;r.content[0].data=broken.toString('base64');},
+    r=>{delete r.structuredContent.data.view;},
+    r=>{r.structuredContent.data.width=2;},
+    r=>{r.structuredContent.data.sizeBytes++;},
+    r=>{r.content[0].mimeType='image/jpeg';},
+    r=>{r.content.push({...r.content[0]});},
+    r=>{r.isError=true;},
+  ]) {
+    const reply=structuredClone(valid);change(reply);
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['screenshot.viewport.current']},reply:()=>reply});
+    const out=await g.execute('screenshot.viewport.current');assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);assert.deepEqual(out.content,reply.content);
+    await assert.rejects(g.execute('screenshot.viewport.current'),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
+  }
+  const {gateway:g}=fixture({config:{enabledCapabilities:['screenshot.viewport.current']},reply:()=>valid});
+  const out=await g.execute('screenshot.viewport.current');assert.notEqual(out.isError,true);assert.deepEqual(out.content,valid.content);await g.close();
+});
+
+
+test('viewport capture requires the source-backed requested or default downscale box',async()=>{
+  const image=(encoded,width,size)=>({content:[{type:'image',data:encoded,mimeType:'image/png'}],
+    structuredContent:{success:true,operation:'execute',data:{width,height:1,view:'editor_viewport',sizeBytes:size,mimeType:'image/png'}}});
+  const two=image('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAC0lEQVR4nGNggAIAAAkAAftSuKkAAAAASUVORK5CYII=',2,68);
+  const wide=image('iVBORw0KGgoAAAANSUhEUgAABkEAAAABCAYAAABpGglqAAAAHUlEQVR4nO3BAQ0AAADCoPdPbQ8HFAAAAAAAwKEBGQUAAbO4gGQAAAAASUVORK5CYII=',1601,86);
+  for(const [reply,args] of [[two,{resolution:'1x1'}],[wide,{}]]) {
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['screenshot.viewport.current']},reply:()=>reply});
+    const out=await g.execute('screenshot.viewport.current',args);assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);assert.deepEqual(out.content,reply.content);
+    await assert.rejects(g.execute('screenshot.viewport.current',args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
+  }
+  for(const resolution of ['2x1','10x10']) {
+    const {gateway:g}=fixture({config:{enabledCapabilities:['screenshot.viewport.current']},reply:()=>two});
+    const out=await g.execute('screenshot.viewport.current',{resolution});assert.notEqual(out.isError,true);await g.close();
+  }
+});
+
+
+test('PCG wait failure fences contradictory reported target but allows omitted preflight identity',async()=>{
+  const args={actorPath:'/Game/A',componentName:'PCG',runId:7,timeoutSeconds:30};
+  const failure={success:false,state:'timed_out',runId:7,error:'The generation did not finish.'};
+  for(const change of [{runId:8},{componentName:'Other'},{actorPath:'/Game/Wrong'}]) {
+    const reply=json({...failure,...change});
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.generation.wait']},reply:()=>reply});
+    const out=await g.execute('pcg.generation.wait',args);assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);assert.deepEqual(out.content,reply.content);
+    await assert.rejects(g.execute('pcg.generation.wait',args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
+  }
+  for(const reply of [json(failure),json({success:false,error:'preflight refusal'})]) {
+    const {gateway:g}=fixture({config:{enabledCapabilities:['pcg.generation.wait']},reply:()=>reply});
+    const out=await g.execute('pcg.generation.wait',args);assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);await g.close();
+  }
+});
+
+
+test('viewport backend errors fence because native timeout can follow dispatch',async()=>{
+  for(const text of ['Error [TIMEOUT]: Request timed out','Error: backend refused']) {
+    const reply={isError:true,content:[{type:'text',text}],_meta:{original:'kept'}};
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['screenshot.viewport.current']},reply:()=>reply});
+    const out=await g.execute('screenshot.viewport.current');
+    assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    assert.deepEqual(out.content,reply.content);assert.equal(out._meta.original,'kept');
+    await assert.rejects(g.execute('screenshot.viewport.current'),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
+  }
+});
+
+
+test('viewport screenshot validates bounded scanlines and accepts static Adam7',async()=>{
+  const badZlib=mutatedPng(b=>{b[41]^=1;rewritePngCrc(b,33);});
+  const excessive=mutatedPng(b=>{b.writeUInt32BE(2049,16);b.writeUInt32BE(2048,20);rewritePngCrc(b,8);});
+  const adam7=mutatedPng(b=>{b[28]=1;rewritePngCrc(b,8);});
+  for(const [encoded,width,height,args] of [[badZlib,1,1,{}],[excessive,2049,2048,{resolution:'2049x2048'}]]) {
+    const reply=screenshot({width,height});reply.content[0].data=encoded;
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['screenshot.viewport.current']},reply:()=>reply});
+    const out=await g.execute('screenshot.viewport.current',args);assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);assert.deepEqual(out.content,reply.content);
+    await assert.rejects(g.execute('screenshot.viewport.current',args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
+  }
+  const reply=screenshot();reply.content[0].data=adam7;
+  const {gateway:g}=fixture({config:{enabledCapabilities:['screenshot.viewport.current']},reply:()=>reply});
+  const out=await g.execute('screenshot.viewport.current');assert.notEqual(out.isError,true);assert.deepEqual(out.content,reply.content);await g.close();
+});
+
+
+test('current-viewport manifest discloses focus side effect without requiring write authority',async()=>{
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:['screenshot.viewport.current'],allowWrites:false}});
+  const tool=g.toolDefinitions()[0];
+  assert.equal(tool.annotations.readOnlyHint,false);assert.equal(tool.annotations.destructiveHint,false);
+  assert.match(tool.description,/foreground/);
+  const out=await g.execute('screenshot.viewport.current');assert.notEqual(out.isError,true);assert.equal(calls.length,1);await g.close();
+});
+
+
+test('PCG execute correlates the acknowledged actor, component, run and seed before releasing the queue',async()=>{
+  const args={actorPath:'/Game/Expected',seed:42};
+  const valid={success:true,updated:true,actorPath:args.actorPath,componentName:'PCG',runId:7,
+    lastRun:{id:7,state:'generating'},seed:42};
+  for(const body of [
+    {success:true}, {...valid,actorPath:'/Game/Wrong'}, {...valid,componentName:''},
+    {...valid,runId:0}, {...valid,lastRun:{id:8,state:'generating'}},
+    {...valid,lastRun:{id:7,state:'unknown'}}, {...valid,seed:43}, {success:false,error:'unknown failure'},
+  ]) {
+    const receipt={...json(body),_meta:{'fixture/original':'preserved'}};
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.generation.execute']},reply:()=>receipt});
+    const out=await g.execute('pcg.generation.execute',args);
+    assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    assert.deepEqual(out.content,receipt.content);assert.equal(out._meta['fixture/original'],'preserved');
+    await assert.rejects(g.execute('pcg.generation.execute',args),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);await g.close();
+  }
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.generation.execute']},reply:()=>json(valid)});
+  const out=await g.execute('pcg.generation.execute',args);
+  assert.notEqual(out.isError,true);assert.equal(g.status().queue.blocked,false);assert.equal(calls.length,1);await g.close();
+});
+
+
+test('native hold routes refuse before startup until local ownership is established',async()=>{
+  const argsById={
+    'input.action.hold.start':{action_path:'/Game/Input/IA_Move.IA_Move',client_id:0,pie_instance:1,injection_id:'hold-1'},
+    'input.action.hold.update':{injection_id:'hold-1',value_x:0,value_y:1,value_z:0},
+    'input.action.hold.stop':{injection_id:'hold-1'},
+  };
+  const ids=Object.keys(argsById);
+  const {gateway:g,starts,calls}=fixture({config:{enabledCapabilities:ids,allowWrites:true}});
+  for(const id of ids) {
+    assert.equal(g.plan(id,argsById[id]).dispatched,false);
+    await assert.rejects(g.execute(id,argsById[id]),{code:'INPUT_HOLD_OWNERSHIP_UNVERIFIED'});
+    assert.throws(()=>g.plan(id,{...argsById[id],allowOverride:true}),{code:'INVALID_ARGUMENTS'});
+  }
+  assert.deepEqual(starts,[]);assert.deepEqual(calls,[]);
+  const held=g.status().heldCapabilities;
+  assert.equal(held.length,ids.length);
+  assert.deepEqual(new Set(held.map(item=>item.id)),new Set(ids));
+  assert.ok(held.every(item=>item.reason==='native hold ownership and local-only routing unverified'));
+  await g.close();
+});
+
+test('one-shot input requires a correlated local native receipt and fences uncertain responses',async()=>{
+  const args={action_path:'/Game/Input/IA_Move.IA_Move',client_id:0,pie_instance:1};
+  const valid={success:true,action:args.action_path,value_type:'Axis1D',
+    idempotencyObservable:false,idempotencyNote:'Each call injects a frame.',
+    rollbackPossible:false,rollbackNote:'An injected frame cannot be undone.'};
+  for(const body of [
+    {success:true}, {...valid,action:'/Game/Other'}, {...valid,value_type:'Bad'},
+    {...valid,relayed:true}, {...valid,rollbackPossible:true},
+    {...valid,idempotencyObservable:true}, {success:false,error:'native failure'},
+  ]) {
+    const reply={...json(body),_meta:{'fixture/original':'retained'}};
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['input.action.once']},reply:()=>reply});
+    const out=await g.execute('input.action.once',args);
+    assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    assert.deepEqual(out.content,reply.content);assert.equal(out._meta['fixture/original'],'retained');
+    await assert.rejects(g.execute('input.action.once',args),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);await g.close();
+  }
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:['input.action.once']},reply:()=>json(valid)});
+  const out=await g.execute('input.action.once',args);assert.notEqual(out.isError,true);
+  assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
+  assert.equal(calls.length,1);await g.close();
+  const refusal=fixture({config:{enabledCapabilities:['input.action.once']},reply:()=>({isError:true,content:[{type:'text',text:'Error [NOT_CONNECTED]: refused'}]})});
+  assert.equal((await refusal.gateway.execute('input.action.once',args))._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
+  assert.equal(refusal.gateway.status().queue.blocked,false);await refusal.gateway.close();
 });

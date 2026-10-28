@@ -5,6 +5,14 @@ import { BackendPool } from './backends.mjs';
 import { selectCapabilities } from './packs.mjs';
 import { NexusError } from './errors.mjs';
 
+// These holds cannot safely be created or released through the pinned native
+// ID namespace: direct clients can populate its independent remote-ID map.
+const held = new Map([
+  ['screenshot.pie',{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED',reason:'native output ownership and target identity unverified'}],
+  ...['input.action.hold.start','input.action.hold.update','input.action.hold.stop'].map(id =>
+    [id,{code:'INPUT_HOLD_OWNERSHIP_UNVERIFIED',reason:'native hold ownership and local-only routing unverified'}]),
+]);
+
 // Canonical routing core shared by all connections to the MCP host.
 // Only trusted host code supplies backend factories, enablement and write grants.
 export class Gateway {
@@ -53,7 +61,7 @@ export class Gateway {
     return [...this.#enabled].map((id) => {
       const op = this.catalog.get(id);
       return { name:id, description:op.description, inputSchema:op.parameters,
-        annotations:{readOnlyHint:op.effect==='read',destructiveHint:op.effect!=='read',
+        annotations:{readOnlyHint:op.effect==='read' && op.id!=='screenshot.viewport.current',destructiveHint:op.effect!=='read',
           idempotentHint:op.effect==='read',openWorldHint:true} };
     });
   }
@@ -87,12 +95,10 @@ export class Gateway {
       throw new NexusError('LEVEL_EXTERNAL_PACKAGE_DELETION_DISABLED',
         'Current-level save may delete dirty empty external actor/object package files. An explicit host grant is required.');
     }
-    // Native capture writes through a path without proving file ownership or
-    // excluding link/reparse redirection. A host grant cannot prove the target.
-    if (id === 'screenshot.pie') {
-      throw new NexusError('PIE_SCREENSHOT_OUTPUT_UNVERIFIED',
-        'PIE screenshot is held until a reviewed native implementation proves safe output ownership and target identity.');
-    }
+    // The native screenshot and hold routes do not establish the required
+    // physical-output or local hold-ownership boundaries before mutation.
+    const hold = held.get(id);
+    if (hold) throw new NexusError(hold.code, 'Capability is held: ' + hold.reason + '.');
     const result = await this.queue.run(async (backend) => {
       return normalizeResult(operation, await backend.call(plan.call, this.timeoutMs, {signal}), expectedArgs);
     }, {
@@ -121,7 +127,7 @@ export class Gateway {
 
   status() {
     return {allowWrites:this.allowWrites, allowLevelExternalPackageDeletion:this.#allowLevelExternalPackageDeletion, queue:this.queue.status,
-      heldCapabilities:this.#enabled.has('screenshot.pie') ? [{id:'screenshot.pie',reason:'native output ownership and target identity unverified'}] : [],
+      heldCapabilities:[...this.#enabled].filter(id=>held.has(id)).map(id=>({id,reason:held.get(id).reason})),
       enabledCapabilities:[...this.#enabled],
       requiredProviders:[...new Set(this.list().map((op)=>op.provider))].sort(),
       backends:this.#pool.status,

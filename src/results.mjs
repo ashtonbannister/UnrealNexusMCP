@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import { nativeOutcomeUnknown } from './native-outcomes.mjs';
+import { validatePngScanlineIntegrity } from './png-scanline-integrity.mjs';
 
 // Interpret only one unambiguous provider JSON envelope, never nested asset data.
 // UE-MCP may append editor attribution or prepend modal notices as prose.
@@ -98,6 +99,37 @@ function coherentLevelSave(payload, isFailure = false) {
   return levelRows.filter(row => row.package === payload.levelPackage).length === 1
     && new Set(packages).size === packages.length;
 }
+// EngineWire's pinned native transport limits returned PNG bytes to 3 MiB.
+// Validates bounded PNG framing and scanlines, not full decoding or pixels.
+function viewportImageReceipt(result, expectedArgs) {
+  const envelope = result.structuredContent;
+  if (!record(envelope) || envelope.success !== true || envelope.operation !== 'execute'
+    || !record(envelope.data) || result.isError === true) return false;
+  const {width,height,view,sizeBytes,mimeType} = envelope.data;
+  // The selected native route always requests inline image output. Its pinned
+  // default bounding box is 1600x900; explicit resolution is also a downscale
+  // bounding box, not an exact rerender or a preallocation limit.
+  const resolution = expectedArgs.resolution ?? '1600x900';
+  const box = typeof resolution === 'string' && /^([1-9][0-9]{0,3})x([1-9][0-9]{0,3})$/u.exec(resolution);
+  if (!box || width > Number(box[1]) || height > Number(box[2])) return false;
+  const maxBytes = 3 * 1024 * 1024, maxPixels = 4 * 1024 * 1024;
+  if (!Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0
+    || width > Math.floor(maxPixels / height)
+    || !['editor_viewport','pie_game','pie_ejected'].includes(view) || mimeType !== 'image/png'
+    || !Number.isSafeInteger(sizeBytes) || sizeBytes < 45 || sizeBytes > maxBytes) return false;
+  const images = result.content.filter(part => part?.type === 'image');
+  if (images.length !== 1 || images[0].mimeType !== 'image/png' || typeof images[0].data !== 'string') return false;
+  const encoded = images[0].data;
+  if (encoded.length !== 4 * Math.ceil(sizeBytes / 3)
+    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(encoded)) return false;
+  const png = Buffer.from(encoded,'base64');
+  if (png.length !== sizeBytes || png.toString('base64') !== encoded) return false;
+  try {
+    validatePngScanlineIntegrity(png,{width,height,maxEncodedBytes:maxBytes,maxPixels,
+      maxInflatedBytes:40 * 1024 * 1024,maxDimension:9999,maxChunks:4096});
+  } catch { return false; }
+  return true;
+}
 const levelPieRefusal = payload => Object.keys(payload).length === 2
   && payload.error === 'Play In Editor is running; stop it before saving the level. Saving during PIE is what produced an unexplained failure before.';
 export function normalizeResult(operation, result, expectedArgs = {}) {
@@ -152,9 +184,12 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
   }
   if (operation.id === 'screenshot.viewport.current') {
     policy = 'require-inline-current-viewport-image';
-    if (!result.content.some((part) => part.type === 'image'
-      && typeof part.data === 'string' && part.data.length > 0
-      && typeof part.mimeType === 'string' && part.mimeType.startsWith('image/'))) failed = true;
+    if (!viewportImageReceipt(result,expectedArgs)) {
+      failed = true;
+      // Native errors, including TIMEOUT, may follow dispatch; no reviewed
+      // screenshot-specific pre-dispatch refusal is assumed here.
+      outcomeUnknown = true;
+    }
   }
   if (operation.id === 'asset.save.exact' || operation.id === 'level.save.current') {
     policy = operation.id === 'asset.save.exact' ? 'require-coherent-exact-asset-save-receipt' : 'require-coherent-level-save-receipt';
@@ -208,12 +243,84 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
       if (!exactPinRefusal && !knownSaveFailure) outcomeUnknown = true;
     }
   }
+  if (['actor.inspect.editor','actor.inspect.pie'].includes(operation.id) && payload?.success === true) {
+    policy = 'require-matching-actor-path';
+    // UE trims paths and has a case-insensitive fallback. Conservatively fence
+    // normalized paths rather than claiming an exact string match.
+    if (result.isError === true || typeof expectedArgs.actorPath !== 'string'
+      || payload.actorPath !== expectedArgs.actorPath || payload.path !== expectedArgs.actorPath) {
+      failed = true; outcomeUnknown = true;
+    }
+    // The native receipt does not report the resolved world or PIE instance.
+  }
+  if (operation.id === 'pcg.generation.execute') {
+    policy = 'require-correlated-pcg-generation-acknowledgement';
+    // The pinned handler selects the first component, starts a run and may
+    // change its seed before returning. A receipt is not a completion claim.
+    if (payload?.success === true) {
+      const run = payload.lastRun;
+      const coherent = result.isError !== true && payload.updated === true
+        && typeof expectedArgs.actorPath === 'string' && payload.actorPath === expectedArgs.actorPath
+        && typeof payload.componentName === 'string' && payload.componentName.length > 0
+        && Number.isSafeInteger(payload.runId) && payload.runId > 0 && payload.runId <= 2147483647
+        && record(run) && run.id === payload.runId
+        && ['generating','generated','cancelled','cleaned','not_started'].includes(run.state)
+        && Number.isInteger(payload.seed) && payload.seed >= -2147483648 && payload.seed <= 2147483647
+        && (!Object.hasOwn(expectedArgs,'seed') || payload.seed === expectedArgs.seed);
+      if (!coherent) { failed = true; outcomeUnknown = true; }
+    } else if (payload?.success === false) {
+      // An unmarked native error does not establish whether the generation or
+      // seed change happened. Preserve it; do not replay or infer rollback.
+      outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'input.action.once') {
+    policy = 'require-correlated-local-input-receipt';
+    if (payload?.success === true) {
+      const correlated = payload.action === expectedArgs.action_path
+        && ['Boolean','Axis1D','Axis2D','Axis3D'].includes(payload.value_type)
+        && payload.idempotencyObservable === false && nonempty(payload.idempotencyNote)
+        && payload.rollbackPossible === false && nonempty(payload.rollbackNote)
+        && !Object.hasOwn(payload,'relayed') && result.isError !== true;
+      if (!correlated) { failed = true; outcomeUnknown = true; }
+    } else if (payload?.success === false) {
+      // A generic returned error does not identify whether a frame was injected.
+      outcomeUnknown = true;
+    }
+  }
   if (operation.id === 'pcg.generation.wait') {
     policy = 'require-exact-generated-run';
     // Native success:true also covers cancelled, idle, cleaned and not_started.
     if (!payload || payload.state !== 'generated'
       || payload.runId !== expectedArgs.runId || payload.lastRun?.id !== expectedArgs.runId
       || payload.lastRun?.state !== 'generated') failed = true;
+    // Native/preflight failures may omit identity; any identity actually
+    // reported by either a success or failure must match the selected target.
+    if (payload && ((Object.hasOwn(payload,'componentName') && payload.componentName !== expectedArgs.componentName)
+      || (Object.hasOwn(payload,'actorPath') && payload.actorPath !== expectedArgs.actorPath)
+      || (Object.hasOwn(payload,'runId') && payload.runId !== expectedArgs.runId))) {
+      failed = true; outcomeUnknown = true;
+    }
+    // A successful native state includes the component name; failed preflight
+    // responses may omit it. Cancellation can carry a later lastRun ID.
+    const terminalMatch = ['cancelled','cleaned','not_started'].includes(payload?.state)
+      && payload.lastRun?.id === expectedArgs.runId && payload.lastRun?.state === payload.state;
+    const superseded = payload?.state === 'cancelled' && Number.isSafeInteger(payload.lastRun?.id)
+      && payload.lastRun.id > expectedArgs.runId;
+    if (payload?.success === true && payload.state !== 'generated'
+      && (result.isError === true || payload.runId !== expectedArgs.runId
+        || payload.componentName !== expectedArgs.componentName || (!terminalMatch && !superseded))) {
+      failed = true; outcomeUnknown = true;
+    }
+    // The pinned waiter returns the native component name, but drops actorPath.
+    // Never infer the actor from its echoed request or from the run ID alone.
+    if (payload?.success === true && payload.state === 'generated'
+      && (result.isError === true || payload.runId !== expectedArgs.runId
+        || payload.lastRun?.id !== expectedArgs.runId || payload.lastRun?.state !== 'generated'
+        || payload.componentName !== expectedArgs.componentName
+        || (Object.hasOwn(payload,'actorPath') && payload.actorPath !== expectedArgs.actorPath))) {
+      failed = true; outcomeUnknown = true;
+    }
   }
   if (outcomeUnknown) failed = true;
   return {

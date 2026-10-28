@@ -8,8 +8,8 @@ export const FIXTURE_CAPABILITIES = ['pie.status','pie.start.viewport',
   'screenshot.viewport.current','asset.save.exact'].sort();
 export const FIXTURE_IMAGE = {
   content:[{type:'text',text:'Warning: fixture image; not a live editor.'},
-    {type:'image',data:'AA==',mimeType:'image/png'}],
-  structuredContent:{width:1,height:1,warnings:['fixture only']},
+    {type:'image',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',mimeType:'image/png'}],
+  structuredContent:{success:true,operation:'execute',data:{width:1,height:1,view:'editor_viewport',sizeBytes:70,mimeType:'image/png',warnings:['fixture only']}},
   _meta:{'fixture/receipt':'retained'},
 };
 
