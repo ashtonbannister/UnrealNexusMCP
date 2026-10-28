@@ -128,9 +128,15 @@ pause through this restricted lifecycle route.
 **Use:** `actor.inspect.editor` or `actor.inspect.pie`.
 
 Require a full object path; the PIE route also requires a world instance.
-Check returned identity and world before acting on properties. Respect truncation
-flags, count limits and large-container omissions. Never substitute an editor
-actor for its PIE duplicate or resolve a repeated label by picking the first one.
+Compare the returned actor path with the requested path and independently
+corroborate the actual editor/PIE world and instance before acting on properties.
+At the reviewed UE pin, the native actor-detail receipt does not report its
+resolved world or PIE instance. The requested selector and the gateway's editor
+attestation are not a world/instance readback; do not claim the receipt verifies
+them. A compatible native context receipt and live evidence remain needed to
+satisfy that postcondition. Respect truncation flags, count limits and
+large-container omissions. Never substitute an editor actor for its PIE duplicate
+or resolve a repeated label by picking the first one.
 
 Actor movement, general property mutation and deletion are **not approved by
 these read routes**. Their world/identity and partial-mutation issues remain
@@ -146,7 +152,11 @@ separate decisions.
 - Decide force intentionally: unmarked-dirty edits may need force=true, but
   ordinary save should not silently resave unrelated clean assets.
 - Current-level save acts on the currently edited level, not a supplied map
-  path. Verify that target first. Loaded external packages are included.
+  path. Verify that target first. Loaded external packages are included. The
+  native save may delete dirty, empty external actor/object package files even
+  with commitDeletes=false. It requires explicit trusted-host
+  `allowLevelExternalPackageDeletion: true` in addition to `allowWrites`;
+  obtain authority for those scoped deletions before the host grants it.
 - commitDeletes is fixed false; its true form can sweep every dirty map/content
   package and is not an interchangeable save variant.
 - Inspect each saved/notDirty/failed/skipped/deleted package and disk receipt.
@@ -164,8 +174,17 @@ mutation just because saving failed. Preserve dirty in-memory state and receipts
 Read current graph identities through an independently available read workflow.
 Supply exact node IDs/names and both pin labels; Nexus deliberately removes the
 upstream first-pin defaults. Validate schema compatibility and returned edge/save
-outcomes. An already-existing edge must not be treated as newly created for undo.
-Do not translate old numeric node indices into current graph identities.
+outcomes: the persisted contract requires both `edgeVerified=true` and
+`saved=true`, and exact returned asset/node/pin strings matching the request.
+The native provider renders pin labels as FNames, so differing case may be
+conservatively refused even when Unreal would match it. An uncorrelated success
+receipt fences execution. Generic native errors can also follow a partial
+connection attempt and are fenced unless their pre-mutation or correlated
+save-failure shape is established. The pinned already-existing-edge branch returns before saving, so
+its no-op receipt does not establish persistence and must not be treated as a
+newly created edge for undo. Do not automatically repeat the connection or save;
+separately authorize any exact-asset persistence and verify its result. Do not
+translate old numeric node indices into current graph identities.
 
 Claireon's session edits and EngineWire's optional-save connections stay
 separate, not weaker duplicates of this exact persisted contract.

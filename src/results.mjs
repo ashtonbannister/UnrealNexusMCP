@@ -72,6 +72,44 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
       && typeof part.data === 'string' && part.data.length > 0
       && typeof part.mimeType === 'string' && part.mimeType.startsWith('image/'))) failed = true;
   }
+  if (operation.id === 'pcg.graph.connect.persisted') {
+    policy = 'require-verified-persisted-pcg-edge';
+    // The pinned native existing-edge path returns before its save attempt.
+    // An in-memory no-op receipt does not prove the edge was persisted.
+    if (payload?.edgeVerified !== true || payload?.saved !== true) failed = true;
+    // A success receipt without the exact requested identity cannot be safely
+    // correlated to this dispatch. Unreal renders pin FNames; exact comparison
+    // can conservatively reject a legitimate case-normalized label.
+    const identityMatches = payload && [
+      ['assetPath','assetPath'],['sourceNodeName','sourceNode'],
+      ['targetNodeName','targetNode'],['sourcePinLabel','sourcePin'],
+      ['targetPinLabel','targetPin'],
+    ].every(([receiptField,argument]) => typeof payload[receiptField] === 'string'
+      && payload[receiptField] === expectedArgs[argument]);
+    if (payload?.success === true) {
+      const existingEdge = payload.created === false && payload.existed === true
+        && payload.edgeVerified === true && payload.rollbackPossible === false
+        && !Object.hasOwn(payload, 'saved') && !Object.hasOwn(payload, 'transient');
+      const createdAndSaved = payload.created === true && payload.existed === false
+        && payload.edgeVerified === true && payload.saved === true && !Object.hasOwn(payload, 'transient');
+      const createdTransient = payload.created === true && payload.existed === false
+        && payload.edgeVerified === true && payload.saved === false && payload.transient === true;
+      if (!identityMatches || result.isError === true
+        || (!existingEdge && !createdAndSaved && !createdTransient)) outcomeUnknown = true;
+    }
+    if (payload?.success === false) {
+      // At this pin a plain MCPError can occur after Graph->Modify/AddEdge.
+      // Only two exact preflight errors and a correlated, explicit save failure
+      // establish what happened without additional native evidence.
+      const exactPinRefusal = Object.keys(payload).length === 2
+        && ['No suitable output pin found on source node',
+          'No suitable input pin found on target node'].includes(payload.error);
+      const knownSaveFailure = identityMatches && payload.created === true
+        && payload.existed === false && payload.edgeVerified === true
+        && payload.saved === false && typeof payload.saveError === 'string';
+      if (!exactPinRefusal && !knownSaveFailure) outcomeUnknown = true;
+    }
+  }
   if (operation.id === 'pcg.generation.wait') {
     policy = 'require-exact-generated-run';
     // Native success:true also covers cancelled, idle, cleaned and not_started.

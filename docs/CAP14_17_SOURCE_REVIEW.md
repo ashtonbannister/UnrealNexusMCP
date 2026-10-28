@@ -1,0 +1,39 @@
+# CAP-14–17: procedural world and PCG source review
+
+Status: **partial pinned-source review only**. The [capability backlog](CAPABILITY_BACKLOG.md) remains authoritative. No new provider winner, route, native behavior or qualification is established by this document. Counts, heuristics and rollback descriptions in source do not prove real editor state or durable save. CAP-01 remains a prerequisite for exact discovery; session variants additionally depend on CAP-02.
+
+## CAP-14: foliage and scatter
+
+The pinned [UE-MCP placement handler](https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp#L383-L590) supports explicit transforms and seeded disc candidates as distinct inputs. It validates candidates and a per-call maximum before placement, optionally projects to ground and applies foliage-type rules, and records skipped candidate reasons. Its exact no-trace/no-type-rules path requires both `projectToGround=false` and `applyTypeRules=false`. Its receipt includes requested/added/skipped counts and a capped inverse. World Partition repartitioning can invalidate original indices; the source warns that the bounded inverse can be lossy. The handler may create/register an instanced foliage actor before knowing whether any candidate ultimately places, so a zero-added receipt alone does not establish no side effects.
+
+The [existing comparison](audit/specialized.md#procedural-and-modelling-variants) preserves Hayba seeded-disc, EngineWire box/disc/point and Claireon session jittered-grid variants. The present review does not independently establish their complete native semantics or equivalence. Each candidate needs exact distribution, seed, collision/projection policy, type, world/cell targeting, output and inverse limits before any selection; first-match actor or broad regional removal is not an exact inverse.
+
+Fixture contracts should cover contradictory placement options, empty/oversized inputs, deterministic seed behavior, all-skipped candidates and receipt/inverse limits. Native qualification must compare actual placed transforms and skip reasons, World Partition cell ownership before and after rehoming, unrelated nearby foliage, partial failure and explicit save/reload. An inverse is not proof of restoration, and no client should replay an uncertain placement.
+
+## CAP-15: landscape
+
+The pinned UE handler [resolves named edit layers or an index](https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp#L168-L223), then uses a [smoothstep brush with bounded rollback data](https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp#L224-L340). A brush footprint beyond the rollback cap explicitly omits previous heights. Case-insensitive layer selection and an index default require further review for duplicate names and stale indices before proposing an exact-layer contract.
+
+The existing audit distinguishes EngineWire linear falloff, supplied-Z flattening and optional delayed flush from UE smoothstep and centre-height flattening. This report has not independently inspected the full EngineWire handler; preserve those as candidate variants, not proven interchangeable routes. Define coordinate spaces, centimetre/quad and raw height units, layer identity, bounds and flush/save behavior separately.
+
+Fixtures need invalid or ambiguous layer selection, cap boundaries, omitted inverse, region limits and interruption/failure receipts. Native acceptance requires measured heights and layer state before/after, relevant flush behavior and disk reload; a reported inverse or editor transaction does not prove restoration or persistence.
+
+## CAP-16: modelling and geometry
+
+The pinned [EngineWire dynamic-mesh boolean](https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/Geometry/Modeling/McpGeometryBooleans.cpp#L11-L160) resolves two DynamicMesh actors, checks an estimated mesh budget and applies a geometry-script boolean to their meshes. It has a `keepTool` setting and destroys the tool actor only when the operation is considered successful and retention is false. The response distinguishes empty and detected no-effect cases using mesh/debug and bounding/count heuristics; those checks do not establish topology, collision, materials or persistence. Exact actor resolution and consequences of error after an in-place geometry call require additional source and native review.
+
+StaticMesh asset CSG, live DynamicMesh actor booleans and custom PCG geometry algorithms remain distinct candidate families, not substitutes. No provider or algorithm has been selected for a new route. A future contract must define exact representation, world/asset identity, tool ownership, output, collision/material behavior, dirty/save scope and partial mutation.
+
+Fixtures should cover missing/wrong actor types, budget refusal, degenerate/disjoint operations, tool-retention policy and returned failure receipts. Native tests must independently inspect topology and collision/material state, tool existence, undo limits and saved/reloaded representation; triangle counts alone are insufficient.
+
+## CAP-17: PCG graph authoring and execution
+
+The currently selected pinned UE connection [checks for an existing edge, verifies the resulting edge, then records a checked save outcome](https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1208-L1308). An existing-edge receipt intentionally supplies no disconnect inverse. A failure after adding an edge or a failed save cannot be assumed to revert the in-memory graph. [Hayba's `pcg_wire`](https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/pcg/pcg-primitives.ts#L288-L346) checks pin labels but resolves nodes by title/index, invokes `add_edge` and calls save without reporting checked save success in its emitted success body; it is not equivalent to the selected persisted edge contract.
+
+The [CAP-01 PCG analysis](CAP01_PCG_CONTRACT.md) records missing stable graph revision and complete ordinary-node pin enumeration in the reviewed read. A separate discovery call cannot guarantee identity at the later mutation boundary. New graph creation, nodes, settings, parameters and session-scoped or memory-only edits therefore require distinct source comparisons and revision/ownership contracts, rather than relying on names or indices alone.
+
+Fixtures need duplicate names, stale graph revision, wrong node/pin, existing edge, write guard, post-mutation failure and failed save. Native acceptance must read back exact graph/node/pin identity, confirm deliberate persistence and reload, trigger the intended actor/component, and verify the returned generation run rather than treating an instance count heuristic as general completion. Graph edits and session cleanup remain separate owned actions.
+
+## Remaining work and boundaries
+
+This is a focused comparison, not an exhaustive four-family inventory or a new capability admission. Fully inspect the remaining pinned candidates and their license/component boundaries, define child contracts and fixed schemas, implement any necessary source-pinned compatibility patch with fixtures and live markers, and update decisions, guidance and qualification together. Native builds, loaded provenance, listener authority, exact project/editor epoch and real save/reload remain unverified. Do not weaken the existing allowlist to obtain a source-only milestone.

@@ -11,12 +11,13 @@ export class Gateway {
   #enabled;
   #pool;
   #closed = false;
+  #allowLevelExternalPackageDeletion;
 
   constructor(catalog, {
     enabledPacks = [], enabledCapabilities = [], backendFactories = new Map(),
-    allowWrites = false, timeoutMs = 120000, target = null,
+    allowWrites = false, allowLevelExternalPackageDeletion = false, timeoutMs = 120000, target = null,
   } = {}) {
-    if (typeof allowWrites !== 'boolean' || !Number.isInteger(timeoutMs)
+    if (typeof allowWrites !== 'boolean' || typeof allowLevelExternalPackageDeletion !== 'boolean' || !Number.isInteger(timeoutMs)
       || timeoutMs < 100 || timeoutMs > 600000) {
       throw new NexusError('INVALID_CONFIGURATION', 'Invalid write flag or timeout (100–600000 ms).');
     }
@@ -28,6 +29,7 @@ export class Gateway {
     this.catalog = catalog;
     this.#enabled = new Set(selectCapabilities(catalog, {enabledPacks,enabledCapabilities}));
     this.allowWrites = allowWrites;
+    this.#allowLevelExternalPackageDeletion = allowLevelExternalPackageDeletion;
     this.timeoutMs = timeoutMs;
     this.target = target === null ? null : Object.freeze({...target});
     this.queue = new EditorQueue();
@@ -79,6 +81,12 @@ export class Gateway {
     if (operation.effect !== 'read' && !this.allowWrites) {
       throw new NexusError('WRITES_DISABLED', 'Mutations are disabled. Only trusted host/operator configuration may enable them.');
     }
+    // This native save can delete dirty, empty external package files even
+    // with commitDeletes=false. Only trusted host configuration grants it.
+    if (id === 'level.save.current' && !this.#allowLevelExternalPackageDeletion) {
+      throw new NexusError('LEVEL_EXTERNAL_PACKAGE_DELETION_DISABLED',
+        'Current-level save may delete dirty empty external actor/object package files. An explicit host grant is required.');
+    }
     const result = await this.queue.run(async (backend) => {
       return normalizeResult(operation, await backend.call(plan.call, this.timeoutMs, {signal}), expectedArgs);
     }, {
@@ -106,7 +114,7 @@ export class Gateway {
   }
 
   status() {
-    return {allowWrites:this.allowWrites, queue:this.queue.status,
+    return {allowWrites:this.allowWrites, allowLevelExternalPackageDeletion:this.#allowLevelExternalPackageDeletion, queue:this.queue.status,
       enabledCapabilities:[...this.#enabled],
       requiredProviders:[...new Set(this.list().map((op)=>op.provider))].sort(),
       backends:this.#pool.status,

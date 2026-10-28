@@ -81,7 +81,12 @@ Copy `examples/config.authoring.example.json` to a host-owned file such as
 packs select UE-MCP and EngineWire; remove either pack and its backend if unused.
 You may instead set `enabledCapabilities` to individual IDs. Writes/lifecycle
 actions require `allowWrites: true`; this host setting does not replace the
-user's task-specific authority.
+user's task-specific authority. `level.save.current` can delete dirty, empty
+external actor/object package files even when `commitDeletes` is false. It also
+requires the separate host setting `allowLevelExternalPackageDeletion: true`,
+which defaults to false. Grant it only when that scoped deletion is authorized.
+This setting is not a model-callable argument and does not authorize the broad
+dirty-package sweep.
 
 Relative paths resolve against the configuration file's directory. Fields are
 strictly checked; unknown keys are rejected. Credential values come from named

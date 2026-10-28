@@ -316,3 +316,157 @@ test('backend contract refusal reports failed cleanup on shutdown',async()=>{
   assert.deepEqual(g.status().backends,[{provider:'ue-mcp',state:'failed',cleanup:'unconfirmed'}]);
   await assert.rejects(g.close(),{code:'BACKEND_CLEANUP_INCOMPLETE'});
 });
+
+
+test('current-level save requires a separate host deletion grant before backend startup',async()=>{
+  const options={config:{enabledCapabilities:['level.save.current']}};
+  const denied=fixture(options);
+  await assert.rejects(denied.gateway.execute('level.save.current',{}),{code:'LEVEL_EXTERNAL_PACKAGE_DELETION_DISABLED'});
+  assert.deepEqual(denied.starts,[]);assert.deepEqual(denied.calls,[]);
+  assert.equal(denied.gateway.status().allowLevelExternalPackageDeletion,false);
+  assert.throws(()=>denied.gateway.plan('level.save.current',{allowLevelExternalPackageDeletion:true}),{code:'INVALID_ARGUMENTS'});
+  const receipt=json({success:true,deletedCount:1,deleted:[{package:'/Game/Map/__ExternalActors__/A',deleted:true}]});
+  const granted=fixture({config:{enabledCapabilities:['level.save.current'],allowLevelExternalPackageDeletion:true},reply:()=>receipt});
+  const out=await granted.gateway.execute('level.save.current',{});
+  assert.deepEqual(out.content,receipt.content);
+  assert.equal(granted.gateway.status().allowLevelExternalPackageDeletion,true);
+  assert.deepEqual(granted.calls[0].call.arguments.args,{commitDeletes:false,includeExternalActors:true});
+  assert.equal(granted.calls.length,1);
+  await granted.gateway.close();
+  const readOnly=fixture({config:{enabledCapabilities:['level.save.current'],allowWrites:false,allowLevelExternalPackageDeletion:true}});
+  await assert.rejects(readOnly.gateway.execute('level.save.current',{}),{code:'WRITES_DISABLED'});
+  assert.deepEqual(readOnly.starts,[]);
+});
+
+
+test('persisted PCG connection requires verified edge and explicit successful save receipt',async()=>{
+  const args={assetPath:'/Game/PCG/Graph',sourceNode:'A',sourcePin:'Out',targetNode:'B',targetPin:'In'};
+  const identity={assetPath:args.assetPath,sourceNodeName:args.sourceNode,targetNodeName:args.targetNode,
+    sourcePinLabel:args.sourcePin,targetPinLabel:args.targetPin};
+  for (const body of [
+    {success:true,existed:true,created:false,edgeVerified:true,rollbackPossible:false},
+    {success:true,created:true,existed:false,edgeVerified:true,saved:false,transient:true},
+  ]) {
+    const reply={...json({...identity,...body}),_meta:{'fixture/original':'preserved'}};
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.graph.connect.persisted']},reply:()=>reply});
+    const out=await g.execute('pcg.graph.connect.persisted',args);
+    assert.equal(out.isError,true);
+    assert.deepEqual(out.content,reply.content);
+    assert.equal(out._meta['fixture/original'],'preserved');
+    assert.equal(out._meta['unreal-nexus/result-policy'].policy,'require-verified-persisted-pcg-edge');
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
+    assert.equal(g.status().queue.blocked,false);
+    assert.equal(calls.length,1);
+    await g.close();
+  }
+  const reply={...json({...identity,success:true,created:true,existed:false,edgeVerified:true,saved:true}),_meta:{'fixture/original':'preserved'}};
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.graph.connect.persisted']},reply:()=>reply});
+  const out=await g.execute('pcg.graph.connect.persisted',args);
+  assert.notEqual(out.isError,true);assert.deepEqual(out.content,reply.content);
+  assert.equal(out._meta['fixture/original'],'preserved');assert.equal(calls.length,1);
+  await g.close();
+});
+
+
+test('persisted PCG success receipts must match all requested identities or fence',async()=>{
+  const args={assetPath:'/Game/PCG/Graph',sourceNode:'A',sourcePin:'Out',targetNode:'B',targetPin:'In'};
+  const identity={assetPath:args.assetPath,sourceNodeName:args.sourceNode,targetNodeName:args.targetNode,
+    sourcePinLabel:args.sourcePin,targetPinLabel:args.targetPin};
+  for(const altered of [
+    {assetPath:'/Game/PCG/Other'}, {sourceNodeName:'Other'}, {targetNodeName:'Other'},
+    {sourcePinLabel:'out'}, {targetPinLabel:'Other'}, {sourceNodeName:undefined},
+  ]) {
+    const reply={...json({...identity,...altered,success:true,created:true,existed:false,edgeVerified:true,saved:true}),_meta:{'fixture/original':'preserved'}};
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.graph.connect.persisted']},reply:()=>reply});
+    const out=await g.execute('pcg.graph.connect.persisted',args);
+    assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);
+    assert.equal(out._meta['fixture/original'],'preserved');
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    assert.equal(g.status().queue.blocked,true);
+    await assert.rejects(g.execute('pcg.graph.connect.persisted',args),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);await g.close();
+  }
+});
+
+
+test('PCG failure receipts fence ambiguous mutations but retain correlated save failures and proven pin refusals',async()=>{
+  const args={assetPath:'/Game/PCG/Graph',sourceNode:'A',sourcePin:'Out',targetNode:'B',targetPin:'In'};
+  const identity={assetPath:args.assetPath,sourceNodeName:args.sourceNode,targetNodeName:args.targetNode,
+    sourcePinLabel:args.sourcePin,targetPinLabel:args.targetPin};
+  const applied={...identity,success:false,created:true,existed:false,edgeVerified:true,saved:false,saveError:'read-only',error:'not written'};
+  for(const [body,unknown] of [
+    [applied,false],
+    [{...applied,assetPath:'/Game/PCG/Other'},true],
+    [{success:false,error:'Failed to connect pins - connection may already exist or be incompatible'},true],
+    [{success:false,error:"AddEdge returned success but no UPCGEdge was found on 'A.Out' -> 'B.In'."},true],
+    [{success:false,error:'some other native refusal'},true],
+    [{success:false,error:'No suitable output pin found on source node'},false],
+    [{success:false,error:'No suitable input pin found on target node'},false],
+    [{success:false,error:'No suitable input pin found on target node',created:true},true],
+  ]) {
+    const reply={...json(body),_meta:{'fixture/original':'preserved'}};
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.graph.connect.persisted']},reply:()=>reply});
+    const out=await g.execute('pcg.graph.connect.persisted',args);
+    assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);
+    assert.equal(out._meta['fixture/original'],'preserved');
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,unknown);
+    assert.equal(g.status().queue.blocked,unknown);assert.equal(calls.length,1);
+    if(unknown) await assert.rejects(g.execute('pcg.graph.connect.persisted',args),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);await g.close();
+  }
+  for(const code of ['NOT_CONNECTED','INVALID_PARAMS']) {
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.graph.connect.persisted']},
+      reply:()=>({isError:true,content:[{type:'text',text:'Error ['+code+']: refused'}]})});
+    const out=await g.execute('pcg.graph.connect.persisted',args);
+    assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
+    assert.equal(g.status().queue.blocked,false);assert.equal(calls.length,1);await g.close();
+  }
+});
+
+
+test('contradictory PCG MCP error and success receipt fences despite matching identity',async()=>{
+  const args={assetPath:'/Game/PCG/Graph',sourceNode:'A',sourcePin:'Out',targetNode:'B',targetPin:'In'};
+  const body={assetPath:args.assetPath,sourceNodeName:args.sourceNode,targetNodeName:args.targetNode,
+    sourcePinLabel:args.sourcePin,targetPinLabel:args.targetPin,success:true,created:true,existed:false,edgeVerified:true,saved:true};
+  const reply={...json(body),isError:true,_meta:{'fixture/original':'preserved'}};
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.graph.connect.persisted']},reply:()=>reply});
+  const out=await g.execute('pcg.graph.connect.persisted',args);
+  assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);
+  assert.equal(out._meta['fixture/original'],'preserved');
+  assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+  assert.equal(g.status().queue.blocked,true);
+  await assert.rejects(g.execute('pcg.graph.connect.persisted',args),{code:'EDITOR_OUTCOME_UNKNOWN'});
+  assert.equal(calls.length,1);await g.close();
+});
+
+
+test('malformed or contradictory PCG success shapes fence despite matched identity',async()=>{
+  const args={assetPath:'/Game/PCG/Graph',sourceNode:'A',sourcePin:'Out',targetNode:'B',targetPin:'In'};
+  const identity={assetPath:args.assetPath,sourceNodeName:args.sourceNode,targetNodeName:args.targetNode,
+    sourcePinLabel:args.sourcePin,targetPinLabel:args.targetPin};
+  for(const body of [
+    {created:true,existed:false,saved:true},
+    {created:true,existed:false,edgeVerified:false,saved:true},
+    {existed:false,edgeVerified:true,saved:true},
+    {created:true,edgeVerified:true,saved:true},
+    {created:true,existed:true,edgeVerified:true,saved:true},
+    {created:true,existed:false,edgeVerified:true},
+    {created:true,existed:false,edgeVerified:true,saved:false},
+    {created:true,existed:false,edgeVerified:true,saved:true,transient:true},
+    {created:true,existed:false,edgeVerified:true,saved:true,transient:false},
+    {created:false,existed:true,edgeVerified:true,rollbackPossible:false,transient:true},
+    {created:false,existed:true,edgeVerified:true,rollbackPossible:false,transient:false},
+    {created:false,existed:true,edgeVerified:true,rollbackPossible:false,saved:true},
+    {created:false,existed:true,edgeVerified:true},
+  ]) {
+    const reply={...json({...identity,success:true,...body}),_meta:{'fixture/original':'preserved'}};
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.graph.connect.persisted']},reply:()=>reply});
+    const out=await g.execute('pcg.graph.connect.persisted',args);
+    assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);
+    assert.equal(out._meta['fixture/original'],'preserved');
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    assert.equal(g.status().queue.blocked,true);
+    await assert.rejects(g.execute('pcg.graph.connect.persisted',args),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);await g.close();
+  }
+});

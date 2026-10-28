@@ -131,6 +131,10 @@ Resolve review finding R2 (review severity P2) in src/runtime.mjs and src/backen
 **Evidence:** PR #1 R2; initial fix `ac46404`, followed by `1044b50` on `codex/implementation-curation`: bounded rejected-startup, transport teardown and pool cleanup, late startup and repeated shutdown are exercised in `test/backend-cleanup.test.mjs` and `test/transport-client.test.mjs`. Linux Node 24.22.1 with the exact UAP pin: 164 passed, zero failed or skipped. No live backend cleanup claim.
 
 
+### Additional source-review safeguards
+
+The pinned current-level save may delete dirty, empty external actor/object packages even with `commitDeletes=false`. The gateway now requires the separate host-only `allowLevelExternalPackageDeletion` grant before dispatch; this is in addition to write authorization. The selected actor-inspection native receipt also does not report its resolved world or PIE instance, so the existing postcondition requires independent corroboration pending a reviewed native context receipt. The PCG persisted-edge policy requires a matching graph/node/pin receipt, edge verification and a successful save; a pre-existing-edge no-op alone does not prove persistence. These are source/fixture findings, not live observations.
+
 ## 6. Capability and qualification work registers
 
 - [CAP-01–20: capability expansion](docs/CAPABILITY_BACKLOG.md) covers prerequisites, all ten currently unexposed decision groups, common authoring, distinct specialist variants and remaining inventory.
@@ -163,7 +167,7 @@ Add repeatable CI for catalog decisions, schemas, fixed routes, guidance mapping
 
 **Done when:** Required lanes run without unexplained skips and retain logs, commit, lockfile, OS/Node/Python versions and test counts. Exercise the declared Node/OS support or narrow the claim. Include both regression fixes, disabled-provider startup checks and public-surface exclusions. Keep fixture CI separate from native engine tests; do not freeze the suite at 154 tests.
 
-**Evidence:** `.github/workflows/fixture-ci.yml` scaffolds Linux Node 22/24 lanes and pinned UAP checks. Local Linux Node 24.22.1 fixture validation passed with no skips; hosted CI runs, Node 22 evidence and run artifacts remain outstanding. This is not native engine validation.
+**Evidence:** `.github/workflows/fixture-ci.yml` scaffolds Linux Node 22/24 lanes and pinned UAP checks. Clean Linux fixture validation with the exact UAP pin passed on Node 22.0.0, 22.23.4 and 24.22.1 (182 tests per lane, zero failures or skips); the later Node 24 integrated run passed 187 tests. After the final PCG receipt change, the affected gateway checks passed 34 tests on Node 22.0.0, 22.23.4 and 24.22.1, all without failures or skips. Hosted CI runs and artifacts remain outstanding. This is not native engine validation.
 
 ### OPS-03
 
@@ -174,6 +178,8 @@ Add repeatable CI for catalog decisions, schemas, fixed routes, guidance mapping
 Produce an on-demand upstream change report that maps source/schema/behavior/license changes to affected contracts. Compare newer revisions and competing providers under the selection rubric below; unchanged winners stay pinned. Split promotion by operation even when several operations share a backend.
 
 **Done when:** A worked candidate update identifies affected routes, contract differences, accepted/rejected/retained variants, relevant fixture and native evidence, patch compatibility, notices and explicit rollback/reconciliation steps. Promotion updates the lock, decision, adapter/schema, guidance and qualification records together. No floating latest, auto-failover or automatic mutation retry. Scheduling or publication is outside this roadmap-creation task.
+
+**Progress:** `scripts/candidate-report.mjs` provides bounded offline review pointers from caller-supplied change paths; it neither verifies a diff nor promotes a candidate. A [scoped candidate comparison](docs/OPS03_CANDIDATE_EXAMPLE.md) covers PCG changes without promoting the candidate. Complete inventory, hosted CI, whole-candidate review and applicable native evidence remain outstanding.
 
 **Evidence:** Candidate comparison report and reviewable promotion example; unchanged or explicitly reviewed source pins.
 

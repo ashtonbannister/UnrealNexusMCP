@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node src/main.mjs",
-    "test": "node --test --test-isolation=none test/*.test.mjs",
+    "test": "node --test test/*.test.mjs",
     "check": "node scripts/validate-catalog.mjs && npm test",
     "catalog": "node src/cli.mjs",
     "catalog:check": "node scripts/validate-catalog.mjs"

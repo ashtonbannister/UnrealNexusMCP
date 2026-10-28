@@ -50,7 +50,7 @@ Inventory enabled native and Nexus listeners: owning process, bind address, endp
 
 **Dependencies:** [ENV-01](#env-01).
 
-Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [29-operation harness design](qualification/HARNESS_DESIGN.md) is available; executable native fixture verification still needs ENV-01.
+Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [29-operation harness design](qualification/HARNESS_DESIGN.md) and an offline structural evidence validator with fixture tests are available; executable native fixture verification still needs ENV-01.
 
 **Done when:** Each of the 29 rows below has setup, exact inputs, expected effects/state, applicable failure cases, cleanup and artifact requirements. Known setup dependencies are explicit. Tests can establish native fixture state outside Nexus, but that setup is not counted as a gateway capability. Secret-free evidence templates and a repeatable project revision exist.
 

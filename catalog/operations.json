@@ -294,7 +294,7 @@
     },
     {
       "id": "level.save.current",
-      "description": "Save the currently edited level and its loaded external packages without the broad commitDeletes sweep.",
+      "description": "Save the current level and loaded external packages; may delete dirty empty external actor/object package files. Requires an explicit host deletion grant. The broad commitDeletes sweep remains disabled.",
       "provider": "ue-mcp",
       "decision": "level-save",
       "effect": "write",
@@ -435,7 +435,7 @@
         "fixed": {}
       },
       "postconditions": [
-        "Check actual edge and save result; do not translate stale numeric node indices.",
+        "Require edgeVerified=true and saved=true plus an exact match of returned asset, node and pin labels to the request; a no-op existing-edge receipt does not establish persistence. Case-normalized pin labels may be refused. Do not translate stale numeric node indices.",
         "An already-existing edge is not a newly created change and must not get a destructive inverse."
       ],
       "example": {

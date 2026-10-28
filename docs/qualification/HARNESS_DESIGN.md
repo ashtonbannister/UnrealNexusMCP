@@ -62,7 +62,8 @@ This schema illustration is not a completed record. Use null for unknowns and ex
   "profile": {"enabled_operations": [], "transport": null, "providers": []},
   "target": {"project_identity": null, "editor_pid": null, "editor_start_epoch": null},
   "cases": [{
-    "operation": null, "case": null, "applicability": null, "outcome": "not-run",
+    "operation": null, "case": null, "case_kind": null, "applicability": null, "outcome": "not-run",
+    "provider": null,
     "provider_pin": null, "patch_sha256": null, "live_marker": null, "loaded_artifact_sha256": null,
     "preconditions": [], "canonical_arguments_redacted": null, "target_identity": null,
     "dispatch_count": null, "receipt_artifact": null, "receipt_sha256": null,
@@ -73,4 +74,10 @@ This schema illustration is not a completed record. Use null for unknowns and ex
 }
 ```
 
+For compatibility-dependent passing cases, `patch_sha256` and `live_marker` declare the reviewed patch digest and compatibility-marker object. They are assertions; the offline validator does not query the editor or verify a loaded binary.
+
 Each artifact reference identifies its storage and digest. Preserve original image bytes and record dimensions and MIME type. For each provider distinguish source/patch, live marker, actual loaded artifact, listener and process identity. Record each common-matrix case separately so omission cannot appear as a pass. This design supplies no run results or project assets.
+
+For each case, `case_kind` distinguishes `positive` observations from `negative` refusal/recovery checks; `provider` identifies the selected provider. An overall passing profile needs a dispatched positive case per enabled operation; applicable negative cases may refuse before dispatch.
+
+The offline `node scripts/qualification-evidence.mjs <manifest.json>` command checks the record structure and required provenance. It does not inspect artifact bytes, prove case coverage, or establish native qualification.

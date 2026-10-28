@@ -118,7 +118,7 @@ export async function createRuntime(config, {
     });
   }
   const gateway = new Gateway(catalog,{enabledCapabilities:enabled,backendFactories:factories,
-    allowWrites:config.allowWrites,timeoutMs:config.timeoutMs,target});
+    allowWrites:config.allowWrites,allowLevelExternalPackageDeletion:config.allowLevelExternalPackageDeletion,timeoutMs:config.timeoutMs,target});
   const guidance = await guidanceLoader();
   // Check mapping before accepting protocol traffic, without contacting backends.
   guidance.forOperations(enabled.map(id=>catalog.get(id)));

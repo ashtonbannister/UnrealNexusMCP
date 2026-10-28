@@ -41,7 +41,7 @@ function fixture(overrides={}) {
 test('configuration defaults deny dispatch and keep server/backends dormant',()=>{
   const cfg=parseConfig(base());
   assert.deepEqual(cfg.enabledPacks,[]);assert.deepEqual(cfg.enabledCapabilities,[]);
-  assert.equal(cfg.allowWrites,false);assert.equal(cfg.target,null);assert.deepEqual(cfg.server,{transport:'stdio'});
+  assert.equal(cfg.allowWrites,false);assert.equal(cfg.allowLevelExternalPackageDeletion,false);assert.equal(cfg.target,null);assert.deepEqual(cfg.server,{transport:'stdio'});
 });
 test('configuration resolves project/source paths against its file and retains positional empty/repeated args',()=>{
   const cfg=parseConfig({version:1,target:{projectRoot:'Demo.uproject',processId:4},backends:{'ue-mcp':{sourceRoot:'vendor/ue',transport:stdio()}}},{baseDir:'/host/config'});
@@ -55,6 +55,7 @@ test('configuration refuses public listener, missing token, unknown fields and m
     {...base(),server:{transport:'http',tokenEnv:'MISSING'}},
     {...base(),server:{transport:'stdio',port:7000}},
     {...base(),automaticFailover:true},
+    {...base(),allowLevelExternalPackageDeletion:'true'},
     {...base(),backends:{'ue-mcp':backend({...stdio(),url:'http://localhost'})}},
     {...base(),target:{projectRoot:'/project',processId:1234}},
   ]) assert.throws(()=>parseConfig(input,{env:{NEXUS_TOKEN:'x'.repeat(40)}}),{code:'INVALID_CONFIGURATION'});
@@ -154,4 +155,19 @@ test('identity refusal preserves its code and exposes unconfirmed startup cleanu
   assert.equal(calls,0);assert.equal(closes,1);
   assert.deepEqual(runtime.status().backends,[{provider:'ue-mcp',state:'failed',cleanup:'unconfirmed'}]);
   await assert.rejects(runtime.close(),{code:'BACKEND_CLEANUP_INCOMPLETE'});
+});
+
+
+test('runtime passes the separate level external package deletion grant to the gateway',async()=>{
+  const {events,adapters}=fixture();
+  const raw={version:1,target,allowWrites:true,enabledCapabilities:['level.save.current'],backends:{'ue-mcp':backend()}};
+  const denied=await createRuntime(parseConfig(raw),adapters);
+  await assert.rejects(denied.gateway.execute('level.save.current',{}),{code:'LEVEL_EXTERNAL_PACKAGE_DELETION_DISABLED'});
+  assert.equal(events.filter(e=>e[0]==='connect').length,0);
+  await denied.close();
+  const allowed=await createRuntime(parseConfig({...raw,allowLevelExternalPackageDeletion:true}),adapters);
+  await allowed.gateway.execute('level.save.current',{});
+  assert.equal(events.filter(e=>e[0]==='call').length,1);
+  assert.equal(allowed.status().allowLevelExternalPackageDeletion,true);
+  await allowed.close();
 });
