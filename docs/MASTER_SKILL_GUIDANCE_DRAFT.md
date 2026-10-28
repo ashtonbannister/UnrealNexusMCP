@@ -358,8 +358,10 @@ query or close unowned state. Shutdown closes transport connections but does not
 silently stop recording, cancel tests, save assets or close native sessions.
 
 Disclose absent channels, sample range and truncation. Frame stats summarize the
-returned page, not necessarily the full capture. This implementation's
-game_thread_ms is frame duration, not separately measured CPU GameThread work.
+returned page, not necessarily the full capture. The average is checked for an
+page with no finite frames or one finite frame; multi-frame average consistency is not
+independently verified. This implementation's game_thread_ms is frame duration,
+not separately measured CPU GameThread work.
 Do not invent p95/p99 or GPU time from missing data. File metadata and null timing
 fields are not trace analysis. Repeated matched benchmark runs require a separate
 acceptance protocol.

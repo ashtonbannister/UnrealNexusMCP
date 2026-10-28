@@ -441,8 +441,41 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
         || !count(data.unterminated_frames) || data.unterminated_frames > data.frames.length) {
         uncertain('Frame page is missing bounded native frame/aggregate evidence.', result);
       }
+      // The pinned native handler emits frames in increasing index order and
+      // duplicates the same finite duration in game_thread_ms. Open frames
+      // have two null durations and an explicit unterminated marker.
+      let previous = -1, openFrames = 0, finiteFrames = 0;
+      let minimum = Number.MAX_VALUE, maximum = 0, singleDuration = null;
+      for (const row of data.frames) {
+        if (row.frame_index <= previous) uncertain('Frame page is not strictly ordered.', result);
+        previous = row.frame_index;
+        if (row.duration_ms === null) {
+          if (row.game_thread_ms !== null || row.unterminated !== true)
+            uncertain('Open frame is missing its native null/unterminated evidence.', result);
+          openFrames++;
+        } else {
+          if (row.game_thread_ms !== row.duration_ms || row.unterminated === true
+            || (args.onlyHitches && row.duration_ms < args.hitchThresholdMs))
+            uncertain('Frame timing contradicts the native page contract.', result);
+          finiteFrames++;
+          singleDuration = row.duration_ms;
+          if (row.duration_ms < minimum) minimum = row.duration_ms;
+          if (row.duration_ms > maximum) maximum = row.duration_ms;
+        }
+      }
+      // Native initializes min to DBL_MAX and max to zero, including for
+      // negative durations; a multi-sample average uses a floating-point sum
+      // and is not compared to a recomputation or a strict range here.
+      const nativeMinimum = minimum === Number.MAX_VALUE ? 0 : minimum;
+      if (openFrames !== data.unterminated_frames
+        || data.min_ms !== nativeMinimum || data.max_ms !== maximum
+        || (finiteFrames === 0 && data.avg_ms !== 0)
+        || (finiteFrames === 1 && data.avg_ms !== singleDuration))
+        uncertain('Frame aggregate contradicts the returned page.', result);
       return normalized(result,native,{ok:true,phase:'observed',session_id:args.sessionId,
         range_frames:[args.startFrame,args.endFrame],aggregates_scope:'returned-page-only',
+        average_consistency:finiteFrames === 0 ? 'no-finite-frames-checked'
+          : finiteFrames === 1 ? 'single-frame-checked' : 'not independently verified',
         game_thread_ms_meaning:'native frame duration, not independent GameThread CPU timing'});
     }
     uncertain('No reviewed specialist result interpreter.', result);

@@ -72,7 +72,34 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
           fileSet.add(file.path);
         }
         if (group.unmatchedSources.some(file=>!fileSet.has(file))) fail('unknown unmatched group source for ' + provider);
-        groupPaths.set(groupKey,{fileSet,unmatched:new Set(group.unmatchedSources),represented:new Set(),expected:group.entryCount});
+        const supporting = new Map();
+        if (group.supportingSources !== undefined) {
+          if (!Array.isArray(group.supportingSources) || !group.supportingSources.length) fail('invalid supporting sources for ' + provider);
+          const supportPaths=new Set();
+          for (const file of group.supportingSources) {
+            if (!object(file) || !pathOk(file.path) || !sha256(file.sha256) || !nonempty(file.role)
+              || supportPaths.has(file.path) || fileSet.has(file.path)
+              || (file.gitBlobSha1 !== undefined && !/^[a-f0-9]{40}$/.test(file.gitBlobSha1))) fail('invalid supporting source for ' + provider);
+            supportPaths.add(file.path);supporting.set(file.path,file.role);
+          }
+          all.push(...group.supportingSources);
+        }
+        if (provider==='hayba' && surface==='material-custom-handler') {
+          // The six custom handlers and the explicitly identified non-tool
+          // helper are exactly the seven files unmatched by literal extraction.
+          // This is local metadata consistency, not upstream source attestation.
+          const literal=item.additionalSourceGroups['material-typed-wrapper-literal'];
+          const helpers=(group.supportingSources ?? []).filter(file=>file.role==='internal compile feedback helper; not a tool descriptor');
+          const original=Array.isArray(literal?.sources) ? new Map(literal.sources.map(file=>[file.path,file])) : new Map();
+          const unmatched=Array.isArray(literal?.unmatchedSources) ? new Set(literal.unmatchedSources) : new Set();
+          const accounted=[...group.sources,...helpers], paths=new Set(accounted.map(file=>file.path));
+          if (helpers.length!==1 || group.sources.length!==6 || unmatched.size!==7 || paths.size!==7
+            || [...paths].some(path=>!unmatched.has(path))
+            || accounted.some(file=>!original.has(file.path) || !/^[a-f0-9]{40}$/.test(file.gitBlobSha1)
+              || original.get(file.path).sha256!==file.sha256
+              || original.get(file.path).gitBlobSha1!==file.gitBlobSha1)) fail('custom handler source reconciliation mismatch');
+        }
+        groupPaths.set(groupKey,{fileSet,supporting,unmatched:new Set(group.unmatchedSources),represented:new Set(),expected:group.entryCount});
         groupCounts.set(groupKey,0);
         all.push(...group.sources);
       }
@@ -105,6 +132,11 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
     const isEpic=entry.provider==='ue-mcp' && surface==='recorded-epic-catalog';
     if (group) {
       if (!group.fileSet.has(entry.sourcePath) || group.unmatched.has(entry.sourcePath)) fail('unknown group record source for ' + entry.provider);
+      if (surface==='material-custom-handler' && (!nonempty(entry.handlerExport)
+        || !Number.isSafeInteger(entry.handlerDeclarationLine) || entry.handlerDeclarationLine < 1
+        || !Number.isSafeInteger(entry.nativeDispatchLine) || entry.nativeDispatchLine < 1
+        || !Number.isSafeInteger(entry.registryDescriptorLine) || entry.registryDescriptorLine < 1
+        || group.supporting.get(entry.registryPath)!=='static descriptor registration index')) fail('invalid custom handler evidence for ' + entry.provider);
       group.represented.add(entry.sourcePath);
       groupCounts.set(groupKey,groupCounts.get(groupKey)+1);
     } else if (isEpic) epicCount++; else counts.set(entry.provider,counts.get(entry.provider)+1);

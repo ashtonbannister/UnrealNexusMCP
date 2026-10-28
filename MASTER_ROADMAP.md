@@ -167,7 +167,7 @@ Add repeatable CI for catalog decisions, schemas, fixed routes, guidance mapping
 
 **Done when:** Required lanes run without unexplained skips and retain logs, commit, lockfile, OS/Node/Python versions and test counts. Exercise the declared Node/OS support or narrow the claim. Include both regression fixes, disabled-provider startup checks and public-surface exclusions. Keep fixture CI separate from native engine tests; do not freeze the suite at 154 tests.
 
-**Evidence:** `.github/workflows/fixture-ci.yml` scaffolds Linux Node 22/24 lanes and pinned UAP checks. Clean Linux fixture validation with the exact UAP pin passed on Node 22.0.0, 22.23.4 and 24.22.1 (182 tests per lane, zero failures or skips); the later Node 24 integrated run passed 243 tests. After the strict-status v2 integration, 96 affected checks passed on each Node 22 version; the subsequent Hayba inventory checker passed 6 checks per version; the source-ledger checker and gateway remain fixture evidence only. Hosted CI runs and artifacts remain outstanding. This is not native engine validation.
+**Evidence:** `.github/workflows/fixture-ci.yml` scaffolds Linux Node 22/24 lanes and pinned UAP checks. Clean Linux fixture validation with the exact UAP pin passed on Node 22.0.0, 22.23.4 and 24.22.1 (182 tests per lane, zero failures or skips); the later Node 24 integrated run passed 245 tests. After the strict-status v2 integration, 96 affected checks passed on each Node 22 version; the subsequent inventory and specialist changes passed 42 affected checks per Node 22 version; the source-ledger checker and gateway remain fixture evidence only. Hosted CI runs and artifacts remain outstanding. This is not native engine validation.
 
 ### OPS-03
 

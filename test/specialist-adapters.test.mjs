@@ -359,10 +359,60 @@ test('trace readback distinguishes legitimate bounded pages and unterminated fra
   assert.deepEqual(scopes.structuredContent.native.warnings,['GPU absent']);
   const frames=await run(adapter,'insights.trace.frames');
   assert.equal(frames.structuredContent.aggregates_scope,'returned-page-only');
+  assert.equal(frames.structuredContent.average_consistency,'single-frame-checked');
   assert.equal(frames.structuredContent.native.data.unterminated_frames,1);
   assert.equal(frames.structuredContent.native.data.frames[1].duration_ms,null);
   await run(adapter,'insights.trace.close');
   assert.deepEqual(adapter.ownedState().traceSessions,[]);
+});
+
+test('trace frame pages reject contradictory timing and preserve the owned reader',async()=>{
+  const path='C:/Project/Saved/Profiling/nexus_capture_001.utrace';
+  const base={session_id:'trace-owned',frames:[{frame_index:0,duration_ms:16,game_thread_ms:16}],
+    avg_ms:16,min_ms:16,max_ms:16,unterminated_frames:0};
+  const cases=[
+    {frames:[{frame_index:0,duration_ms:16,game_thread_ms:999}]},
+    {frames:[{frame_index:0,duration_ms:null,game_thread_ms:null}]},
+    {frames:[{frame_index:0,duration_ms:null,game_thread_ms:null,unterminated:true}]},
+    {frames:[{frame_index:0,duration_ms:16,game_thread_ms:16},{frame_index:0,duration_ms:16,game_thread_ms:16}]},
+    {frames:[],avg_ms:1,min_ms:0,max_ms:0},
+    {min_ms:15}, {max_ms:999}, {avg_ms:999},
+  ];
+  for(const change of cases) {
+    const {adapter}=claireon(p=>p.id==='insights.trace.open'
+      ?native({session_id:'trace-owned',trace_file:path,frame_count:2,duration_ms:1})
+      :native({...base,...change}));
+    await run(adapter,'insights.trace.open',{filePath:path});
+    await assert.rejects(run(adapter,'insights.trace.frames'),error=>
+      error.code==='SPECIALIST_OUTCOME_UNKNOWN' && Array.isArray(error.backendResult?.content));
+    assert.equal(adapter.ownedState().traceSessions.length,1);
+  }
+  const {adapter}=claireon(p=>p.id==='insights.trace.open'
+    ?native({session_id:'trace-owned',trace_file:path,frame_count:1,duration_ms:1})
+    :native(base));
+  await run(adapter,'insights.trace.open',{filePath:path});
+  await assert.rejects(run(adapter,'insights.trace.frames',{...operation('insights.trace.frames').example,onlyHitches:true,hitchThresholdMs:33}),
+    {code:'SPECIALIST_OUTCOME_UNKNOWN'});
+  assert.equal(adapter.ownedState().traceSessions.length,1);
+  // Floating-point accumulation can put a valid mean slightly outside the
+  // extrema. Preserve it instead of inventing an arithmetic tolerance.
+  for(const page of [
+    {frames:[{frame_index:0,duration_ms:null,game_thread_ms:null,unterminated:true}],avg_ms:0,min_ms:0,max_ms:0,unterminated_frames:1},
+    {frames:[{frame_index:0,duration_ms:-5,game_thread_ms:-5}],avg_ms:-5,min_ms:-5,max_ms:0,unterminated_frames:0},
+    {frames:[{frame_index:0,duration_ms:-0,game_thread_ms:-0}],avg_ms:0,min_ms:0,max_ms:0,unterminated_frames:0},
+    {frames:[0,1,2].map(frame_index=>({frame_index,duration_ms:0.1,game_thread_ms:0.1})),
+      avg_ms:0.10000000000000002,min_ms:0.1,max_ms:0.1,unterminated_frames:0},
+  ]) {
+    const valid=claireon(p=>p.id==='insights.trace.open'
+      ?native({session_id:'trace-owned',trace_file:path,frame_count:3,duration_ms:1})
+      :native({session_id:'trace-owned',...page}));
+    await run(valid.adapter,'insights.trace.open',{filePath:path});
+    const out=await run(valid.adapter,'insights.trace.frames');
+    assert.equal(out.isError,undefined);
+    const finiteCount=page.frames.filter(row=>row.duration_ms!==null).length;
+    assert.equal(out.structuredContent.average_consistency, finiteCount === 0
+      ? 'no-finite-frames-checked' : finiteCount === 1 ? 'single-frame-checked' : 'not independently verified');
+  }
 });
 
 test('a native-shaped empty scope page is a valid bounded result',async()=>{

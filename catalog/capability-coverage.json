@@ -187,7 +187,7 @@
             "mcp-tools/hayba-mcp/src/tools/material/material-validate.ts"
           ],
           "limitations": [
-            "Seven source files use other or no direct ueTool expression and are explicitly listed as unexamined; their handlers and public registrations need separate review.",
+            "Seven source files are unmatched by the literal ueTool extraction. Six are separately inventoried as custom handlers; material-stats.ts is an internal helper. Actual runtime registration remains unverified.",
             "Names may duplicate legacy sidecar entries; do not add counts or infer equivalence, loaded packs, schemas, effect, native behavior, licensing, or availability from this static subset.",
             "material_set_param contains scalar, vector and texture variants; the existing Nexus strict routes are not automatically equivalent to every wrapper selector.",
             "Typed routing and dynamic pack loading, dependencies and live native marker checks remain separate. No candidate is promoted or made callable by this artifact."
@@ -195,6 +195,79 @@
           "sourceVersion": 1,
           "provider": "hayba",
           "status": "partial-unreviewed"
+        },
+        "material-custom-handler": {
+          "sourceVersion": 1,
+          "provider": "hayba",
+          "status": "partial-unreviewed",
+          "repository": "https://github.com/zajalist/hayba",
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "scope": "Static handwritten material handler declarations and descriptor bindings at this pin; no runtime registration or native behavior inferred.",
+          "method": "Read exact pinned source and registry Git blobs; compare SHA-256 and static declaration/descriptor lines without importing or executing upstream modules.",
+          "sourceCount": 6,
+          "entryCount": 6,
+          "unmatchedSourceCount": 0,
+          "sources": [
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-compile.ts",
+              "gitBlobSha1": "5cdeff99f1c9638644b1ac0e32f355ee6f012903",
+              "sha256": "8b69877f8491eb353789d533ac195b67995d36e4c430c8cc410c24bc878b5b0c",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-compile.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-delete-comment.ts",
+              "gitBlobSha1": "4a36ea9fa677c3398b1354207e04ab62b2e21e38",
+              "sha256": "80058462251bee417da314c9fc63aa925949661f6c44bde475162a223671ecd1",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-delete-comment.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-disconnect.ts",
+              "gitBlobSha1": "db78cc5e4e187231b3c3389cba00f9eaefbe35b6",
+              "sha256": "4124c1f8dc5e418506a65c6a79714a38dce9ff2ff8b7752e007131abc178d178",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-disconnect.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-comment.ts",
+              "gitBlobSha1": "f63c3ba31598a2741834a0bb45aae736ebb8bf4e",
+              "sha256": "822f6b806789419b290665be24cfcb6eba5a2c207d3634931079fbe24e6957aa",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-set-comment.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-material-property.ts",
+              "gitBlobSha1": "a3576a688de486037d77fe10f0203848b5ec3ce0",
+              "sha256": "5c897cb36e7dd116f2e9b8ef1789cb5082ac6b9a1f0391325fd069819cea181a",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-set-material-property.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-validate.ts",
+              "gitBlobSha1": "9f38c083327453b30df8a7cd795de0532c3abd18",
+              "sha256": "e7d51697e00f645043cbf5b7f9729e803af6efc398624e0813cab771cf4ffa1c",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-validate.ts"
+            }
+          ],
+          "unmatchedSources": [],
+          "supportingSources": [
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/index.ts",
+              "gitBlobSha1": "9836dd808f06acec645e828d8fec2943ee38887a",
+              "sha256": "71c5833bf97f50be9cc56c1d8313bb1261287656918e1696d74f2df45343ed59",
+              "role": "static descriptor registration index",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/index.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-stats.ts",
+              "gitBlobSha1": "cea1f03d3b29944d903a48a24d948c22af000c15",
+              "sha256": "f31a19e2ef6d83616c802cfd87ec14bf3e11dc4be62b2cd9eb9703a57b708d78",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-stats.ts",
+              "role": "internal compile feedback helper; not a tool descriptor"
+            }
+          ],
+          "limitations": [
+            "The registry contains descriptor values and supports multiple routing modes; actual registered tools, loaded packs and schemas require separate runtime verification.",
+            "The helper formats optional compile feedback and is not itself a registered tool in this reviewed slice.",
+            "Paths and names may overlap legacy or ueTool surfaces; do not infer semantic equivalence or add source record counts as capability totals.",
+            "material_compile enforces exactly one material/function path; several other wrappers accept at least one without proving exclusive selection. Native behavior, persistence, licensing and failures need separate review."
+          ]
         }
       }
     },
@@ -23577,16 +23650,72 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "pie_pause",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-02",
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct pause wrapper selects an implicit game world without a session owner or exact PIE instance, can report ok even when no world exists, and reads phase through a getter that defaults missing ReturnValue to NotPlaying.",
+      "reopeningCondition": "Review a distinct owner- and editor-epoch-bound pause contract with exact PIE target, confirmed native phase, interruption recovery and live evidence; do not infer ownership or an effect from ok alone.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+          "lines": [
+            153,
+            160
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+          "lines": [
+            12,
+            14
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            120,
+            121
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "pie_resume",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-02",
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct resume wrapper selects an implicit game world without a session owner or exact PIE instance, can report ok even when no world exists, and reads phase through a getter that defaults missing ReturnValue to NotPlaying.",
+      "reopeningCondition": "Review a distinct owner- and editor-epoch-bound resume contract with exact PIE target, confirmed native phase, interruption recovery and live evidence; do not infer ownership or an effect from ok alone.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+          "lines": [
+            163,
+            170
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+          "lines": [
+            12,
+            14
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            120,
+            121
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -24204,9 +24333,21 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "perf_stat",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct statistics wrapper defaults a missing native ReturnValue to empty text and returns ok with empty parsed metrics; it does not establish target editor epoch, metric freshness, completeness or a bounded raw response.",
+      "reopeningCondition": "Review a distinct bounded performance observation contract with explicit missing-data refusal, exact target and editor epoch, units and freshness, parsed-metric completeness and live source evidence; do not equate this with an owned trace capture.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/perf.py",
+          "lines": [
+            12,
+            46
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -37208,6 +37349,90 @@
       "exportName": "materialSetParamHandler",
       "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts",
       "line": 23,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-custom-handler",
+      "sourceEntry": "material_compile",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-compile.ts",
+      "handlerExport": "materialCompileHandler",
+      "handlerDeclarationLine": 30,
+      "nativeDispatchLine": 38,
+      "registryPath": "mcp-tools/hayba-mcp/src/tools/index.ts",
+      "registryDescriptorLine": 2239,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-custom-handler",
+      "sourceEntry": "material_delete_comment",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-delete-comment.ts",
+      "handlerExport": "materialDeleteCommentHandler",
+      "handlerDeclarationLine": 21,
+      "nativeDispatchLine": 26,
+      "registryPath": "mcp-tools/hayba-mcp/src/tools/index.ts",
+      "registryDescriptorLine": 2366,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-custom-handler",
+      "sourceEntry": "material_disconnect",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-disconnect.ts",
+      "handlerExport": "materialDisconnectHandler",
+      "handlerDeclarationLine": 23,
+      "nativeDispatchLine": 28,
+      "registryPath": "mcp-tools/hayba-mcp/src/tools/index.ts",
+      "registryDescriptorLine": 2528,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-custom-handler",
+      "sourceEntry": "material_set_comment",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-set-comment.ts",
+      "handlerExport": "materialSetCommentHandler",
+      "handlerDeclarationLine": 26,
+      "nativeDispatchLine": 31,
+      "registryPath": "mcp-tools/hayba-mcp/src/tools/index.ts",
+      "registryDescriptorLine": 2387,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-custom-handler",
+      "sourceEntry": "material_set_property",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-set-material-property.ts",
+      "handlerExport": "materialSetMaterialPropertyHandler",
+      "handlerDeclarationLine": 89,
+      "nativeDispatchLine": 97,
+      "registryPath": "mcp-tools/hayba-mcp/src/tools/index.ts",
+      "registryDescriptorLine": 2227,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-custom-handler",
+      "sourceEntry": "material_validate",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-validate.ts",
+      "handlerExport": "materialValidateHandler",
+      "handlerDeclarationLine": 20,
+      "nativeDispatchLine": 25,
+      "registryPath": "mcp-tools/hayba-mcp/src/tools/index.ts",
+      "registryDescriptorLine": 2260,
       "disposition": "unreviewed",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": []
