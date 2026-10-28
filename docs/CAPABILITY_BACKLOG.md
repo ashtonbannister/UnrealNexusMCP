@@ -42,7 +42,7 @@ The following are source and fixture preparation, not admitted routes or native 
 - [World discovery](CAP01_WORLD_DISCOVERY_CONTRACT.md) and [asset discovery](CAP01_ASSET_DISCOVERY_CONTRACT.md) identify bounded snapshot and identity gaps; [native sessions](CAP02_SOURCE_REVIEW.md) distinguishes ownership and cleanup contracts.
 - [Actor, import, lifecycle and deletion](CAP03_06_SOURCE_REVIEW.md); [Blueprint creation and connections](CAP07_08_SOURCE_REVIEW.md); [materials, widgets and atomicity](CAP09_11_SOURCE_REVIEW.md).
 - [Control Rig and Sequencer](CAP12_13_SOURCE_REVIEW.md); [foliage, landscape, geometry and PCG](CAP14_17_SOURCE_REVIEW.md).
-- [PIE PNG fixture component](CAP18A_PNG_FIXTURE.md) is not wired to a callable operation; [additional observation and input](CAP18B_SOURCE_REVIEW.md) remains separate; [vehicle, audio and effects discovery](CAP19_DISCOVERY.md) and [Niagara intake](CAP20_EPIC_NIAGARA_INTAKE.md) do not establish winners; [bounded disposition reviews](CAP20_DISPOSITIONS.md), [Blueprint](CAP20_BLUEPRINT_DISPOSITIONS.md), [PCG/material](CAP20_PCG_MATERIAL_DISPOSITIONS.md) and [play/test/trace](CAP20_PLAY_TEST_DISPOSITIONS.md) cover only named contract slices.
+- [PIE PNG fixture component](CAP18A_PNG_FIXTURE.md) is not wired to a callable operation and the [transport source review](CAP18A_SOURCE_TRANSPORT.md) and [transport decision evidence](CAP18A_TRANSPORT_DECISION_EVIDENCE.md) record the held native file path and unresolved framing/ownership boundaries; [additional observation and input](CAP18B_SOURCE_REVIEW.md) remains separate; [vehicle, audio and effects discovery](CAP19_DISCOVERY.md) and [Niagara intake](CAP20_EPIC_NIAGARA_INTAKE.md) do not establish winners; [bounded disposition reviews](CAP20_DISPOSITIONS.md), [Blueprint](CAP20_BLUEPRINT_DISPOSITIONS.md), [PCG/material](CAP20_PCG_MATERIAL_DISPOSITIONS.md) and [play/test/trace](CAP20_PLAY_TEST_DISPOSITIONS.md) cover only named contract slices.
 
 ## Task register
 
@@ -292,7 +292,7 @@ Add graph/node/property/parameter contracts sufficient for agent-owned authoring
 
 **Dependencies:** [FIX-01](../MASTER_ROADMAP.md#fix-01), [FIX-02](../MASTER_ROADMAP.md#fix-02). Additional scope-specific prerequisites are stated below.
 
-**Candidate state:** screenshot.pie already selects UE-MCP and returns a host PNG path. A bounded, authorized image-delivery contract is additional work; do not replace it with EngineWire's different current-view semantics.
+**Candidate state:** screenshot.pie selects UE-MCP but is held before dispatch until secure native output ownership and target safety are established. A bounded, authorized image-delivery contract is additional work; do not replace it with EngineWire's different current-view semantics.
 
 Define fresh-file-to-image delivery tied to the selected project/capture, safe basename/path, actual write receipt, dimensions and payload bounds. It may be an explicit resource or canonical follow-up after review; no arbitrary host-file reader.
 
@@ -342,7 +342,7 @@ Continue catalog/capability-coverage.json from auditable pinned-source extractio
 
 **Done when:** Every enumerated entry has a disposition: implemented canonical ID, planned contract/task, useful variant, rejected equivalent, blocked or deliberate defer with reason. Every in-scope semantic function has an owner task and candidate/review state. Residual dynamic/unknown coverage is explicit. Cross-check all ten unexposed decision groups below and identify missing families; never sum overlapping tool counts or claim exhaustive equivalence from names.
 
-**Progress:** [partial source inventory](CAP20_INVENTORY.md) and [machine-readable ledger](../catalog/capability-coverage.json) enumerate six bounded pinned source slices and the recorded UE Epic catalog, with unreviewed records explicitly marked. Semantic dispositions, missing source surfaces, family ownership and dynamic coverage remain open; no capability is admitted by this ledger.
+**Progress:** [partial source inventory](CAP20_INVENTORY.md) and [machine-readable ledger](../catalog/capability-coverage.json) enumerate six bounded pinned source slices and the recorded UE Epic catalog, with unreviewed records explicitly marked. A [separate Hayba material wrapper source slice](../catalog/cap20-hayba-material.json) remains unreviewed and may overlap the ledger; it is not a capability count. Semantic dispositions, missing source surfaces, family ownership and dynamic coverage remain open; no capability is admitted by this ledger.
 
 **Source basis:** [inventory](audit/inventory.md); [decisions](../catalog/decisions.json). Preserve the pinned upstream evidence in those records.
 

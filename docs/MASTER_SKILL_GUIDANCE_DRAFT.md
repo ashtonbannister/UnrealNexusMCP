@@ -111,8 +111,10 @@ pause through this restricted lifecycle route.
 - EngineWire editor_viewport mode can show PIE. Inspect the view receipt; require
   reconciled NotPlaying for strict editor-world-only intent. Preserve shaderWait:
   its cap can expire before compilation drains.
-- PIE capture requires an explicit instance and a fresh safe PNG basename.
-  The upstream can overwrite an existing filename; this is not atomic no-clobber.
+- `screenshot.pie` is held before backend dispatch: the native path-based write
+  does not prove output ownership or prevent link/reparse redirection. A fresh
+  basename or host write grant does not establish the physical target. A reviewed
+  secure native implementation and the applicable live evidence are required.
 - A file path or base64 inside JSON text is not automatically an MCP image.
   Do not say “I inspected the screenshot” unless the image was actually received.
 - Full Slate window, arbitrary scene camera, isolated actor render and live

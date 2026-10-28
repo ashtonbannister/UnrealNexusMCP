@@ -87,6 +87,12 @@ export class Gateway {
       throw new NexusError('LEVEL_EXTERNAL_PACKAGE_DELETION_DISABLED',
         'Current-level save may delete dirty empty external actor/object package files. An explicit host grant is required.');
     }
+    // Native capture writes through a path without proving file ownership or
+    // excluding link/reparse redirection. A host grant cannot prove the target.
+    if (id === 'screenshot.pie') {
+      throw new NexusError('PIE_SCREENSHOT_OUTPUT_UNVERIFIED',
+        'PIE screenshot is held until a reviewed native implementation proves safe output ownership and target identity.');
+    }
     const result = await this.queue.run(async (backend) => {
       return normalizeResult(operation, await backend.call(plan.call, this.timeoutMs, {signal}), expectedArgs);
     }, {
@@ -115,6 +121,7 @@ export class Gateway {
 
   status() {
     return {allowWrites:this.allowWrites, allowLevelExternalPackageDeletion:this.#allowLevelExternalPackageDeletion, queue:this.queue.status,
+      heldCapabilities:this.#enabled.has('screenshot.pie') ? [{id:'screenshot.pie',reason:'native output ownership and target identity unverified'}] : [],
       enabledCapabilities:[...this.#enabled],
       requiredProviders:[...new Set(this.list().map((op)=>op.provider))].sort(),
       backends:this.#pool.status,

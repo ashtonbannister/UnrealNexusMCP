@@ -8,7 +8,7 @@ This is the authoritative work plan for the unified gateway. It defines sequenci
 
 Give an agent one coherent Unreal tool set with the strongest reviewed implementation for each precise function. The agent works with canonical operations; Nexus handles the selected provider, validation, target identity, transport and native receipt. Enable only the capabilities the project needs, start only their required backend connections, and keep specialist domains optional.
 
-The intended result is an agent that can discover and inspect a project, create/import and edit content, build gameplay/graphs/UI, persist exact changes, run and observe gameplay, test and profile it, and explain the observed result. The current 29 operations are the implemented foundation. Broader authoring and specialized coverage remains explicit work below.
+The intended result is an agent that can discover and inspect a project, create/import and edit content, build gameplay/graphs/UI, persist exact changes, run and observe gameplay, test and profile it, and explain the observed result. The current catalogue contains 29 operations; `screenshot.pie` is held before dispatch until native output ownership and target safety are established. Broader authoring and specialized coverage remains explicit work below.
 
 A winner is selected per semantic contract, not per whole MCP repository. Exact world/client, persistence, completion, algorithm and failure semantics define whether two implementations are duplicates. Retain distinct useful variants. A backend becomes unnecessary for a profile only when no enabled operation or required internal dependency uses it.
 
@@ -63,7 +63,7 @@ Milestones express outcomes, not dates. Source review, fixture work and independ
 A core configuration does not wait for every optional specialist. Qualify these profiles independently:
 
 - **Core profile:** authoring-core and editor-observation (8 existing operations); LIVE-01, LIVE-02 and LIVE-08 for that combination.
-- **Playtesting profile:** core plus playtesting (16 existing operations); additionally LIVE-03 and another LIVE-08 run for that combination.
+- **Playtesting profile:** core plus playtesting (16 catalogued operations, including held `screenshot.pie`); additionally LIVE-03 and another LIVE-08 run for that combination.
 - **Specialist profiles:** add only the desired compile (2), material (3), automation (2) or Insights (6) operations, with that pack's native record and combined-profile check.
 - **Expanded authoring profiles:** add individual CAP contracts only after their source/fixture/native evidence; no whole-family blanket enablement.
 
@@ -133,7 +133,7 @@ Resolve review finding R2 (review severity P2) in src/runtime.mjs and src/backen
 
 ### Additional source-review safeguards
 
-The pinned current-level save may delete dirty, empty external actor/object packages even with `commitDeletes=false`. The gateway now requires the separate host-only `allowLevelExternalPackageDeletion` grant before dispatch; this is in addition to write authorization. The selected actor-inspection native receipt also does not report its resolved world or PIE instance, so the existing postcondition requires independent corroboration pending a reviewed native context receipt. The PCG persisted-edge policy requires a matching graph/node/pin receipt, edge verification and a successful save; a pre-existing-edge no-op alone does not prove persistence. These are source/fixture findings, not live observations.
+The pinned current-level save may delete dirty, empty external actor/object packages even with `commitDeletes=false`. The gateway now requires the separate host-only `allowLevelExternalPackageDeletion` grant before dispatch; this is in addition to write authorization. The selected actor-inspection native receipt also does not report its resolved world or PIE instance, so the existing postcondition requires independent corroboration pending a reviewed native context receipt. The PCG persisted-edge policy requires a matching graph/node/pin receipt, edge verification and a successful save; a pre-existing-edge no-op alone does not prove persistence. The path-based `screenshot.pie` native write cannot establish physical output ownership or exclude link/reparse redirection; the gateway holds it before dispatch until a reviewed safe native implementation and live evidence exist. These are source/fixture findings, not live observations.
 
 ## 6. Capability and qualification work registers
 
@@ -167,7 +167,7 @@ Add repeatable CI for catalog decisions, schemas, fixed routes, guidance mapping
 
 **Done when:** Required lanes run without unexplained skips and retain logs, commit, lockfile, OS/Node/Python versions and test counts. Exercise the declared Node/OS support or narrow the claim. Include both regression fixes, disabled-provider startup checks and public-surface exclusions. Keep fixture CI separate from native engine tests; do not freeze the suite at 154 tests.
 
-**Evidence:** `.github/workflows/fixture-ci.yml` scaffolds Linux Node 22/24 lanes and pinned UAP checks. Clean Linux fixture validation with the exact UAP pin passed on Node 22.0.0, 22.23.4 and 24.22.1 (182 tests per lane, zero failures or skips); the later Node 24 integrated run passed 187 tests. After the final PCG receipt change, the affected gateway checks passed 34 tests on Node 22.0.0, 22.23.4 and 24.22.1, all without failures or skips. Hosted CI runs and artifacts remain outstanding. This is not native engine validation.
+**Evidence:** `.github/workflows/fixture-ci.yml` scaffolds Linux Node 22/24 lanes and pinned UAP checks. Clean Linux fixture validation with the exact UAP pin passed on Node 22.0.0, 22.23.4 and 24.22.1 (182 tests per lane, zero failures or skips); the later Node 24 integrated run passed 193 tests. After the PCG receipt and screenshot hold changes, affected Node 22 checks passed on both versions; the source-ledger checker and gateway remain fixture evidence only. Hosted CI runs and artifacts remain outstanding. This is not native engine validation.
 
 ### OPS-03
 

@@ -3,7 +3,7 @@
 **One canonical tool set. One reviewed winning implementation per function.
 Only the backends needed by enabled capabilities. Optional specialists.**
 
-Nexus is an MCP gateway with a curated catalogue of **29 canonical operations**.
+Nexus is an MCP gateway with a curated catalogue of **29 canonical operations**. `screenshot.pie` is currently held before dispatch until native output ownership and target safety are established.
 It serves local stdio or authenticated loopback HTTP, starts selected backend
 connections on first execution, and applies the
 [master skill guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md) through MCP
@@ -19,8 +19,7 @@ The [master roadmap](MASTER_ROADMAP.md) defines priorities, dependencies, owner
 roles and completion evidence. Its [capability backlog](docs/CAPABILITY_BACKLOG.md)
 covers authoring beyond the current 29 operations, and the
 [native qualification plan](docs/QUALIFICATION_PLAN.md) maps every current
-operation to required live evidence. The two open gateway reliability findings
-from PR #1 are tracked as FIX-01 and FIX-02; they are not resolved by the roadmap.
+operation to required live evidence. FIX-01 and FIX-02 have source and fixture evidence; live Unreal qualification remains pending.
 
 ## Start the gateway
 

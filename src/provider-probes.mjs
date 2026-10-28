@@ -19,6 +19,13 @@ const UE_BRIDGES = new Map([
   ['pie.inject_input_update', 'pie_inject_input_update'], ['pie.inject_input_stop', 'pie_inject_input_stop'],
 ]);
 
+// Immutable lookup only: the reviewed bridge map remains private to this module.
+// Node-local wrappers, including pcg.wait_for_generation, have no direct bridge.
+export function reviewedUeBridgeFor(category, method) {
+  if (typeof category !== 'string' || typeof method !== 'string') return undefined;
+  return UE_BRIDGES.get(category + '.' + method);
+}
+
 function linuxStart(stat) {
   // comm is parenthesized and can itself contain spaces and parentheses.
   const values = stat.slice(stat.lastIndexOf(')') + 2).trim().split(/\s+/u);
@@ -457,7 +464,8 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
     if (provider === 'ue-mcp' && operation.route.kind === 'ue-micro') {
       const description = payload(await call('tools', { action: 'describe', category: operation.route.category, method: operation.route.method }));
       const key = `${operation.route.category}.${operation.route.method}`;
-      if (key !== 'pcg.wait_for_generation' && (!UE_BRIDGES.has(key) || description.bridge !== UE_BRIDGES.get(key))) return false;
+      const expectedBridge = reviewedUeBridgeFor(operation.route.category, operation.route.method);
+      if (key !== 'pcg.wait_for_generation' && (!expectedBridge || description.bridge !== expectedBridge)) return false;
       if (description.bridge && identity.native.deployedPlugin?.handlerSpecDrift?.includes(description.bridge)) return false;
       if (!ueSchemaMatches(description, operation)) return false;
       if (key === 'pcg.wait_for_generation') {

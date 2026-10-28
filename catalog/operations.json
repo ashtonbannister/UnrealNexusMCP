@@ -134,7 +134,7 @@
     },
     {
       "id": "screenshot.pie",
-      "description": "Capture a selected PIE viewport including UMG to a fresh PNG filename; result may be a host file path, not an inline image.",
+      "description": "Selected PIE viewport capture to a PNG path is held: the native write does not prove output ownership or prevent link/reparse redirection. No dispatch until a reviewed secure native implementation is available.",
       "provider": "ue-mcp",
       "decision": "pie-screenshot",
       "effect": "write",

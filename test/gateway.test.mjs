@@ -470,3 +470,15 @@ test('malformed or contradictory PCG success shapes fence despite matched identi
     assert.equal(calls.length,1);await g.close();
   }
 });
+
+
+test('PIE capture is held before backend startup even with write authority',async()=>{
+  const args={filename:'nexus-frame.png',pieInstance:1};
+  const {gateway:g,starts,calls}=fixture({config:{enabledCapabilities:['screenshot.pie'],allowWrites:true}});
+  assert.equal(g.plan('screenshot.pie',args).dispatched,false);
+  assert.deepEqual(g.status().heldCapabilities,[{id:'screenshot.pie',reason:'native output ownership and target identity unverified'}]);
+  await assert.rejects(g.execute('screenshot.pie',args),{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED'});
+  assert.deepEqual(starts,[]);assert.deepEqual(calls,[]);
+  assert.throws(()=>g.plan('screenshot.pie',{...args,allowPieScreenshotOverwrite:true}),{code:'INVALID_ARGUMENTS'});
+  await g.close();
+});

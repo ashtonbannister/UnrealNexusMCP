@@ -86,7 +86,10 @@ external actor/object package files even when `commitDeletes` is false. It also
 requires the separate host setting `allowLevelExternalPackageDeletion: true`,
 which defaults to false. Grant it only when that scoped deletion is authorized.
 This setting is not a model-callable argument and does not authorize the broad
-dirty-package sweep.
+dirty-package sweep. `screenshot.pie` is held before dispatch until a reviewed
+native implementation proves output ownership and prevents link/reparse
+redirection. Neither a fresh basename nor a host write grant proves the physical
+output target; no configuration flag bypasses this hold. `requiredProviders` includes providers for enabled catalog entries, including held entries; a held entry never starts its backend.
 
 Relative paths resolve against the configuration file's directory. Fields are
 strictly checked; unknown keys are rejected. Credential values come from named

@@ -56,6 +56,7 @@ test('configuration refuses public listener, missing token, unknown fields and m
     {...base(),server:{transport:'stdio',port:7000}},
     {...base(),automaticFailover:true},
     {...base(),allowLevelExternalPackageDeletion:'true'},
+    {...base(),allowPieScreenshotOverwrite:true},
     {...base(),backends:{'ue-mcp':backend({...stdio(),url:'http://localhost'})}},
     {...base(),target:{projectRoot:'/project',processId:1234}},
   ]) assert.throws(()=>parseConfig(input,{env:{NEXUS_TOKEN:'x'.repeat(40)}}),{code:'INVALID_CONFIGURATION'});
@@ -170,4 +171,17 @@ test('runtime passes the separate level external package deletion grant to the g
   assert.equal(events.filter(e=>e[0]==='call').length,1);
   assert.equal(allowed.status().allowLevelExternalPackageDeletion,true);
   await allowed.close();
+});
+
+
+test('runtime holds PIE capture before connecting and refuses an invented override',async()=>{
+  const {events,adapters}=fixture();
+  const raw={version:1,target,allowWrites:true,enabledCapabilities:['screenshot.pie'],backends:{'ue-mcp':backend()}};
+  const args={filename:'nexus-frame.png',pieInstance:1};
+  const runtime=await createRuntime(parseConfig(raw),adapters);
+  await assert.rejects(runtime.gateway.execute('screenshot.pie',args),{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED'});
+  assert.equal(events.filter(e=>e[0]==='connect').length,0);
+  assert.equal(events.filter(e=>e[0]==='call').length,0);
+  assert.throws(()=>parseConfig({...raw,allowPieScreenshotOverwrite:true}),{code:'INVALID_CONFIGURATION'});
+  await runtime.close();
 });
