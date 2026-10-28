@@ -1,6 +1,6 @@
 # CAP-18A transport decision evidence
 
-Status: **source and documentation review only; neither transport is selected, implemented, or qualified**. The callable `screenshot.pie` operation remains held. This note refines the open dependency and Windows API questions in the [transport review](CAP18A_SOURCE_TRANSPORT.md) and [image contract](CAP18A_IMAGE_CONTRACT.md). No response-size budget, source patch, or live behavior is asserted.
+Status: **direct bounded bridge bytes selected by the owner; not implemented or qualified**. The callable `screenshot.pie` operation remains held. This note refines the open dependency and Windows API questions in the [transport review](CAP18A_SOURCE_TRANSPORT.md) and [image contract](CAP18A_IMAGE_CONTRACT.md). No response-size budget, source patch, or live behavior is asserted.
 
 ## Pinned WebSocket client default
 
@@ -18,4 +18,4 @@ A file-lease implementation must independently establish and retain the authoriz
 
 ## Remaining decision and validation
 
-Direct bytes and a protected file lease are materially different contracts. Direct bytes avoid a temporary-file lifecycle but require an explicit bounded bridge/MCP protocol and exact-world correlation. The file lease needs an independently authorized root, native handle semantics, ownership, cleanup and reparse-race evidence. Neither may be used as a silent fallback for the other. Selecting one requires the project's architecture decision, reviewed fixed schema and immutable compatibility patch, plus fixture and live evidence. Both approaches still require actual loaded-binary provenance, selected PIE context, no-replay handling, scoped image decoding and LIVE-03 acceptance. No evidence in this note establishes a safe implementation or allows the held path to run.
+Direct bytes and a protected file lease are materially different contracts. Direct bytes avoid a temporary-file lifecycle but require an explicit bounded bridge/MCP protocol and exact-world correlation. The file lease needs an independently authorized root, native handle semantics, ownership, cleanup and reparse-race evidence. Neither may be used as a silent fallback for the other. The owner selected direct bounded bridge bytes on 2026-10-28. Implementation requires a reviewed fixed schema and immutable compatibility patch, plus fixture and live evidence. Both approaches still require actual loaded-binary provenance, selected PIE context, no-replay handling, scoped image decoding and LIVE-03 acceptance. No evidence in this note establishes a safe implementation or allows the held path to run.

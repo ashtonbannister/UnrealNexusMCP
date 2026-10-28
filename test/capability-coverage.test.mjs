@@ -61,3 +61,21 @@ test('unreviewed records and incomplete counts cannot be relabeled complete',()=
   const missing=copy();missing.entries.pop();
   assert.throws(()=>validateCapabilityCoverage({ledger:missing}),/count mismatch/);
 });
+
+
+test('blocked source records require owner, reason, reopening condition and pinned evidence without route claims',()=>{
+  const blocked=coverage.entries.filter(e=>e.disposition==='blocked');
+  const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
+  for(const name of ['actor_find','actor_get_properties']) assert.ok(blockedUap.has(name));
+  assert.equal(validateCapabilityCoverage().status,'partial-unreviewed');
+  for (const change of [
+    row=>{row.blockReason='';}, row=>{row.reopeningCondition='';},
+    row=>{row.sourceEvidence=[];}, row=>{row.sourceEvidence[0].commit='0'.repeat(40);},
+    row=>{row.sourceEvidence[0].path='../outside';}, row=>{row.sourceEvidence[0].lines=[2,1];},
+  ]) {
+    const ledger=copy(); change(ledger.entries.find(e=>e.disposition==='blocked'));
+    assert.throws(()=>validateCapabilityCoverage({ledger}),/invalid blocked evidence/);
+  }
+  const contradictory=copy();contradictory.entries.find(e=>e.disposition==='blocked').canonicalRouteReferences=['actor.inspect.editor'];
+  assert.throws(()=>validateCapabilityCoverage({ledger:contradictory}),/disposition\/route mismatch/);
+});

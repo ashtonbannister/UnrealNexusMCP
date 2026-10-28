@@ -16,6 +16,90 @@ function payloadOf(result) {
   }
   return parsed.length === 1 ? parsed[0] : null;
 }
+// Native save rows are per resolved package, not per requested object: two
+// requested objects may collapse to one package row. A shorter receipt cannot
+// prove whether a path was an alias or omitted, so it is conservatively fenced.
+const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const nonempty = value => typeof value === 'string' && value.length > 0;
+const count = value => Number.isSafeInteger(value) && value >= 0;
+function coherentExactAssetSave(payload, args, isFailure = false) {
+  if (!Array.isArray(args.assetPaths) || !args.assetPaths.length || !Array.isArray(payload.results)
+    || payload.results.length < 1 || payload.results.length > args.assetPaths.length
+    || payload.force !== (args.force ?? false)
+    || !count(payload.savedCount) || !count(payload.notDirtyCount) || !count(payload.failedCount)
+    || (isFailure ? payload.failedCount < 1 || !nonempty(payload.error) : payload.failedCount !== 0 || Object.hasOwn(payload,'error'))
+    || payload.savedCount + payload.notDirtyCount + payload.failedCount !== payload.results.length
+    || Object.hasOwn(payload,'refused') || payload.rollbackPossible !== false || !nonempty(payload.rollbackNote)) return false;
+  if (payload.savedCount > 0 ? payload.updated !== true || Object.hasOwn(payload,'unchanged')
+    : payload.updated !== false || payload.unchanged !== true) return false;
+  const requested = new Set(args.assetPaths.map(path => typeof path === 'string' ? path.trim() : path));
+  if (payload.results.length !== requested.size) return false;
+  const paths = new Set(), packages = new Set();
+  let saved = 0, clean = 0, failed = 0;
+  for (const row of payload.results) {
+    if (!record(row) || !nonempty(row.path) || !requested.has(row.path) || paths.has(row.path)
+      || !nonempty(row.package) || packages.has(row.package) || typeof row.wasDirty !== 'boolean') return false;
+    paths.add(row.path); packages.add(row.package);
+    if (row.status === 'saved') {
+      if (typeof row.stillDirty !== 'boolean' || (!row.wasDirty && !payload.force)) return false;
+      saved++;
+    } else if (row.status === 'notDirty') {
+      if (row.wasDirty || payload.force) return false;
+      clean++;
+    } else if (row.status === 'failed' && isFailure) {
+      if (typeof row.stillDirty !== 'boolean' || !nonempty(row.reason) || (!row.wasDirty && !payload.force)) return false;
+      failed++;
+    } else return false;
+  }
+  if (saved !== payload.savedCount || clean !== payload.notDirtyCount || failed !== payload.failedCount) return false;
+  if (isFailure) {
+    const first = payload.results.find(row => row.status === 'failed');
+    return payload.error === `${failed} of ${saved + failed} packages did not reach disk. The first: ${first.package}: ${first.reason}`;
+  }
+  return true;
+}
+// Native validates the complete selector before entering its save loop and
+// explicitly reports every refused input. Do not infer package aliases here.
+function exactAssetPreflightRefusal(payload, args) {
+  if (!Array.isArray(args.assetPaths) || !args.assetPaths.length || !Array.isArray(payload.refused)
+    || !payload.refused.length || payload.refused.length > args.assetPaths.length
+    || Object.keys(payload).length !== 3 || !nonempty(payload.error)) return false;
+  const requested = new Set(args.assetPaths.map(path => typeof path === 'string' ? path.trim() : path));
+  if (!payload.refused.every(row => record(row) && nonempty(row.path) && requested.has(row.path)
+    && row.status === 'refused' && nonempty(row.reason))) return false;
+  const first = payload.refused[0];
+  return payload.error === `${payload.refused.length} of ${args.assetPaths.length} assetPaths cannot be saved, so nothing was written. The first: '${first.path}' - ${first.reason}`;
+}
+function coherentLevelSave(payload, isFailure = false) {
+  if (!nonempty(payload.levelName) || !nonempty(payload.levelPath) || !nonempty(payload.levelPackage)
+    || typeof payload.usesExternalActors !== 'boolean' || !count(payload.externalPackagesLoaded)
+    || !count(payload.landscapesMerged) || !count(payload.savedCount) || !count(payload.failedCount)
+    || (isFailure ? payload.failedCount < 1 || !nonempty(payload.error) : payload.failedCount !== 0 || Object.hasOwn(payload,'error'))
+    || !count(payload.skippedCount) || !count(payload.deletedCount) || !Array.isArray(payload.saved)
+    || payload.saved.length !== payload.savedCount) return false;
+  if (payload.savedCount + payload.deletedCount > 0
+    ? payload.rollbackPossible !== false || !nonempty(payload.rollbackNote)
+    : Object.hasOwn(payload,'rollbackPossible') || Object.hasOwn(payload,'rollbackNote')) return false;
+  const rows = (field, n) => payload[field] === undefined ? n === 0
+    : Array.isArray(payload[field]) && payload[field].length === n;
+  if (!rows('skipped',payload.skippedCount) || !rows('deleted',payload.deletedCount)
+    || !rows('failed',payload.failedCount)) return false;
+  if (!payload.saved.every(row => record(row) && nonempty(row.package) && row.saved === true)) return false;
+  if (!(payload.skipped ?? []).every(row => record(row) && nonempty(row.package)
+    && row.saved === false && row.skipped === true)) return false;
+  if (!(payload.deleted ?? []).every(row => record(row) && nonempty(row.package)
+    && row.emptyPackage === true && typeof row.deleted === 'boolean'
+    && (row.deleted ? !Object.hasOwn(row,'neverOnDisk') : row.neverOnDisk === true))) return false;
+  if (!(payload.failed ?? []).every(row => record(row) && nonempty(row.package) && nonempty(row.error)
+    && (row.saved === false || (row.emptyPackage === true && row.saved === undefined)))) return false;
+  if (isFailure && payload.error !== payload.failed[0].error) return false;
+  const levelRows = [...payload.saved,...(payload.skipped ?? []),...(payload.failed ?? [])];
+  const packages = [...levelRows,...(payload.deleted ?? [])].map(row => row.package);
+  return levelRows.filter(row => row.package === payload.levelPackage).length === 1
+    && new Set(packages).size === packages.length;
+}
+const levelPieRefusal = payload => Object.keys(payload).length === 2
+  && payload.error === 'Play In Editor is running; stop it before saving the level. Saving during PIE is what produced an unexplained failure before.';
 export function normalizeResult(operation, result, expectedArgs = {}) {
   if (!result || typeof result !== 'object' || !Array.isArray(result.content)) {
     throw new Error('Malformed backend MCP result');
@@ -71,6 +155,20 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     if (!result.content.some((part) => part.type === 'image'
       && typeof part.data === 'string' && part.data.length > 0
       && typeof part.mimeType === 'string' && part.mimeType.startsWith('image/'))) failed = true;
+  }
+  if (operation.id === 'asset.save.exact' || operation.id === 'level.save.current') {
+    policy = operation.id === 'asset.save.exact' ? 'require-coherent-exact-asset-save-receipt' : 'require-coherent-level-save-receipt';
+    if (payload?.success === true && (result.isError === true
+      || !(operation.id === 'asset.save.exact' ? coherentExactAssetSave(payload,expectedArgs) : coherentLevelSave(payload)))) {
+      // A returned but contradictory success cannot establish which work completed.
+      failed = true; outcomeUnknown = true;
+    }
+    if (payload?.success === false) {
+      const known = operation.id === 'asset.save.exact'
+        ? exactAssetPreflightRefusal(payload,expectedArgs) || coherentExactAssetSave(payload,expectedArgs,true)
+        : levelPieRefusal(payload) || coherentLevelSave(payload,true);
+      if (!known) outcomeUnknown = true;
+    }
   }
   if (operation.id === 'pcg.graph.connect.persisted') {
     policy = 'require-verified-persisted-pcg-edge';

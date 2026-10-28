@@ -15,6 +15,7 @@ const coreConfig=()=>parseConfig({version:1,target,allowWrites:true,
   enabledCapabilities:['actor.inspect.editor','screenshot.viewport.current'],
   backends:{'ue-mcp':backend(),'enginewire':backend({type:'streamable-http',url:'http://127.0.0.1:8001/mcp'})}});
 const json=value=>({content:[{type:'text',text:JSON.stringify(value)}]});
+const levelReceipt=()=>({success:true,levelName:'Demo',levelPath:'/Game/Demo.Demo',levelPackage:'/Game/Demo',usesExternalActors:false,externalPackagesLoaded:0,landscapesMerged:0,savedCount:0,failedCount:0,skippedCount:1,deletedCount:0,saved:[],skipped:[{package:'/Game/Demo',saved:false,skipped:true}]});
 function fixture(overrides={}) {
   const events=[];
   const adapters={
@@ -26,7 +27,8 @@ function fixture(overrides={}) {
       return {listTools:async()=>[{name:transport.type==='stdio'?'tools':'unreal',inputSchema:{type:'object'}}],
         callTool:async(name,args,options)=>{
           events.push(['call',name,args,options]);
-          return name==='unreal'?{content:[{type:'image',mimeType:'image/png',data:'AAAA'}]}:json({success:true});
+          if(name==='unreal') return {content:[{type:'image',mimeType:'image/png',data:'AAAA'}]};
+          return json(args.category==='level' && args.method==='save' ? levelReceipt() : {success:true});
         },close:async()=>{events.push(['close',transport.type]);}};
     },
     probeFactory:({target,provider})=>({

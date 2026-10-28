@@ -73,8 +73,16 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
     if (entry.sourcePath !== undefined && !sourcePaths.get(entry.provider).has(entry.sourcePath)) fail('unknown source path for ' + entry.provider);
     const refs=entry.canonicalRouteReferences ?? [];
     if (!Array.isArray(refs) || new Set(refs).size !== refs.length) fail('invalid route references for ' + entry.sourceEntry);
-    if (!['unreviewed','selected-route-slice-other-semantics-unreviewed'].includes(entry.disposition)) fail('unsupported disposition for ' + entry.sourceEntry);
-    if ((entry.disposition==='unreviewed') !== (refs.length===0)) fail('disposition/route mismatch for ' + entry.sourceEntry);
+    if (!['unreviewed','blocked','selected-route-slice-other-semantics-unreviewed'].includes(entry.disposition)) fail('unsupported disposition for ' + entry.sourceEntry);
+    if ((entry.disposition==='selected-route-slice-other-semantics-unreviewed') !== (refs.length>0)) fail('disposition/route mismatch for ' + entry.sourceEntry);
+    if (entry.disposition==='blocked') {
+      if (!nonempty(entry.blockReason) || !nonempty(entry.reopeningCondition)
+        || !Array.isArray(entry.sourceEvidence) || !entry.sourceEvidence.length
+        || !entry.sourceEvidence.every(e=>object(e) && e.commit===lock.sources[entry.provider].commit
+          && pathOk(e.path) && Array.isArray(e.lines) && e.lines.length===2
+          && Number.isSafeInteger(e.lines[0]) && Number.isSafeInteger(e.lines[1])
+          && e.lines[0]>0 && e.lines[1]>=e.lines[0])) fail('invalid blocked evidence for ' + entry.sourceEntry);
+    }
     for (const id of refs) {
       const op=routes.get(id);
       if (!op || op.provider !== entry.provider) fail('invalid selected route reference for ' + entry.sourceEntry);

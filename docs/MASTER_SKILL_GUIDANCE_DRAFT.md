@@ -150,7 +150,11 @@ separate decisions.
 
 **Use:** `asset.save.exact`, `level.save.current`.
 
-- Prefer a nonempty explicit assetPaths list for known loaded packages.
+- Prefer a nonempty explicit assetPaths list for known loaded packages. The
+  native save reports one row per resolved package, so multiple requested object
+  paths can collapse to one row. Without an explicit per-input mapping, Nexus
+  conservatively fences a shorter receipt as outcome-unknown; reconcile before
+  further work rather than retrying or assuming an input was omitted.
 - Decide force intentionally: unmarked-dirty edits may need force=true, but
   ordinary save should not silently resave unrelated clean assets.
 - Current-level save acts on the currently edited level, not a supplied map
