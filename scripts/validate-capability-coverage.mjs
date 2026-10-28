@@ -28,7 +28,12 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
     if (!nonempty(op?.id) || !Object.hasOwn(lock.sources,op.provider) || routes.has(op.id)) fail('invalid or duplicate catalog operation');
     routes.set(op.id,op);
   }
-  const sourcePaths=new Map();
+  const sourcePaths=new Map(), groupPaths=new Map(), groupCounts=new Map();
+  // Existing rows without a surface belong to their provider's original
+  // static subset. Explicit Claireon and UE snapshot surfaces are retained.
+  const baselineSurfaces = {enginewire:['legacy-default'], 'ue-mcp':['legacy-default','recorded-epic-catalog'],
+    unrealagentplayer:['legacy-default'], hayba:['legacy-default'], 'ivan-unreal-mcp':['legacy-default'],
+    claireon:['internal-tool-static-declaration','mcp-visible-name-filter']};
   for (const provider of providers) {
     const item=ledger.sources[provider], pin=lock.sources[provider], recorded=summary.providers[provider];
     if (!object(item) || !object(recorded) || item.commit !== pin.commit || recorded.commit !== pin.commit) fail('commit mismatch for ' + provider);
@@ -48,10 +53,35 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
         all.push(snapshot);
       }
     }
+    if (item.additionalSourceGroups !== undefined) {
+      if (!object(item.additionalSourceGroups)) fail('invalid additional source groups for ' + provider);
+      for (const [surface,group] of Object.entries(item.additionalSourceGroups)) {
+        if (!nonempty(surface) || baselineSurfaces[provider]?.includes(surface) || !object(group)
+          || group.sourceVersion !== 1 || group.provider !== provider || group.status !== 'partial-unreviewed'
+          || group.commit !== pin.commit || group.repository !== pin.repository
+          || !nonempty(group.scope) || !nonempty(group.method) || !Array.isArray(group.limitations) || !group.limitations.length
+          || !Array.isArray(group.sources) || !Number.isSafeInteger(group.sourceCount) || group.sources.length !== group.sourceCount
+          || !Number.isSafeInteger(group.entryCount) || group.entryCount < 0
+          || !Array.isArray(group.unmatchedSources) || !Number.isSafeInteger(group.unmatchedSourceCount)
+          || group.unmatchedSources.length !== group.unmatchedSourceCount
+          || new Set(group.unmatchedSources).size !== group.unmatchedSources.length) fail('invalid additional source group for ' + provider);
+        const groupKey=JSON.stringify([provider,surface]), fileSet=new Set();
+        for (const file of group.sources) {
+          if (!object(file) || !pathOk(file.path) || !sha256(file.sha256) || fileSet.has(file.path)
+            || (file.gitBlobSha1 !== undefined && !/^[a-f0-9]{40}$/.test(file.gitBlobSha1))) fail('invalid group source for ' + provider);
+          fileSet.add(file.path);
+        }
+        if (group.unmatchedSources.some(file=>!fileSet.has(file))) fail('unknown unmatched group source for ' + provider);
+        groupPaths.set(groupKey,{fileSet,unmatched:new Set(group.unmatchedSources),represented:new Set(),expected:group.entryCount});
+        groupCounts.set(groupKey,0);
+        all.push(...group.sources);
+      }
+    }
     if (!all.length) fail('missing source files for ' + provider);
     const paths=new Map();
     for (const source of all) {
-      if (!object(source) || !pathOk(source.path) || !sha256(source.sha256) || paths.has(source.path)) fail('invalid source path or hash for ' + provider);
+      if (!object(source) || !pathOk(source.path) || !sha256(source.sha256)
+        || (paths.has(source.path) && paths.get(source.path)!==source.sha256)) fail('invalid source path or hash for ' + provider);
       paths.set(source.path,source.sha256);
     }
     const expected=Array.isArray(recorded.sources) ? recorded.sources : [{path:recorded.source,sha256:recorded.sha256}];
@@ -65,11 +95,19 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
   for (const entry of ledger.entries) {
     if (!object(entry) || !Object.hasOwn(ledger.sources,entry.provider) || !nonempty(entry.sourceEntry)
       || !nonempty(entry.reviewOwnerTask)) fail('invalid source record');
-    const key=JSON.stringify([entry.provider,entry.sourceEntry]);
+    const surface=entry.surface ?? 'legacy-default';
+    if (!nonempty(surface)) fail('invalid source surface for ' + entry.provider);
+    const groupKey=JSON.stringify([entry.provider,surface]), group=groupPaths.get(groupKey);
+    if (!group && !baselineSurfaces[entry.provider]?.includes(surface)) fail('unknown source surface for ' + entry.provider);
+    const key=JSON.stringify([entry.provider,surface,entry.sourceEntry]);
     if (keys.has(key)) fail('duplicate source record for ' + entry.provider + ': ' + entry.sourceEntry);
     keys.add(key);
-    const isEpic=entry.provider==='ue-mcp' && entry.surface==='recorded-epic-catalog';
-    if (isEpic) epicCount++; else counts.set(entry.provider,counts.get(entry.provider)+1);
+    const isEpic=entry.provider==='ue-mcp' && surface==='recorded-epic-catalog';
+    if (group) {
+      if (!group.fileSet.has(entry.sourcePath) || group.unmatched.has(entry.sourcePath)) fail('unknown group record source for ' + entry.provider);
+      group.represented.add(entry.sourcePath);
+      groupCounts.set(groupKey,groupCounts.get(groupKey)+1);
+    } else if (isEpic) epicCount++; else counts.set(entry.provider,counts.get(entry.provider)+1);
     if (entry.sourcePath !== undefined && !sourcePaths.get(entry.provider).has(entry.sourcePath)) fail('unknown source path for ' + entry.provider);
     const refs=entry.canonicalRouteReferences ?? [];
     if (!Array.isArray(refs) || new Set(refs).size !== refs.length) fail('invalid route references for ' + entry.sourceEntry);
@@ -103,6 +141,10 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
     }
   }
   for (const provider of providers) if (counts.get(provider)!==ledger.sources[provider].count) fail('record count mismatch for ' + provider);
+  for (const [key, group] of groupPaths) {
+    if (groupCounts.get(key)!==group.expected) fail('additional source group count mismatch');
+    if ([...group.fileSet].some(file=>!group.unmatched.has(file) && !group.represented.has(file))) fail('unaccounted group source');
+  }
   const epic=ledger.sources['ue-mcp']?.additionalSnapshots?.['recorded-epic-catalog'];
   if (!epic || epicCount!==epic.recordedTools) fail('recorded Epic snapshot count mismatch');
   return {status:'partial-unreviewed', records:ledger.entries.length, selectedRouteReferences:selected.length,

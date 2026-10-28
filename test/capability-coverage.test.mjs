@@ -66,7 +66,7 @@ test('unreviewed records and incomplete counts cannot be relabeled complete',()=
 test('blocked source records require owner, reason, reopening condition and pinned evidence without route claims',()=>{
   const blocked=coverage.entries.filter(e=>e.disposition==='blocked');
   const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
-  for(const name of ['actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
+  for(const name of ['screenshot_viewport','log_tail','log_since','helper_list','actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
   assert.equal(validateCapabilityCoverage().status,'partial-unreviewed');
   for (const change of [
     row=>{row.blockReason='';}, row=>{row.reopeningCondition='';},
@@ -78,4 +78,36 @@ test('blocked source records require owner, reason, reopening condition and pinn
   }
   const contradictory=copy();contradictory.entries.find(e=>e.disposition==='blocked').canonicalRouteReferences=['actor.inspect.editor'];
   assert.throws(()=>validateCapabilityCoverage({ledger:contradictory}),/disposition\/route mismatch/);
+});
+
+
+test('typed Hayba records remain separate from same-named legacy records and enforce group boundaries',()=>{
+  const valid=copy();
+  const group=valid.sources.hayba.additionalSourceGroups['material-typed-wrapper-literal'];
+  const typed=structuredClone(valid.entries.find(e=>e.provider==='hayba' && e.surface==='material-typed-wrapper-literal'));
+  const legacy=valid.entries.find(e=>e.provider==='hayba' && e.surface===undefined);
+  typed.sourceEntry=legacy.sourceEntry;
+  valid.entries.push(typed);group.entryCount++;
+  assert.equal(validateCapabilityCoverage({ledger:valid}).status,'partial-unreviewed');
+  const duplicate=structuredClone(valid);duplicate.entries.push(structuredClone(typed));
+  assert.throws(()=>validateCapabilityCoverage({ledger:duplicate}),/duplicate source record/);
+  const sharedFile=copy();const sharedGroup=sharedFile.sources.hayba.additionalSourceGroups['material-typed-wrapper-literal'];
+  sharedGroup.sources.push({path:sharedFile.sources.hayba.path,sha256:sharedFile.sources.hayba.sha256});
+  sharedGroup.sourceCount++;sharedGroup.unmatchedSources.push(sharedFile.sources.hayba.path);sharedGroup.unmatchedSourceCount++;
+  assert.equal(validateCapabilityCoverage({ledger:sharedFile}).status,'partial-unreviewed');
+  const conflictingHash=structuredClone(sharedFile);conflictingHash.sources.hayba.additionalSourceGroups['material-typed-wrapper-literal'].sources.at(-1).sha256='0'.repeat(64);
+  assert.throws(()=>validateCapabilityCoverage({ledger:conflictingHash}),/invalid source path or hash/);
+  const badPath=copy();const badRow=badPath.entries.find(e=>e.surface==='material-typed-wrapper-literal');
+  badRow.sourcePath=badPath.sources.hayba.path;
+  assert.throws(()=>validateCapabilityCoverage({ledger:badPath}),/unknown group record source/);
+  const unmatched=copy();unmatched.entries.find(e=>e.surface==='material-typed-wrapper-literal').sourcePath=
+    unmatched.sources.hayba.additionalSourceGroups['material-typed-wrapper-literal'].unmatchedSources[0];
+  assert.throws(()=>validateCapabilityCoverage({ledger:unmatched}),/unknown group record source/);
+  const wrongPin=copy();wrongPin.sources.hayba.additionalSourceGroups['material-typed-wrapper-literal'].commit='0'.repeat(40);
+  assert.throws(()=>validateCapabilityCoverage({ledger:wrongPin}),/invalid additional source group/);
+  const wrongCount=copy();wrongCount.sources.hayba.additionalSourceGroups['material-typed-wrapper-literal'].entryCount++;
+  assert.throws(()=>validateCapabilityCoverage({ledger:wrongCount}),/additional source group count mismatch/);
+  const missingSource=copy();const index=missingSource.entries.findIndex(e=>e.surface==='material-typed-wrapper-literal');
+  missingSource.entries.splice(index,1);missingSource.sources.hayba.additionalSourceGroups['material-typed-wrapper-literal'].entryCount--;
+  assert.throws(()=>validateCapabilityCoverage({ledger:missingSource}),/unaccounted group source/);
 });

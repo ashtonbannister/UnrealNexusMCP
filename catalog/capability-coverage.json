@@ -39,7 +39,164 @@
       "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
       "path": "mcp-tools/hayba-mcp/src/legacy-commands/sidecar.json",
       "sha256": "012a0b1e0188468f3d7c2fa956f1fb41ad5a97264cf6a6fa366b5c8e49e45a19",
-      "count": 160
+      "count": 160,
+      "additionalSourceGroups": {
+        "material-typed-wrapper-literal": {
+          "repository": "https://github.com/zajalist/hayba",
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "scope": "Static literal ueTool command names in non-test TypeScript files under src/tools/material at this exact pin; these are wrapper exports, not evidence of runtime registration or one-to-one public tools.",
+          "method": "List pinned git tree and read exact blob bytes; verify Git blob SHA-1, record SHA-256, strictly decode UTF-8, match exported literal ueTool(name, schema) expression. No upstream code imported, built or executed.",
+          "sourceCount": 21,
+          "entryCount": 14,
+          "unmatchedSourceCount": 7,
+          "sources": [
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-add-comment.ts",
+              "gitBlobSha1": "618480b8e7d6c910b6fea1564ac5b0f3e65ece0f",
+              "sha256": "cb3bb7e995d999a6052b068c70418a53a76563cde3716fbd3d331b21c7571dad",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-add-comment.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-add-node.ts",
+              "gitBlobSha1": "bdb0a98f1a49961c1bb2e2ed0cd52ef75973f0fb",
+              "sha256": "f6116554d0e82559147d0c308a9a6f79613bec8ac6e9be2dfb9818c76dfb3e62",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-add-node.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-add-reroute-declaration.ts",
+              "gitBlobSha1": "02ff4f5e66f6e83344eee85d48ccee896104c39e",
+              "sha256": "8ae96a550ac36bcf3b97b095caabf3bb474c82268e99d429c8a586b962a59259",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-add-reroute-declaration.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-add-reroute-usage.ts",
+              "gitBlobSha1": "4f1a58d6766744dc03f09e979556876e9d179d98",
+              "sha256": "6fa0c01f6cc771f771af1ac5cc3598a3bed8b9c8dee1cf4aaea8fe43fd1eedd4",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-add-reroute-usage.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-apply.ts",
+              "gitBlobSha1": "1800095150596f1888238249eea860931d17aca5",
+              "sha256": "b9648f58bff7b8540be58984234014b45be28aa3f3e8f0974d89f406246b707c",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-apply.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-compile.ts",
+              "gitBlobSha1": "5cdeff99f1c9638644b1ac0e32f355ee6f012903",
+              "sha256": "8b69877f8491eb353789d533ac195b67995d36e4c430c8cc410c24bc878b5b0c",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-compile.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-connect-nodes.ts",
+              "gitBlobSha1": "e4bac0c40a78d77553558e76037677bfacb5a01b",
+              "sha256": "3dad940539e9ae2ccdbdbc96917a48ab6b13e91baca607840c3717e3fb8e0aa8",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-connect-nodes.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-create-instance.ts",
+              "gitBlobSha1": "11cae05b342a9d459fa1438a594f698bd25e453e",
+              "sha256": "6cdd2a75fa3f407a176494c831f135bfc39c7f62f53aa718a3812f81602de0a3",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-create-instance.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-create.ts",
+              "gitBlobSha1": "ff7447c3edf45388bbc86f240b67c71ef2d877a0",
+              "sha256": "17f761ee3d843577f6e3b5bf13cd330f6070f49a60db2d652b30135409f3dfbc",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-create.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-delete-comment.ts",
+              "gitBlobSha1": "4a36ea9fa677c3398b1354207e04ab62b2e21e38",
+              "sha256": "80058462251bee417da314c9fc63aa925949661f6c44bde475162a223671ecd1",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-delete-comment.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-delete-node.ts",
+              "gitBlobSha1": "c00a9fc6227c5cc1c89aeb5e823e0f13a755a243",
+              "sha256": "ba6cbdac4e32a995c7dc139090f591b78c6bc97f353ccf949b5744d92ca702dd",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-delete-node.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-disconnect.ts",
+              "gitBlobSha1": "db78cc5e4e187231b3c3389cba00f9eaefbe35b6",
+              "sha256": "4124c1f8dc5e418506a65c6a79714a38dce9ff2ff8b7752e007131abc178d178",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-disconnect.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-function-create.ts",
+              "gitBlobSha1": "dc1114062235d4fb6d92b90e744e2a6f75084a63",
+              "sha256": "761b5048772597ed6a80bbf49ab1d0db82bdd5438db6f1477244ffe068174643",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-function-create.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-get-info.ts",
+              "gitBlobSha1": "db029ff2597ae0addf3c6bfa0d4e04e02ee31d19",
+              "sha256": "a998ac2499ee3c40eaf4ad7fbfe6f7742344e68593e38450af75709a62833b56",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-get-info.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-list.ts",
+              "gitBlobSha1": "58f9d2ce1630594c816c4bd30c1245a7a847d6c5",
+              "sha256": "f191f1acda5bf0457940f44b75145212273803887c5313a11c200a699bd03581",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-list.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-comment.ts",
+              "gitBlobSha1": "f63c3ba31598a2741834a0bb45aae736ebb8bf4e",
+              "sha256": "822f6b806789419b290665be24cfcb6eba5a2c207d3634931079fbe24e6957aa",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-set-comment.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-material-property.ts",
+              "gitBlobSha1": "a3576a688de486037d77fe10f0203848b5ec3ce0",
+              "sha256": "5c897cb36e7dd116f2e9b8ef1789cb5082ac6b9a1f0391325fd069819cea181a",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-set-material-property.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-node.ts",
+              "gitBlobSha1": "7d9c3323ff2b454d68e91ab25b08b19601b097b8",
+              "sha256": "c24f2dcc940d8b018707d8de5496e5e2c1f514628b14b6a836de87ecfe85e0eb",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-set-node.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts",
+              "gitBlobSha1": "c649da074231404d89c2704c64dcc33fd727a24f",
+              "sha256": "7b9b5d08371cdffdc1d7f734a57a229d0f8a0bba329362e647dd564c06f5726e",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-stats.ts",
+              "gitBlobSha1": "cea1f03d3b29944d903a48a24d948c22af000c15",
+              "sha256": "f31a19e2ef6d83616c802cfd87ec14bf3e11dc4be62b2cd9eb9703a57b708d78",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-stats.ts"
+            },
+            {
+              "path": "mcp-tools/hayba-mcp/src/tools/material/material-validate.ts",
+              "gitBlobSha1": "9f38c083327453b30df8a7cd795de0532c3abd18",
+              "sha256": "e7d51697e00f645043cbf5b7f9729e803af6efc398624e0813cab771cf4ffa1c",
+              "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-validate.ts"
+            }
+          ],
+          "unmatchedSources": [
+            "mcp-tools/hayba-mcp/src/tools/material/material-compile.ts",
+            "mcp-tools/hayba-mcp/src/tools/material/material-delete-comment.ts",
+            "mcp-tools/hayba-mcp/src/tools/material/material-disconnect.ts",
+            "mcp-tools/hayba-mcp/src/tools/material/material-set-comment.ts",
+            "mcp-tools/hayba-mcp/src/tools/material/material-set-material-property.ts",
+            "mcp-tools/hayba-mcp/src/tools/material/material-stats.ts",
+            "mcp-tools/hayba-mcp/src/tools/material/material-validate.ts"
+          ],
+          "limitations": [
+            "Seven source files use other or no direct ueTool expression and are explicitly listed as unexamined; their handlers and public registrations need separate review.",
+            "Names may duplicate legacy sidecar entries; do not add counts or infer equivalence, loaded packs, schemas, effect, native behavior, licensing, or availability from this static subset.",
+            "material_set_param contains scalar, vector and texture variants; the existing Nexus strict routes are not automatically equivalent to every wrapper selector.",
+            "Typed routing and dynamic pack loading, dependencies and live native marker checks remain separate. No candidate is promoted or made callable by this artifact."
+          ],
+          "sourceVersion": 1,
+          "provider": "hayba",
+          "status": "partial-unreviewed"
+        }
+      }
     },
     "ivan-unreal-mcp": {
       "repository": "https://github.com/IvanMurzak/Unreal-MCP",
@@ -151,7 +308,8 @@
     "Only the six documented static source subsets were enumerated; entries may overlap and counts are not comparable public tool totals.",
     "UE live and extension behavior, Hayba dynamic packs and typed registrations, remaining Claireon internals and proxy, Ivan system/extensions and native runtime registration are not enumerated.",
     "Unreviewed is not a selection, exclusion, callable operation or completed semantic disposition. CAP-20 must assign a specific task and candidate/review state after individual semantic comparison.",
-    "Catalog and source versions may change independently; verify hashes and route mappings before relying on this snapshot."
+    "Catalog and source versions may change independently; verify hashes and route mappings before relying on this snapshot.",
+    "Hayba typed material wrappers are a separate static source surface; seven files in that group are explicitly unexamined. Matching names are not semantic equivalence or runtime registration."
   ],
   "entries": [
     {
@@ -23596,23 +23754,131 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "screenshot_viewport",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "Both UI-composited and high-resolution variants lack exact PIE-world identity and use a time-derived shared temporary path without exclusive creation or an inline byte bound; UI capture reports requested dimensions and may fall back to the foreground window.",
+      "reopeningCondition": "Review UI-composited and high-resolution variants separately with explicit target/epoch, owned or bounded direct output, actual dimensions, bounded image delivery, interruption and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/screenshot.py",
+          "lines": [
+            24,
+            81
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp",
+          "lines": [
+            648,
+            706
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            169,
+            183
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            378,
+            389
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "log_tail",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "A missing RC value can become successful empty logs, and subtracting the requested count before filtering does not guarantee the last N matching lines; ring gaps and response byte limits are not reported.",
+      "reopeningCondition": "Review a distinct bounded tail contract with attested process/project epoch, explicit missing and stale cursor errors, ring-gap reporting and bounded output evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/log.py",
+          "lines": [
+            9,
+            24
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/log.py",
+          "lines": [
+            37,
+            46
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayerRuntime/Private/AgentLogCapture.cpp",
+          "lines": [
+            13,
+            56
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            378,
+            389
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "log_since",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "A missing RC value can become successful empty logs; the finite ring can overwrite older entries without a gap indication, and returned message bytes lack an explicit bound.",
+      "reopeningCondition": "Review a distinct bounded cursor stream with attested process/project epoch, missing-value refusal, explicit stale-cursor/ring-gap handling, bounded output and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/log.py",
+          "lines": [
+            9,
+            34
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayerRuntime/Private/AgentLogCapture.cpp",
+          "lines": [
+            13,
+            56
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp",
+          "lines": [
+            388,
+            404
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            378,
+            389
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -23876,9 +24142,37 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "helper_list",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "Missing or false RC ReturnValue becomes an empty successful list, missing support flags default true, and descriptors and JSON schemas are materialized without an explicit result bound.",
+      "reopeningCondition": "Review bounded, target- and epoch-attested discovery with explicit incomplete/missing/error results, validated schema and support flags; this does not authorize arbitrary helper calls.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/helpers.py",
+          "lines": [
+            9,
+            29
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp",
+          "lines": [
+            709,
+            721
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            378,
+            389
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -36763,6 +37057,160 @@
         "queryDefinition"
       ],
       "recordedOutputSchema": true
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_add_comment",
+      "exportName": "materialAddCommentHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-add-comment.ts",
+      "line": 25,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_add_node",
+      "exportName": "materialAddNodeHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-add-node.ts",
+      "line": 28,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_add_reroute_declaration",
+      "exportName": "materialAddRerouteDeclarationHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-add-reroute-declaration.ts",
+      "line": 23,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_add_reroute_usage",
+      "exportName": "materialAddRerouteUsageHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-add-reroute-usage.ts",
+      "line": 22,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_apply",
+      "exportName": "materialApplyHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-apply.ts",
+      "line": 19,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_connect_nodes",
+      "exportName": "materialConnectNodesHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-connect-nodes.ts",
+      "line": 29,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_create_instance",
+      "exportName": "materialCreateInstanceHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-create-instance.ts",
+      "line": 22,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_create",
+      "exportName": "materialCreateHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-create.ts",
+      "line": 21,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_delete_node",
+      "exportName": "materialDeleteNodeHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-delete-node.ts",
+      "line": 21,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_function_create",
+      "exportName": "materialFunctionCreateHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-function-create.ts",
+      "line": 23,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_get_info",
+      "exportName": "materialGetInfoHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-get-info.ts",
+      "line": 18,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_list",
+      "exportName": "materialListHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-list.ts",
+      "line": 17,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_set_node",
+      "exportName": "materialSetNodeHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-set-node.ts",
+      "line": 28,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "hayba",
+      "surface": "material-typed-wrapper-literal",
+      "sourceEntry": "material_set_param",
+      "exportName": "materialSetParamHandler",
+      "sourcePath": "mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts",
+      "line": 23,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
     }
   ]
 }
