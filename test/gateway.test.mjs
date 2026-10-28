@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {loadCatalog} from '../src/catalog.mjs';
 import {Gateway} from '../src/gateway.mjs';
 import {selectCapabilities} from '../src/packs.mjs';
+import {normalizeResult} from '../src/results.mjs';
+import {EditorQueue} from '../src/queue.mjs';
 
 const catalog=loadCatalog();
 const target={projectRoot:'C:/Projects/NexusDemo/NexusDemo.uproject',editorInstanceId:'PID1234-start-unique'};
@@ -69,13 +71,10 @@ test('discovery and planning do not start providers; execution starts only its s
   const {gateway:g,starts,calls}=fixture();
   g.list();g.describe('pie.status');const plan=g.plan('pie.start.viewport',{timeout:60});
   assert.equal(plan.dispatched,false);assert.deepEqual(starts,[]);
-  await g.execute('pie.status');
-  await g.execute('pie.status');
-  assert.deepEqual(starts,['unrealagentplayer']);
-  assert.equal(calls.length,2);
-  await g.execute('screenshot.viewport.current');
-  assert.deepEqual(starts,['unrealagentplayer','enginewire']);
-  assert.ok(!starts.includes('ue-mcp'));
+  await g.execute('screenshot.viewport.current');await g.execute('screenshot.viewport.current');
+  assert.deepEqual(starts,['enginewire']);assert.equal(calls.length,2);
+  await g.execute('asset.save.exact',{assetPaths:['/Game/A']});
+  assert.deepEqual(starts,['enginewire','ue-mcp']);assert.ok(!starts.includes('unrealagentplayer'));
   await g.close();
 });
 test('disabled capabilities never load even an available factory',async()=>{
@@ -106,37 +105,28 @@ test('viewport capture without a received image is not a fulfilled image contrac
   const {gateway:g}=fixture({reply:()=>json({success:true,path:'C:/Some.png'})});
   assert.equal((await g.execute('screenshot.viewport.current')).isError,true);
 });
-test('UAP JSON errors and unconfirmed lifecycle states remain failures',async()=>{
-  for(const body of [
-    {ok:false,phase:'Starting',queued:true,error:'timeout'},
-    {ok:true,phase:'Starting',playing:false},
-    {ok:true,phase:'NotPlaying',playing:true},
-    {ok:true,phase:'Playing'},
-  ]) {
-    const {gateway:g,calls}=fixture({reply:()=>json(body)});
-    assert.equal((await g.execute('pie.start.viewport')).isError,true);
-    assert.equal(calls.length,1);
+test('UAP JSON errors and unconfirmed lifecycle states remain failures',()=>{
+  const op=catalog.get('pie.start.viewport');
+  for(const body of [{ok:false,phase:'Starting',queued:true,error:'timeout'},
+    {ok:true,phase:'Starting',playing:false},{ok:true,phase:'NotPlaying',playing:true},{ok:true,phase:'Playing'}]) {
+    assert.equal(normalizeResult(op,json(body)).isError,true);
   }
-  const {gateway:g}=fixture({reply:()=>({content:[{type:'text',text:'okay'}]})});
-  assert.equal((await g.execute('pie.status')).isError,true);
+  assert.equal(normalizeResult(catalog.get('pie.status'),{content:[{type:'text',text:'okay'}]}).isError,true);
 });
-test('PIE stop must report stopped and NotPlaying, not just transport success',async()=>{
+test('PIE stop must report stopped and NotPlaying, not just transport success',()=>{
   for(const body of [{ok:true,phase:'Playing',stopped:false},{ok:true,phase:'NotPlaying'}]) {
-    const {gateway:g}=fixture({reply:()=>json(body)});
-    assert.equal((await g.execute('pie.stop')).isError,true);
+    assert.equal(normalizeResult(catalog.get('pie.stop'),json(body)).isError,true);
   }
 });
 test('native UAP transport/runtime failure and missing lifecycle phase fence without retry',async()=>{
-  for(const body of [
-    {ok:false,error:{code:'UE_CONNECTION_RESET',message:'Socket closed'}},
+  for(const body of [{ok:false,error:{code:'UE_CONNECTION_RESET',message:'Socket closed'}},
     {ok:false,phase:'NotPlaying',error:{code:'PYTHON_RUNTIME',message:'Script failed after dispatch'}},
-    {ok:true,playing:true},
-  ]) {
-    const {gateway:g,calls}=fixture({reply:()=>json(body)});
-    const out=await g.execute('pie.start.viewport');
-    assert.equal(out.isError,true);assert.equal(g.status().queue.blocked,true);
-    await assert.rejects(g.execute('pie.start.viewport'),{code:'EDITOR_OUTCOME_UNKNOWN'});
-    assert.equal(calls.length,1);
+    {ok:true,playing:true}]) {
+    const q=new EditorQueue();let calls=0;
+    const run=()=>q.run(async()=>{calls++;return normalizeResult(catalog.get('pie.start.viewport'),json(body));},
+      {effect:'lifecycle',timeoutMs:1000,operation:'pie.start.viewport',isUncertain:out=>out._meta['unreal-nexus/result-policy'].outcomeUnknown});
+    const out=await run();assert.equal(out.isError,true);assert.equal(q.status.blocked,true);
+    await assert.rejects(run(),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls,1);
   }
 });
 test('UE JSON envelope tolerates attribution prose and still rejects native failures',async()=>{
@@ -159,63 +149,45 @@ test('PCG wait requires generated for the exact requested run',async()=>{
 });
 test('concurrent work is serialized; one factory starts once',async()=>{
   let active=0,maxActive=0;
-  const {gateway:g,starts}=fixture({reply:async()=>{
-    active++;maxActive=Math.max(maxActive,active);
-    await new Promise(r=>setTimeout(r,5));active--;
-    return json({ok:true,phase:'NotPlaying'});
-  }});
-  await Promise.all([g.execute('pie.status'),g.execute('pie.status'),g.execute('pie.status')]);
-  assert.equal(maxActive,1);assert.deepEqual(starts,['unrealagentplayer']);
+  const {gateway:g,starts}=fixture({reply:async()=>{active++;maxActive=Math.max(maxActive,active);await new Promise(r=>setTimeout(r,5));active--;return screenshot();}});
+  await Promise.all([g.execute('screenshot.viewport.current'),g.execute('screenshot.viewport.current'),g.execute('screenshot.viewport.current')]);
+  assert.equal(maxActive,1);assert.deepEqual(starts,['enginewire']);await g.close();
 });
 test('transport failure fences execution; no retry or other provider fallback',async()=>{
   const {gateway:g,starts,calls}=fixture({reply:()=>{throw new Error('transport lost');}});
-  await assert.rejects(g.execute('pie.start.viewport'),{code:'EDITOR_OUTCOME_UNKNOWN'});
   await assert.rejects(g.execute('screenshot.viewport.current'),{code:'EDITOR_OUTCOME_UNKNOWN'});
-  assert.equal(calls.length,1);assert.deepEqual(starts,['unrealagentplayer']);
+  await assert.rejects(g.execute('asset.save.exact',{assetPaths:['/Game/A']}),{code:'EDITOR_OUTCOME_UNKNOWN'});
+  assert.equal(calls.length,1);assert.deepEqual(starts,['enginewire']);await g.close();
 });
 test('a backend revision mismatch or wrong editor refuses before tool dispatch',async()=>{
   for(const mismatch of ['revision','target','unverified','surface']) {
     let calls=0;
-    const {gateway:g}=fixture({modifyFactories:(m)=>m.set('unrealagentplayer',async()=>({
-      tools:new Set(mismatch==='surface'?[]:['pie_status']),
-      sourceCommit:mismatch==='revision'?'0'.repeat(40):catalog.upstreams.sources.unrealagentplayer.commit,
-      identityVerified:mismatch!=='unverified',
-      target:mismatch==='target'?{...target,editorInstanceId:'other'}:target,
-      supports:async()=>true,
-      call:async()=>{calls++;return json({ok:true,phase:'NotPlaying'});},
-      close:async()=>{},
+    const {gateway:g}=fixture({modifyFactories:m=>m.set('enginewire',async()=>({
+      tools:new Set(mismatch==='surface'?[]:['unreal']),sourceCommit:mismatch==='revision'?'0'.repeat(40):catalog.upstreams.sources.enginewire.commit,
+      identityVerified:mismatch!=='unverified',target:mismatch==='target'?{...target,editorInstanceId:'other'}:target,
+      supports:async()=>true,call:async()=>{calls++;return screenshot();},close:async()=>{},
     }))});
-    await assert.rejects(g.execute('pie.status'),{
-      code:mismatch==='surface'?'BACKEND_SURFACE_MISMATCH':'BACKEND_ATTESTATION_FAILED'
-    });
-    assert.equal(calls,0);assert.equal(g.status().queue.blocked,false);
+    await assert.rejects(g.execute('screenshot.viewport.current'),{code:mismatch==='surface'?'BACKEND_SURFACE_MISMATCH':'BACKEND_ATTESTATION_FAILED'});
+    assert.equal(calls,0);assert.equal(g.status().queue.blocked,false);await g.close();
   }
 });
 test('failed startup is never transparently retried',async()=>{
-  let starts=0;
-  const {gateway:g}=fixture({modifyFactories:(m)=>m.set('unrealagentplayer',async()=>{starts++;throw new Error('offline');})});
-  await assert.rejects(g.execute('pie.status'));
-  await assert.rejects(g.execute('pie.status'));
-  assert.equal(starts,1);
+  let starts=0;const {gateway:g}=fixture({modifyFactories:m=>m.set('enginewire',async()=>{starts++;throw new Error('offline');})});
+  await assert.rejects(g.execute('screenshot.viewport.current'));await assert.rejects(g.execute('screenshot.viewport.current'));
+  assert.equal(starts,1);await g.close();
 });
 test('a queued request snapshots arguments before caller mutation',async()=>{
-  let release;
-  const {gateway:g,calls}=fixture({reply:async(provider,call)=>{
-    if(provider==='unrealagentplayer') await new Promise(r=>{release=r;});
-    return provider==='unrealagentplayer'?json({ok:true,phase:'NotPlaying'}):json(assetReceipt(call.arguments.args.assetPaths));
+  let release;const {gateway:g,calls}=fixture({reply:async(provider,call)=>{
+    if(provider==='enginewire') {await new Promise(r=>{release=r;});return screenshot();}
+    return json(assetReceipt(call.arguments.args.assetPaths));
   }});
-  const first=g.execute('pie.status');
-  await new Promise(r=>setImmediate(r));
-  const args={assetPaths:['/Game/Intended']};
-  const second=g.execute('asset.save.exact',args);args.assetPaths[0]='/Game/Unexpected';
-  release();await Promise.all([first,second]);
-  assert.deepEqual(calls[1].call.arguments.args.assetPaths,['/Game/Intended']);
+  const first=g.execute('screenshot.viewport.current');await new Promise(r=>setImmediate(r));
+  const args={assetPaths:['/Game/Intended']};const second=g.execute('asset.save.exact',args);args.assetPaths[0]='/Game/Unexpected';
+  release();await Promise.all([first,second]);assert.deepEqual(calls[1].call.arguments.args.assetPaths,['/Game/Intended']);await g.close();
 });
 test('close only closes loaded backends and disallows subsequent execution',async()=>{
-  const {gateway:g,closes}=fixture();
-  await g.execute('pie.status');await g.close();await g.close();
-  assert.deepEqual(closes,['unrealagentplayer']);
-  await assert.rejects(g.execute('pie.status'),{code:'GATEWAY_CLOSED'});
+  const {gateway:g,closes}=fixture();await g.execute('screenshot.viewport.current');await g.close();await g.close();
+  assert.deepEqual(closes,['enginewire']);await assert.rejects(g.execute('screenshot.viewport.current'),{code:'GATEWAY_CLOSED'});
 });
 test('invalid host configuration is rejected',()=>{
   for(const timeoutMs of [0,99,1.5,Infinity,600001]) {
@@ -225,18 +197,13 @@ test('invalid host configuration is rejected',()=>{
 });
 
 test('a public meta tool does not prove an inner capability is enabled',async()=>{
-  let calls=0;
-  const {gateway:g}=fixture({modifyFactories:(m)=>m.set('unrealagentplayer',async()=>({
-    tools:new Set(['pie_status']),sourceCommit:catalog.upstreams.sources.unrealagentplayer.commit,
-    identityVerified:true,target,supports:async()=>false,
-    call:async()=>{calls++;return json({ok:true,phase:'NotPlaying'});},
-    close:async()=>{},
+  let calls=0;const {gateway:g}=fixture({modifyFactories:m=>m.set('enginewire',async()=>({
+    tools:new Set(['unreal']),sourceCommit:catalog.upstreams.sources.enginewire.commit,identityVerified:true,target,
+    supports:async()=>false,call:async()=>{calls++;return screenshot();},close:async()=>{},
   }))});
-  await assert.rejects(g.execute('pie.status'),{code:'CAPABILITY_UNAVAILABLE'});
-  assert.equal(calls,0);
-  assert.equal(g.status().queue.blocked,false);
+  await assert.rejects(g.execute('screenshot.viewport.current'),{code:'CAPABILITY_UNAVAILABLE'});
+  assert.equal(calls,0);assert.equal(g.status().queue.blocked,false);await g.close();
 });
-
 test('MCP manifest contains only enabled canonical names and immutable strict schemas',()=>{
   const {gateway:g,starts}=fixture({config:{enabledCapabilities:['asset.save.exact','pie.status']}});
   const tools=g.toolDefinitions();
@@ -250,28 +217,23 @@ test('MCP manifest contains only enabled canonical names and immutable strict sc
 
 test('native PIE queued timeout fences future work while preserving the received result',async()=>{
   const native=json({ok:false,playing:false,phase:'Starting',queued:true,confirmed:false,error:'native timeout'});
-  const {gateway:g,calls}=fixture({reply:()=>native});
-  const result=await g.execute('pie.start.viewport');
-  assert.equal(result.isError,true);
-  assert.equal(result._meta['unreal-nexus/receipt'].outcome,'outcome_unknown');
-  assert.deepEqual(result.content,native.content);
-  assert.equal(g.status().queue.blocked,true);
-  assert.equal(g.status().queue.reason.code,'NATIVE_WORK_OUTSTANDING');
-  await assert.rejects(g.execute('asset.save.exact',{assetPaths:['/Game/A']}),{code:'EDITOR_OUTCOME_UNKNOWN'});
-  await assert.rejects(g.execute('pie.stop'),{code:'EDITOR_OUTCOME_UNKNOWN'});
-  assert.equal(calls.length,1);
+  const q=new EditorQueue();let calls=0;
+  const run=()=>q.run(async()=>{calls++;return normalizeResult(catalog.get('pie.start.viewport'),native);},
+    {effect:'lifecycle',timeoutMs:1000,operation:'pie.start.viewport',isUncertain:out=>out._meta['unreal-nexus/result-policy'].outcomeUnknown});
+  const result=await run();assert.equal(result.isError,true);assert.deepEqual(result.content,native.content);
+  assert.equal(q.status.blocked,true);assert.equal(q.status.reason.code,'NATIVE_WORK_OUTSTANDING');
+  await assert.rejects(run(),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls,1);
 });
 test('native incomplete PIE teardown also fences further work',async()=>{
-  const {gateway:g}=fixture({reply:()=>json({ok:false,stopped:false,phase:'Stopping'})});
-  assert.equal((await g.execute('pie.stop')).isError,true);
-  assert.equal(g.status().queue.blocked,true);
+  const q=new EditorQueue();const out=await q.run(async()=>normalizeResult(catalog.get('pie.stop'),json({ok:false,stopped:false,phase:'Ending'})),
+    {effect:'lifecycle',timeoutMs:1000,operation:'pie.stop',isUncertain:result=>result._meta['unreal-nexus/result-policy'].outcomeUnknown});
+  assert.equal(out.isError,true);assert.equal(q.status.blocked,true);
 });
 test('missing backend is a pre-dispatch refusal, not uncertainty for another provider',async()=>{
-  const {gateway:g,calls}=fixture({modifyFactories:m=>m.delete('unrealagentplayer')});
-  await assert.rejects(g.execute('pie.status'),{code:'BACKEND_UNAVAILABLE'});
-  assert.equal(g.status().queue.blocked,false);
-  await g.execute('screenshot.viewport.current');
-  assert.deepEqual(calls.map(c=>c.provider),['enginewire']);
+  const {gateway:g,calls}=fixture({modifyFactories:m=>m.delete('enginewire')});
+  await assert.rejects(g.execute('screenshot.viewport.current'),{code:'BACKEND_UNAVAILABLE'});
+  assert.equal(g.status().queue.blocked,false);await g.execute('asset.save.exact',{assetPaths:['/Game/A']});
+  assert.deepEqual(calls.map(c=>c.provider),['ue-mcp']);await g.close();
 });
 test('execute rejects original accessors without invoking getters or starting a backend',async()=>{
   const {gateway:g,starts}=fixture();let read=0;
@@ -925,4 +887,37 @@ test('both Blueprint compile forms stay held before backend startup',async()=>{
   assert.equal(starts,0);
   assert.deepEqual(new Set(g.status().heldCapabilities.map(item=>item.id)),new Set(ids));
   await g.close();
+});
+
+
+test('PIE lifecycle and status stay held before provider startup',async()=>{
+  let starts=0;
+  const ids=['pie.start.viewport','pie.stop','pie.status'];
+  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:ids,
+    backendFactories:new Map([['unrealagentplayer',async()=>{starts++;throw new Error('must not start');}]])});
+  for(const id of ids) {
+    const args=catalog.get(id).example;
+    assert.equal(g.plan(id,args).dispatched,false);
+    await assert.rejects(g.execute(id,args),{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED'});
+    assert.throws(()=>g.plan(id,{...args,allowOverride:true}),{code:'INVALID_ARGUMENTS'});
+  }
+  assert.equal(starts,0);
+  assert.deepEqual(new Set(g.status().heldCapabilities.map(item=>item.id)),new Set(ids));
+  await g.close();
+});
+
+
+test('UAP Ending and unrecognized Stopping phases both remain uncertain',()=>{
+  const op=catalog.get('pie.stop');
+  for(const phase of ['Ending','Stopping']) {
+    const native=json({ok:false,stopped:false,phase});
+    const out=normalizeResult(op,native);
+    assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    assert.deepEqual(out.content,native.content);
+  }
+  const status=normalizeResult(catalog.get('pie.status'),json({ok:true,phase:'Stopping'}));
+  assert.equal(status.isError,true);
+  assert.equal(status._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+  assert.notEqual(normalizeResult(catalog.get('pie.status'),json({ok:true,phase:'Ending'})).isError,true);
 });

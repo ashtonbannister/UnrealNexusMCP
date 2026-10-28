@@ -23806,16 +23806,72 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_xr_pose",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct pose wrapper can report ok:true with applied:false or missing native return value; it mutates a shared per-hand override without an ownership token or exact PIE-world attestation.",
+      "reopeningCondition": "Review a separately scoped exact-target and epoch-bound XR pose contract with verified application, exclusive ownership, release and timeout recovery; qualify the actual device/runtime.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            128,
+            140
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp",
+          "lines": [
+            556,
+            568
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayerRuntime/Private/AgentMotionController.cpp",
+          "lines": [
+            27,
+            32
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_xr_clear",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct clear wrapper can report ok:true with cleared:false or missing native return value; it clears a shared per-hand override without proving who owns that override or the exact PIE world.",
+      "reopeningCondition": "Review a separate identity-bound clear/release contract with verified owner, target and completion, and explicit recovery for interrupted or foreign overrides.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            143,
+            150
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp",
+          "lines": [
+            570,
+            577
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayerRuntime/Private/AgentMotionController.cpp",
+          "lines": [
+            34,
+            37
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -23907,16 +23963,56 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "perf_baseline_save",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The common metric fetch always parses unit metrics even when fps is selected; the store treats corrupt or unreadable JSON as empty and save then overwrites the shared baseline file.",
+      "reopeningCondition": "Require complete, fresh group-correct measurements, explicit baseline ownership, atomic scoped persistence and refusal on unreadable or corrupt storage.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/baseline.py",
+          "lines": [
+            32,
+            47
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/baselines.py",
+          "lines": [
+            15,
+            28
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "perf_baseline_compare",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The metric fetch always parses unit metrics even for fps; comparison silently skips absent metrics and zero baselines, potentially reporting no regression with no meaningful comparisons.",
+      "reopeningCondition": "Require explicit group-correct metrics, freshness and a valid owned baseline; return incomplete rather than a passing comparison when required measures are missing or unusable.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/baseline.py",
+          "lines": [
+            11,
+            28
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/baseline.py",
+          "lines": [
+            32,
+            60
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -23949,37 +24045,137 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "report_start",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper starts a report without a caller identity and can supersede an existing machine-wide report slot; the resulting report path does not establish ownership.",
+      "reopeningCondition": "Require an atomic, explicitly owned report-session start with scoped storage and collision/refusal behavior; preserve existing reports.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/report.py",
+          "lines": [
+            16,
+            21
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/reporting/session.py",
+          "lines": [
+            378,
+            434
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "report_assert",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper appends user-supplied assertions to the active process-global report without a caller or session ownership check; user-authored assertions are not native automation evidence.",
+      "reopeningCondition": "Require an explicit owned report handle and validate the caller and scope before recording; distinguish user assertions from independently observed results.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/report.py",
+          "lines": [
+            24,
+            30
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/reporting/session.py",
+          "lines": [
+            215,
+            220
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "report_note",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper writes a note to the active process-global report without identifying or verifying the caller or intended session.",
+      "reopeningCondition": "Require an explicit owner-bound report handle and mutation authorization, with scoped persistence and failure reporting.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/report.py",
+          "lines": [
+            33,
+            39
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/reporting/session.py",
+          "lines": [
+            215,
+            220
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "report_caption",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper mutates the active process-global report without an owner or session selector; an omitted screenshot reference targets the most recent image.",
+      "reopeningCondition": "Require an owned report handle and explicit image identity, scoped persistence, and a reliable applied/not-applied result.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/report.py",
+          "lines": [
+            42,
+            49
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/reporting/session.py",
+          "lines": [
+            215,
+            220
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "report_finish",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper finishes the active process-global report without a caller/session ownership check, and may stop any live PIE session before rendering; PIE cleanup exceptions are suppressed.",
+      "reopeningCondition": "Require an atomic owner-bound finish and separately authorized identity-bound PIE cleanup with confirmed outcome; never implicitly stop a foreign session.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/report.py",
+          "lines": [
+            52,
+            95
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/reporting/session.py",
+          "lines": [
+            425,
+            434
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",

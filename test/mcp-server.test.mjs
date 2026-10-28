@@ -122,20 +122,17 @@ test('canonical stdio discovery exposes bounded tools, resources and workflow wi
 
 test('canonical stdio calls select only their provider and retain image, warnings and source receipt',async(t)=>{
   const client=await stdioClient(t);
-  const pie=await call(client,'pie.status');
-  assert.notEqual(pie.isError,true);
-  assert.equal(pie._meta['unreal-nexus/receipt'].provider,'unrealagentplayer');
-  let status=(await call(client,'nexus.status')).structuredContent;
-  assert.deepEqual(status.fixture.starts,['unrealagentplayer']);
   const image=await call(client,'screenshot.viewport.current');
+  let status=(await call(client,'nexus.status')).structuredContent;
+  assert.deepEqual(status.fixture.starts,['enginewire']);
   assert.deepEqual(image.content,FIXTURE_IMAGE.content);
   assert.deepEqual(image.structuredContent,FIXTURE_IMAGE.structuredContent);
   assert.equal(image._meta['fixture/receipt'],'retained');
   assert.equal(image._meta['unreal-nexus/receipt'].outcome,'response_received');
   assert.notEqual((await call(client,'asset.save.exact',{assetPaths:['/Game/Exact']})).isError,true);
   status=(await call(client,'nexus.status')).structuredContent;
-  assert.deepEqual(status.fixture.starts,['unrealagentplayer','enginewire','ue-mcp']);
-  assert.equal(status.fixture.calls.length,3);
+  assert.deepEqual(status.fixture.starts,['enginewire','ue-mcp']);
+  assert.equal(status.fixture.calls.length,2);
 });
 
 test('front door refuses raw/disabled/invalid tools and returns correct missing-resource protocol error',async(t)=>{
@@ -154,11 +151,23 @@ test('front door refuses raw/disabled/invalid tools and returns correct missing-
   await assert.rejects(client.request({method:'tools/list',params:{cursor:'not-a-page'}},options),{code:-32602});
 });
 
+test('held PIE lifecycle and status refuse before starting a provider',async(t)=>{
+  const f=await httpFixture(t);
+  const client=await f.client();
+  for(const id of ['pie.start.viewport','pie.status']) {
+    const response=await call(client,id);
+    assert.equal(response.isError,true);
+    assert.match(response.structuredContent.error,/PIE_.*UNVERIFIED/);
+  }
+  assert.deepEqual(f.runtime.state.starts,[]);
+  assert.deepEqual(f.runtime.state.calls,[]);
+});
+
 test('write authority is checked before a stdio backend starts',async(t)=>{
   const client=await stdioClient(t,'normal','read-only');
   toolError(await call(client,'asset.save.exact',{assetPaths:['/Game/Exact']}),'WRITES_DISABLED');
   assert.deepEqual((await call(client,'nexus.status')).structuredContent.fixture.starts,[]);
-  assert.notEqual((await call(client,'pie.status')).isError,true);
+  assert.notEqual((await call(client,'screenshot.viewport.current')).isError,true);
 });
 
 test('authenticated HTTP serves the same canonical tools and workflow resources',async(t)=>{
@@ -167,8 +176,8 @@ test('authenticated HTTP serves the same canonical tools and workflow resources'
   assert.match((await client.readResource({uri:MASTER_URI},options)).contents[0].text,/Master skill guidance/);
   assert.match((await client.getPrompt({name:'nexus_workflow',arguments:{capability:'pie.status'}},options)).messages[0].content.text,/pie.status/);
   assert.deepEqual(f.runtime.state.starts,[]);
-  assert.notEqual((await call(client,'pie.status')).isError,true);
-  assert.deepEqual(f.runtime.state.starts,['unrealagentplayer']);
+  assert.notEqual((await call(client,'screenshot.viewport.current')).isError,true);
+  assert.deepEqual(f.runtime.state.starts,['enginewire']);
 });
 
 test('HTTP validates bearer, host/origin, path, content type and request-body cap before dispatch',async(t)=>{
@@ -202,23 +211,23 @@ test('HTTP rejects non-loopback exposure and weak tokens before listening',async
 test('separate HTTP clients share one serialized editor queue and lazy backend instance',async(t)=>{
   const f=await httpFixture(t,{mode:'delay'});
   const a=await f.client(),b=await f.client();
-  const results=await Promise.all([call(a,'pie.status'),call(b,'pie.status')]);
+  const results=await Promise.all([call(a,'screenshot.viewport.current'),call(b,'screenshot.viewport.current')]);
   assert.ok(results.every(result=>result.isError!==true));
   assert.equal(f.runtime.state.maxActive,1);
-  assert.deepEqual(f.runtime.state.starts,['unrealagentplayer']);
+  assert.deepEqual(f.runtime.state.starts,['enginewire']);
   assert.equal(f.runtime.state.calls.length,2);
 });
 
 test('uncertain backend failure stays fenced across HTTP requests and hides private diagnostics',async(t)=>{
   const f=await httpFixture(t,{mode:'throw'});
   const a=await f.client(),b=await f.client();
-  const first=await call(a,'pie.start.viewport');
+  const first=await call(a,'asset.save.exact',{assetPaths:['/Game/Exact']});
   toolError(first,'EDITOR_OUTCOME_UNKNOWN');
   assert.ok(!JSON.stringify(first).includes('fixture-private-detail'));
   assert.equal((await call(b,'nexus.status')).structuredContent.queue.blocked,true);
   toolError(await call(b,'screenshot.viewport.current'),'EDITOR_OUTCOME_UNKNOWN');
   assert.equal(f.runtime.state.calls.length,1);
-  assert.deepEqual(f.runtime.state.starts,['unrealagentplayer']);
+  assert.deepEqual(f.runtime.state.starts,['ue-mcp']);
 });
 
 test('a returned UE native timeout receipt fences later HTTP calls without losing its original machine block',async(t)=>{
@@ -255,7 +264,7 @@ test('modern HTTP cancellation reaches the backend and fences new requests witho
   const f=await httpFixture(t,{mode:'late'});
   const a=await f.client({pin:'2026-07-28'}),b=await f.client();
   const controller=new AbortController();
-  const pending=call(a,'pie.start.viewport',{}, {signal:controller.signal});
+  const pending=call(a,'asset.save.exact',{assetPaths:['/Game/Exact']}, {signal:controller.signal});
   const rejected=assert.rejects(pending);
   await waitUntil(()=>f.runtime.state.calls.length===1);
   controller.abort();await rejected;
@@ -264,7 +273,7 @@ test('modern HTTP cancellation reaches the backend and fences new requests witho
   toolError(await call(b,'screenshot.viewport.current'),'EDITOR_OUTCOME_UNKNOWN');
   await waitUntil(()=>f.runtime.state.completed===1);
   assert.equal(f.runtime.state.calls.length,1,'a cancelled call is never replayed');
-  assert.deepEqual(f.runtime.state.starts,['unrealagentplayer']);
+  assert.deepEqual(f.runtime.state.starts,['ue-mcp']);
 });
 
 test('closing the original legacy HTTP request reaches the backend and preserves the shared uncertainty fence',async(t)=>{
@@ -276,7 +285,7 @@ test('closing the original legacy HTTP request reaches the backend and preserves
   t.after(()=>a.close().catch(()=>{}));
   const b=await f.client();
   const controller=new AbortController();
-  const pending=a.callTool('pie.start.viewport',{}, {signal:controller.signal});
+  const pending=a.callTool('asset.save.exact',{assetPaths:['/Game/Exact']}, {signal:controller.signal});
   const rejected=assert.rejects(pending,{code:'BACKEND_CANCELLED'});
   await waitUntil(()=>f.runtime.state.calls.length===1);
   controller.abort();await rejected;

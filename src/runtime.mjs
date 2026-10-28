@@ -10,6 +10,15 @@ import { verifySourceSnapshot } from './source-verification.mjs';
 import { createSpecialistAdapter } from './specialist-adapters.mjs';
 import { NexusError, markCleanupIncomplete, cleanupIncomplete, boundedCleanup } from './errors.mjs';
 
+// Construct UAP's fixed native binding from host-verified target and source.
+// The returned environment never accepts caller-selected discovery overrides.
+export function createUapBindingEnv({existingEnv, target, rcEndpoint, sourceRoot}) {
+  const rc = new URL(rcEndpoint);
+  return {...existingEnv, NEXUS_UAP_PROJECT_FILE:target.projectRoot,
+    NEXUS_UAP_EDITOR_PID:String(target.processId), NEXUS_UAP_RC_PORT:rc.port || '80',
+    PYTHONPATH:path.join(sourceRoot,'mcp-server','src')};
+}
+
 export async function createRuntime(config, {
   catalog = loadCatalog(), guidanceLoader = loadGuidance,
   connect = createMcpConnection, probeFactory = createProviderProbe,
@@ -62,11 +71,8 @@ export async function createRuntime(config, {
       if (provider === 'unrealagentplayer') {
         // The reviewed optional UAP patch consumes these values when it builds
         // both native clients. Never accept a caller-selected discovery target.
-        const rc = new URL(backendConfig.rcEndpoint);
-        backendConfig.transport.env = {...backendConfig.transport.env,
-          NEXUS_UAP_PROJECT_FILE:target.projectRoot,
-          NEXUS_UAP_EDITOR_PID:String(target.processId),NEXUS_UAP_RC_PORT:rc.port || '80',
-          PYTHONPATH:path.join(sourceEvidence.sourceRoot ?? backendConfig.sourceRoot,'mcp-server','src')};
+        backendConfig.transport.env = createUapBindingEnv({existingEnv:backendConfig.transport.env,
+          target,rcEndpoint:backendConfig.rcEndpoint,sourceRoot:sourceEvidence.sourceRoot ?? backendConfig.sourceRoot});
       }
       if (provider === 'ue-mcp' && backendConfig.transport.type === 'stdio') {
         backendConfig.transport.env = {...backendConfig.transport.env,UE_MCP_SERVER_MODE:'in-process'};

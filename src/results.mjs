@@ -143,6 +143,10 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
   if (operation.provider === 'unrealagentplayer') {
     policy = 'uap-json-envelope';
     if (!payload || typeof payload.ok !== 'boolean' || typeof payload.phase !== 'string' || !payload.phase) failed = true;
+    if (operation.id === 'pie.status' && payload && typeof payload.phase === 'string'
+      && !['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)) {
+      failed = true; outcomeUnknown = true;
+    }
     if (operation.id === 'pie.start.viewport'
       && (payload?.playing !== true || !['Playing','Paused'].includes(payload?.phase))) failed = true;
     if (operation.id === 'pie.stop' && (payload?.stopped !== true || payload?.phase !== 'NotPlaying')) failed = true;
@@ -151,10 +155,10 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     // Native start deadlines return a normal MCP response while queued work can
     // still take effect. Stop can likewise return before teardown is complete.
     outcomeUnknown = !payload
-      || typeof payload.phase !== 'string' || !['NotPlaying','Starting','Playing','Paused','Stopping'].includes(payload.phase)
+      || typeof payload.phase !== 'string' || !['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)
       || ['UE_CONNECTION_RESET','UE_CROSSED_RESPONSE','PYTHON_RUNTIME'].includes(payload.error?.code)
       || (payload.queued === true && payload.confirmed !== true)
-      || ['Starting','Stopping'].includes(payload.phase)
+      || ['Starting','Ending'].includes(payload.phase)
       || (operation.id === 'pie.stop' && payload.stopped === false
         && payload.phase !== 'NotPlaying');
     if (outcomeUnknown) failed = true;

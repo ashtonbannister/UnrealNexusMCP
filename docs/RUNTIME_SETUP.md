@@ -91,7 +91,11 @@ native implementation proves output ownership and prevents link/reparse
 redirection. Neither a fresh basename nor a host write grant proves the physical
 output target; no configuration flag bypasses this hold. `requiredProviders`
 includes providers for enabled catalog entries, including held entries; a held
-entry never starts its backend. The three input-hold operations, vector material
+entry never starts its backend. PIE start, stop and status are held because native
+ownership and epoch-bound lifecycle are unverified and status may default
+malformed phase data to NotPlaying. Reconcile existing PIE sessions and grants
+externally; Nexus performs no implicit stop or grant release. The three
+input-hold operations, vector material
 mutation, automation start, both Blueprint compile forms, trace capture and
 trace-reader open are also held
 pending their native target or ownership boundaries. Existing holds, runs,

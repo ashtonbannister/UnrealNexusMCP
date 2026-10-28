@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import {parseConfig} from '../src/config.mjs';
-import {createRuntime} from '../src/runtime.mjs';
+import {createRuntime, createUapBindingEnv} from '../src/runtime.mjs';
 import {loadCatalog} from '../src/catalog.mjs';
 import {loadGuidance} from '../src/guidance.mjs';
 
@@ -138,11 +138,15 @@ test('UAP native bindings derive from the attested target and explicit RC port, 
       callTool:async()=>json({ok:true,phase:'NotPlaying'}),close:async()=>{}};
   }});
   const runtime=await createRuntime(cfg,adapters);assert.equal(launch,undefined);
-  await runtime.gateway.execute('pie.status');
-  assert.equal(launch.env.NEXUS_UAP_PROJECT_FILE,target.projectRoot);
-  assert.equal(launch.env.NEXUS_UAP_EDITOR_PID,'1234');
-  assert.equal(launch.env.NEXUS_UAP_RC_PORT,'30011');
-  assert.equal(launch.env.PYTHONPATH,path.resolve('/reviewed/source/mcp-server/src'));
+  await assert.rejects(runtime.gateway.execute('pie.status'),{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED'});
+  assert.equal(launch,undefined,'a held capability must not launch UAP');
+  const env=createUapBindingEnv({existingEnv:cfg.backends.unrealagentplayer.transport.env,
+    target:{...target,projectRoot:path.resolve(target.projectRoot)},
+    rcEndpoint:cfg.backends.unrealagentplayer.rcEndpoint,sourceRoot:path.resolve('/reviewed/source')});
+  assert.equal(env.NEXUS_UAP_PROJECT_FILE,path.resolve(target.projectRoot));
+  assert.equal(env.NEXUS_UAP_EDITOR_PID,'1234');
+  assert.equal(env.NEXUS_UAP_RC_PORT,'30011');
+  assert.equal(env.PYTHONPATH,path.resolve('/reviewed/source/mcp-server/src'));
   await runtime.close();
   cfg.backends.unrealagentplayer.rcEndpoint='http://example.invalid:30011';
   await assert.rejects(createRuntime(cfg,adapters),{code:'BACKEND_BINDING_REQUIRED'});

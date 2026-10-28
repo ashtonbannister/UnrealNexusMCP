@@ -8,6 +8,8 @@ import { NexusError } from './errors.mjs';
 // These reviewed routes remain held where native target or ownership
 // boundaries cannot be established before dispatch.
 const held = new Map([
+  ...['pie.start.viewport','pie.stop','pie.status'].map(id =>
+    [id,{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED',reason:'native PIE ownership and phase attestation unverified'}]),
   ['screenshot.pie',{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED',reason:'native output ownership and target identity unverified'}],
   ['material.parameter.vector.persisted',{code:'MATERIAL_VECTOR_RECEIPT_UNVERIFIED',reason:'native vector receipt cannot reliably correlate requested values'}],
   ['automation.tests.run',{code:'AUTOMATION_RUN_OWNERSHIP_UNVERIFIED',reason:'native run start can replace an independently owned active run'}],

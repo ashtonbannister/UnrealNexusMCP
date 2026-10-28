@@ -73,7 +73,12 @@ postconditions and whether dispatch actually happened.
 
 **Trigger:** start or stop a workflow-owned viewport play session.
 
-**Use:** `pie.status`, `pie.start.viewport`, `pie.stop`.
+**Use:** `pie.status`, `pie.start.viewport`, `pie.stop`. All three are held
+before dispatch: native start/stop do not establish workflow ownership, and
+status can default missing or malformed phase data to NotPlaying. Reconcile
+existing PIE sessions and machine grants externally; Nexus does not implicitly
+stop PIE or release a grant. Re-enable only after an owner/epoch-bound native
+lifecycle and non-defaulting phase protocol are reviewed and qualified.
 
 **Preconditions:** intended editor attested; machine lock available; previous
 session ownership known; required packages saved only with user-authorized scope.

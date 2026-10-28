@@ -5,7 +5,7 @@
   "operations": [
     {
       "id": "pie.start.viewport",
-      "description": "Start PIE in the viewport and wait for a live phase; no map changes or separate-window claim.",
+      "description": "Held before dispatch: native PIE start does not establish workflow ownership or an epoch-bound lifecycle.",
       "provider": "unrealagentplayer",
       "decision": "pie-lifecycle",
       "effect": "lifecycle",
@@ -43,7 +43,7 @@
     },
     {
       "id": "pie.stop",
-      "description": "Cancel a queued PIE start and wait for confirmed teardown through the same lifecycle provider.",
+      "description": "Held before dispatch: native PIE stop does not establish ownership of the current session or grant.",
       "provider": "unrealagentplayer",
       "decision": "pie-lifecycle",
       "effect": "lifecycle",
@@ -68,7 +68,7 @@
     },
     {
       "id": "pie.status",
-      "description": "Read UAP PIE lifecycle state; this is not independent identity attestation.",
+      "description": "Held before dispatch: native PIE status can default malformed or missing phase data to NotPlaying.",
       "provider": "unrealagentplayer",
       "decision": "pie-lifecycle",
       "effect": "read",

@@ -1,0 +1,56 @@
+{
+  "id": "uap-nexus-strict-status-v2-proposal",
+  "status": "proposal-not-integrated",
+  "provider": "unrealagentplayer",
+  "baseCommit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+  "file": "patches/uap-nexus-strict-status-v2.patch",
+  "sha256": "94db59a7ae6f044a9547e59c8ee0590ce1383ca8169ad90ff9c2e644411e36e7",
+  "supersedesForFutureReview": "uap-nexus-no-replay-v1",
+  "capabilityMarker": {
+    "tool": "bridge_status",
+    "responseField": "nexus_pie_status_validation",
+    "value": {
+      "version": 2,
+      "phase": "exact_native_enum",
+      "elapsed": "finite_nonnegative",
+      "missing_or_invalid": "error"
+    }
+  },
+  "files": [
+    {
+      "path": "mcp-server/src/unreal_agent_player/transport.py",
+      "beforeSha256": "679f823812f742b08ce47d12f0dc3a529cc1300bf18a02567a6a8c4323db5c09",
+      "afterSha256": "f7f6f9a3f3793205e463c0143a85a90596009e85af645f5f52b32ff6e9fe18a2"
+    },
+    {
+      "path": "mcp-server/src/unreal_agent_player/server.py",
+      "beforeSha256": "85de28d1969291baffbe7ad3d0cc53802ddf1d249a472d892938c84c2224a79e",
+      "afterSha256": "5457511a021f3f9c573d0c62efddc8ee2dac7936ed3ec76745aa13b9b6cbe5e8"
+    },
+    {
+      "path": "mcp-server/src/unreal_agent_player/tools/status.py",
+      "beforeSha256": "6dc3c5d57abcf1fe1fa6b5d0b77355d8d23ed2832dab1fb985b1b591950a0968",
+      "afterSha256": "bae21ee4be448e2f5e2b818831ee6fcbaa33a2d56eb0af6cc2220222724a2178"
+    },
+    {
+      "path": "mcp-server/src/unreal_agent_player/tools/python_exec.py",
+      "beforeSha256": "3ae4add23e722e5b8b5b364b232a7762585218e706d2cd01f6ffd93b9fb6276e",
+      "afterSha256": "067200d7a81a06c55e2e2898d05eaa0388f3daab3b624bc85407ddf5c6836299"
+    },
+    {
+      "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+      "beforeSha256": "923ded7d04c606cee171b8255cc9280c8e2f1be37a0f872bc4113d245a961b09",
+      "afterSha256": "6cb0a1ea3aac20d9a1f9497eb59451f8bce7c328160bb5206341460cd85c78e6"
+    },
+    {
+      "path": "mcp-server/src/unreal_agent_player/errors.py",
+      "beforeSha256": "2b509a2c23fc59b9afb7668ae0438448ebbc37fdd5931fdde72286018db7f67e",
+      "afterSha256": "7ce19c1ba3386c7af197fb97d67d8380031e976bc3c85f3073d21b489e74a503"
+    }
+  ],
+  "limits": [
+    "Proposal only: not in active compatibility manifest, no route enabled or hold lifted.",
+    "No proof of loaded binaries, live status, PIE ownership, or exclusive project grants.",
+    "Native enum representation must be verified against the selected engine; unknown serialization fails closed."
+  ]
+}
