@@ -1,0 +1,1493 @@
+{
+  "version": 1,
+  "reviewedOn": "2026-10-26",
+  "coverage": "Bounded source-reviewed selection; live qualification pending.",
+  "operations": [
+    {
+      "id": "pie.start.viewport",
+      "description": "Start PIE in the viewport and wait for a live phase; no map changes or separate-window claim.",
+      "provider": "unrealagentplayer",
+      "decision": "pie-lifecycle",
+      "effect": "lifecycle",
+      "contract": "pie.start.viewport",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timeout": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 90,
+            "description": "Native start deadline in seconds; default 60."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "direct",
+        "tool": "pie_start",
+        "fixed": {
+          "mode": "PlayInViewport",
+          "wait": true
+        }
+      },
+      "postconditions": [
+        "Require parsed ok=true and playing=true; keep phase and warnings.",
+        "On queued timeout use explicit stop/reconciliation; never assume editor idle.",
+        "Only stop a session owned by this workflow. Remote Control responses still require live qualification."
+      ],
+      "example": {
+        "timeout": 60
+      },
+      "requiredCompatibility": "uap-nexus-no-replay-v1"
+    },
+    {
+      "id": "pie.stop",
+      "description": "Cancel a queued PIE start and wait for confirmed teardown through the same lifecycle provider.",
+      "provider": "unrealagentplayer",
+      "decision": "pie-lifecycle",
+      "effect": "lifecycle",
+      "contract": "pie.stop",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "direct",
+        "tool": "pie_stop",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Require parsed ok=true, stopped=true and phase=NotPlaying.",
+        "The upstream schema has no timeout argument; preserve machine-hold semantics."
+      ],
+      "example": {},
+      "requiredCompatibility": "uap-nexus-no-replay-v1"
+    },
+    {
+      "id": "pie.status",
+      "description": "Read UAP PIE lifecycle state; this is not independent identity attestation.",
+      "provider": "unrealagentplayer",
+      "decision": "pie-lifecycle",
+      "effect": "read",
+      "contract": "pie.status",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "direct",
+        "tool": "pie_status",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Inspect phase and full result. Missing Remote Control fields can be defaulted by upstream; qualify that path before live reliance."
+      ],
+      "example": {},
+      "requiredCompatibility": "uap-nexus-no-replay-v1"
+    },
+    {
+      "id": "screenshot.viewport.current",
+      "description": "Capture the currently visible viewport as an MCP image. During PIE this can be a game/ejected view, not editor-world-only.",
+      "provider": "enginewire",
+      "decision": "editor-screenshot",
+      "effect": "read",
+      "contract": "screenshot.viewport.current",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "resolution": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 9,
+            "description": "Downscale bounding box, not a rerender resolution.",
+            "pattern": "^[1-9][0-9]{0,3}x[1-9][0-9]{0,3}$"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "enginewire",
+        "tool": "control_editor",
+        "action": "screenshot",
+        "fixed": {
+          "mode": "editor_viewport",
+          "returnBase64": true,
+          "keepFile": false,
+          "waitForShaders": true
+        }
+      },
+      "postconditions": [
+        "Require an MCP image block before claiming visual inspection; preserve actual dimensions, view and shaderWait receipt.",
+        "mode=editor_viewport can select a possessed PIE viewport or an ejected view. Inspect the returned view; require separately reconciled NotPlaying for editor-world-only intent.",
+        "Resolution is downscaling, not rerendering. Shader waiting can expire with outstanding compilation.",
+        "This is not exact PIE-client selection, guaranteed UMG capture or full-window capture."
+      ],
+      "example": {
+        "resolution": "1280x720"
+      }
+    },
+    {
+      "id": "screenshot.pie",
+      "description": "Capture a selected PIE viewport including UMG to a fresh PNG filename; result may be a host file path, not an inline image.",
+      "provider": "ue-mcp",
+      "decision": "pie-screenshot",
+      "effect": "write",
+      "contract": "screenshot.pie",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 124,
+            "description": "Use a fresh unique basename; upstream can overwrite an existing file.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,119}\\.png$"
+          },
+          "pieInstance": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Exact PIE world instance."
+          },
+          "worldPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Optional additional exact PIE world path.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          }
+        },
+        "required": [
+          "filename",
+          "pieInstance"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "editor",
+        "method": "capture_screenshot",
+        "fixed": {
+          "target": "pie"
+        }
+      },
+      "postconditions": [
+        "Check reported world/instance, actual dimensions and successful file write.",
+        "The filename restriction is a Nexus policy, not an atomic no-overwrite guarantee.",
+        "A returned path is not evidence that the assistant received or viewed the image."
+      ],
+      "example": {
+        "filename": "nexus-frame-unique-0001.png",
+        "pieInstance": 1
+      }
+    },
+    {
+      "id": "actor.inspect.editor",
+      "description": "Read one exact actor in the editor world with explicit ambiguity-resistant identity.",
+      "provider": "ue-mcp",
+      "decision": "actor-inspection",
+      "effect": "read",
+      "contract": "actor.inspect.editor",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Full actor object path.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          },
+          "includeProperties": {
+            "type": "boolean",
+            "description": "Include reflected properties."
+          },
+          "propertyName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Optional single property to read."
+          }
+        },
+        "required": [
+          "actorPath"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "get_actor_details",
+        "fixed": {
+          "world": "editor"
+        }
+      },
+      "postconditions": [
+        "Check returned path and world. Respect truncation flags; do not treat a truncated container as complete."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube",
+        "includeProperties": true
+      }
+    },
+    {
+      "id": "actor.inspect.pie",
+      "description": "Read one exact actor in an explicitly selected PIE world.",
+      "provider": "ue-mcp",
+      "decision": "actor-inspection",
+      "effect": "read",
+      "contract": "actor.inspect.pie",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Full PIE actor object path.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          },
+          "pieInstance": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Exact PIE world instance."
+          },
+          "includeProperties": {
+            "type": "boolean",
+            "description": "Include reflected properties."
+          },
+          "propertyName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Optional single property to read."
+          }
+        },
+        "required": [
+          "actorPath",
+          "pieInstance"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "get_actor_details",
+        "fixed": {
+          "world": "pie"
+        }
+      },
+      "postconditions": [
+        "Verify returned identity and PIE instance; never substitute the editor-world actor."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/UEDPIE_1_Demo.Demo:PersistentLevel.Cube",
+        "pieInstance": 1
+      }
+    },
+    {
+      "id": "level.save.current",
+      "description": "Save the currently edited level and its loaded external packages without the broad commitDeletes sweep.",
+      "provider": "ue-mcp",
+      "decision": "level-save",
+      "effect": "write",
+      "contract": "level.save.current",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "description": "Explicitly write even clean packages; default false."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "save",
+        "fixed": {
+          "commitDeletes": false,
+          "includeExternalActors": true
+        }
+      },
+      "postconditions": [
+        "Confirm the intended level is current before dispatch; this call does not take a level path.",
+        "Inspect saved, failed, skipped and deleted package receipts; any failed package is not full success.",
+        "PIE must be stopped. Do not broaden to save-all to work around a refusal."
+      ],
+      "example": {}
+    },
+    {
+      "id": "asset.save.exact",
+      "description": "Save only a nonempty explicit list of loaded asset/object/package paths.",
+      "provider": "ue-mcp",
+      "decision": "asset-save",
+      "effect": "write",
+      "contract": "asset.save.exact",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "assetPaths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024,
+              "description": "Exact loaded asset/object/package path.",
+              "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+            },
+            "minItems": 1,
+            "maxItems": 128,
+            "uniqueItems": true
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Write even when dirty flag is absent; explicit choice, default false."
+          }
+        },
+        "required": [
+          "assetPaths"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "asset",
+        "method": "save",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Verify every requested package result and on-disk path/size/mtime.",
+        "Missing/unresolvable targets must refuse before writing; failed per-package save is not success.",
+        "No assetPath=all, omitted selector, directory save or save-all route is exposed."
+      ],
+      "example": {
+        "assetPaths": [
+          "/Game/Blueprints/BP_Demo"
+        ],
+        "force": true
+      }
+    },
+    {
+      "id": "pcg.graph.connect.persisted",
+      "description": "Connect explicitly named PCG nodes/pins, verify the edge and check persistence.",
+      "provider": "ue-mcp",
+      "decision": "pcg-connection",
+      "effect": "write",
+      "contract": "pcg.graph.connect.persisted",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "assetPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "PCGGraph asset path.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          },
+          "sourceNode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Stable source node identifier from a fresh graph read."
+          },
+          "sourcePin": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Explicit output pin label."
+          },
+          "targetNode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Stable target node identifier from a fresh graph read."
+          },
+          "targetPin": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Explicit input pin label."
+          }
+        },
+        "required": [
+          "assetPath",
+          "sourceNode",
+          "sourcePin",
+          "targetNode",
+          "targetPin"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "pcg",
+        "method": "connect_nodes",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Check actual edge and save result; do not translate stale numeric node indices.",
+        "An already-existing edge is not a newly created change and must not get a destructive inverse."
+      ],
+      "example": {
+        "assetPath": "/Game/PCG/PCG_Demo",
+        "sourceNode": "InputNode",
+        "sourcePin": "In",
+        "targetNode": "OutputNode",
+        "targetPin": "Out"
+      }
+    },
+    {
+      "id": "pcg.generation.execute",
+      "description": "Trigger the first PCG component on an exact actor; return the real component and run ID, not a completion claim.",
+      "provider": "ue-mcp",
+      "decision": "pcg-generation",
+      "effect": "write",
+      "contract": "pcg.generation.execute",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Exact editor actor path.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647,
+            "description": "Optional generation seed."
+          }
+        },
+        "required": [
+          "actorPath"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "pcg",
+        "method": "execute",
+        "fixed": {
+          "wait": false
+        }
+      },
+      "postconditions": [
+        "Capture returned actorPath, componentName and runId.",
+        "Native execute chooses the first PCG component; verify that is the intended component before triggering.",
+        "Use generation.wait for this exact run; acknowledgement does not mean generated."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.PCGActor"
+      }
+    },
+    {
+      "id": "pcg.generation.wait",
+      "description": "Wait for a particular actor/component/run and require generated, not merely a terminal or idle state.",
+      "provider": "ue-mcp",
+      "decision": "pcg-generation",
+      "effect": "read",
+      "contract": "pcg.generation.wait",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Actor path returned by execute.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          },
+          "componentName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Component name returned by execute."
+          },
+          "runId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Run ID returned by execute."
+          },
+          "timeoutSeconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 90,
+            "description": "Polling deadline; keep below the transport deadline."
+          }
+        },
+        "required": [
+          "actorPath",
+          "componentName",
+          "runId",
+          "timeoutSeconds"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "pcg",
+        "method": "wait_for_generation",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Require state=generated. cancelled, cleaned, not_started, idle and timed_out are not generation success.",
+        "Preserve lastRun and warning fields; do not retry execute on a wait timeout."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.PCGActor",
+        "componentName": "PCGComponent",
+        "runId": 1,
+        "timeoutSeconds": 60
+      }
+    },
+    {
+      "id": "input.action.once",
+      "description": "Inject one Enhanced Input action into an explicit local PIE player, not Slate/UI key dispatch.",
+      "provider": "ue-mcp",
+      "decision": "enhanced-input",
+      "effect": "write",
+      "contract": "input.action.once",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "InputAction asset path.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          },
+          "value_x": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite X/bool value."
+          },
+          "value_y": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite Y value."
+          },
+          "value_z": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite Z value."
+          },
+          "client_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "Local player inside the selected PIE world."
+          },
+          "pie_instance": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Exact PIE world instance."
+          }
+        },
+        "required": [
+          "action_path",
+          "client_id",
+          "pie_instance"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "pie",
+        "method": "inject_input",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Confirm the intended action/world/player and observe resulting gameplay.",
+        "Remote client relay is not exposed; UI/key dispatch is a different operation."
+      ],
+      "example": {
+        "action_path": "/Game/Input/IA_Move.IA_Move",
+        "value_x": 1,
+        "client_id": 0,
+        "pie_instance": 1
+      }
+    },
+    {
+      "id": "input.action.hold.start",
+      "description": "Start a tracked Enhanced Input hold in an explicit local PIE player.",
+      "provider": "ue-mcp",
+      "decision": "enhanced-input",
+      "effect": "write",
+      "contract": "input.action.hold.start",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "InputAction asset path.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          },
+          "value_x": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite X/bool value."
+          },
+          "value_y": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite Y value."
+          },
+          "value_z": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite Z value."
+          },
+          "client_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "Local player inside the selected PIE world."
+          },
+          "pie_instance": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Exact PIE world instance."
+          },
+          "injection_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Unique workflow-owned hold ID.",
+            "pattern": "^[A-Za-z0-9_-]{1,100}$"
+          }
+        },
+        "required": [
+          "action_path",
+          "client_id",
+          "pie_instance",
+          "injection_id"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "pie",
+        "method": "inject_input_start",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Record the returned hold ID and observed gameplay.",
+        "Always release the hold in workflow cleanup; starting a hold is not a one-shot action."
+      ],
+      "example": {
+        "action_path": "/Game/Input/IA_Move.IA_Move",
+        "value_x": 1,
+        "client_id": 0,
+        "pie_instance": 1,
+        "injection_id": "workflow-move-1"
+      }
+    },
+    {
+      "id": "input.action.hold.update",
+      "description": "Update a known workflow-owned Enhanced Input hold by its ID.",
+      "provider": "ue-mcp",
+      "decision": "enhanced-input",
+      "effect": "write",
+      "contract": "input.action.hold.update",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "injection_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Previously returned workflow-owned hold ID."
+          },
+          "value_x": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite X value."
+          },
+          "value_y": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite Y value."
+          },
+          "value_z": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38,
+            "description": "Finite Z value."
+          }
+        },
+        "required": [
+          "injection_id",
+          "value_x",
+          "value_y",
+          "value_z"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "pie",
+        "method": "inject_input_update",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Verify returned hold identity and gameplay effect; do not guess another workflow's hold ID."
+      ],
+      "example": {
+        "injection_id": "workflow-move-1",
+        "value_x": 0,
+        "value_y": 1,
+        "value_z": 0
+      }
+    },
+    {
+      "id": "input.action.hold.stop",
+      "description": "Stop a known workflow-owned Enhanced Input hold; preserve already-stopped reporting.",
+      "provider": "ue-mcp",
+      "decision": "enhanced-input",
+      "effect": "write",
+      "contract": "input.action.hold.stop",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "injection_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Previously returned workflow-owned hold ID."
+          }
+        },
+        "required": [
+          "injection_id"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "pie",
+        "method": "inject_input_stop",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Confirm stopped/already-stopped, and ensure no owned holds remain at workflow end.",
+        "A transport timeout is not a confirmed release."
+      ],
+      "example": {
+        "injection_id": "workflow-move-1"
+      }
+    },
+    {
+      "id": "blueprint.compile.memory.asset",
+      "description": "Compile one exact Blueprint asset without implicit package saves; native session may open.",
+      "provider": "claireon",
+      "decision": "blueprint-compile-memory",
+      "effect": "write",
+      "contract": "blueprint.compile.memory.asset",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "asset_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^/[A-Za-z0-9_]+/[A-Za-z0-9_./]+$"
+          }
+        },
+        "required": [
+          "asset_path"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "bp_compile_asset",
+        "fixed": {
+          "response_mode": "status"
+        }
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Require the native status-mode summary to explicitly report compilation successful and compile_log_num_errors=0; preserve severity, node GUIDs, warnings and diagnostic truncation.",
+        "Public python_execute must advertise and honor nexus_skip_auto_save=true from the exact reviewed compatibility patch before any probe or call.",
+        "Compile is not save. Asset form may auto-open a native edit session; preserve session_id and do not auto-close (close can save)."
+      ],
+      "example": {
+        "asset_path": "/Game/Blueprints/BP_Vehicle"
+      }
+    },
+    {
+      "id": "blueprint.compile.memory.session",
+      "description": "Compile a named existing Blueprint edit session without implicit package saves.",
+      "provider": "claireon",
+      "decision": "blueprint-compile-memory",
+      "effect": "write",
+      "contract": "blueprint.compile.memory.session",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "bp_compile_session",
+        "fixed": {
+          "response_mode": "status"
+        }
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Require the native status-mode summary to explicitly report compilation successful and compile_log_num_errors=0; preserve severity, node GUIDs, warnings and diagnostic truncation.",
+        "Public python_execute must advertise and honor nexus_skip_auto_save=true from the exact reviewed compatibility patch before any probe or call.",
+        "Compile is not save. Asset form may auto-open a native edit session; preserve session_id and do not auto-close (close can save)."
+      ],
+      "example": {
+        "session_id": "bp-session-owned"
+      }
+    },
+    {
+      "id": "automation.tests.run",
+      "description": "Start strict native automation with an exact expected test set; acceptance is not a pass.",
+      "provider": "claireon",
+      "decision": "automation-tests",
+      "effect": "lifecycle",
+      "contract": "automation.tests.run",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "testFilter": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "expected_tests": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true
+          },
+          "allowed_skips": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "required": [
+                "name",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 64,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "testFilter",
+          "expected_tests",
+          "allowed_skips"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "test_run",
+        "fixed": {
+          "strict": true,
+          "noTimeout": false
+        }
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Native strict=true and noTimeout=false are fixed; expected_tests must be the complete discovered set, allowed skips need exact names and reasons.",
+        "Record the accepted run_id and poll through terminal evidence. Native editor-wide test gate has no autonomous expiry.",
+        "Only one run owned by this adapter may be active. Do not spin/tick the editor or retry start after an uncertain result.",
+        "Required reviewed no-autosave compatibility must be advertised before Python probes or dispatch."
+      ],
+      "example": {
+        "testFilter": "Vehicle.Smoke",
+        "expected_tests": [
+          "Vehicle.Smoke.Input"
+        ],
+        "allowed_skips": []
+      }
+    },
+    {
+      "id": "automation.tests.poll",
+      "description": "Poll or explicitly cancel this connection's owned strict automation run; preserve its once-only terminal report.",
+      "provider": "claireon",
+      "decision": "automation-tests",
+      "effect": "lifecycle",
+      "contract": "automation.tests.poll",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "cancel": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "test_poll",
+        "fixed": {}
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Require the exact owned run_id. Progress is not passed; obey suggested_poll_after_seconds between requests.",
+        "Native successful terminal report is summary-only: require its final strict verdict and counts matching the owned expected test set.",
+        "Strict failure retains full structured diagnostics. A cancelled run is never classified as a passing test run.",
+        "Unknown/missing terminal evidence fences the gateway; do not auto-retry the poll that may have consumed its one-time report."
+      ],
+      "example": {
+        "run_id": "run-owned"
+      }
+    },
+    {
+      "id": "insights.capture.start",
+      "description": "Start one owned PIE trace in Saved/Profiling with a fresh generated safe basename and explicit channels.",
+      "provider": "claireon",
+      "decision": "trace-analysis",
+      "effect": "lifecycle",
+      "contract": "insights.capture.start",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{7,95}$"
+          },
+          "channels": {
+            "type": "string",
+            "enum": [
+              "cpu,frame,bookmark",
+              "cpu,frame,bookmark,gpu"
+            ]
+          }
+        },
+        "required": [
+          "filename",
+          "channels"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "pie_trace_start",
+        "fixed": {}
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Require native status=recording, exact channel selection, true stat_named_events and an absolute .utrace path.",
+        "PIE must already run. The native call refuses an existing capture; this adapter does not replace it.",
+        "Native output path is not atomic no-clobber: choose a fresh unique basename. Default Saved/Profiling only; arbitrary output directories are excluded.",
+        "Record capture ownership/path; explicit stop is required. Cross-process/direct-client interference remains an operator coordination boundary."
+      ],
+      "example": {
+        "filename": "nexus_vehicle_20261026_001",
+        "channels": "cpu,frame,bookmark,gpu"
+      }
+    },
+    {
+      "id": "insights.capture.stop",
+      "description": "Stop the trace started by this adapter and preserve its exact recorded path.",
+      "provider": "claireon",
+      "decision": "trace-analysis",
+      "effect": "lifecycle",
+      "contract": "insights.capture.stop",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "pie_trace_stop",
+        "fixed": {}
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Refuse without an adapter-owned capture. Require native status=stopped and the same trace_file_path before releasing ownership.",
+        "Native stop restores named-event state. A not_recording or mismatching-path response is not proof this owned capture was correctly finalized.",
+        "No automatic stop during adapter close and no claim of cross-process ownership enforcement."
+      ],
+      "example": {}
+    },
+    {
+      "id": "insights.trace.open",
+      "description": "Open an explicit absolute .utrace file for real analysis and retain the reader session.",
+      "provider": "claireon",
+      "decision": "trace-analysis",
+      "effect": "lifecycle",
+      "contract": "insights.trace.open",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filePath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]+\\.utrace$"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "trace_open",
+        "fixed": {}
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Require a fresh native session_id and exact echoed trace_file; preserve capture_manifest, frame_count and nullable duration_ms.",
+        "Trace opening is not performance diagnosis; missing channels/null timing must remain visible.",
+        "Only analysis sessions opened through this adapter may be queried or closed; reopening after reconnect requires explicit operator action."
+      ],
+      "example": {
+        "filePath": "C:/UnrealProject/Saved/Profiling/nexus_vehicle_20261026_001.utrace"
+      }
+    },
+    {
+      "id": "insights.trace.scopes",
+      "description": "Read a bounded inclusive-time/count scope page over an explicit seconds range from an owned trace.",
+      "provider": "claireon",
+      "decision": "trace-analysis",
+      "effect": "read",
+      "contract": "insights.trace.scopes",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "startTime": {
+            "type": "number",
+            "minimum": 0
+          },
+          "endTime": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maxResults": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "totalInclusive",
+              "count"
+            ]
+          },
+          "includeGpu": {
+            "type": "boolean"
+          },
+          "threadFilter": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "sessionId",
+          "startTime",
+          "endTime",
+          "maxResults",
+          "sortBy",
+          "includeGpu"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "trace_get_top_scopes",
+        "fixed": {}
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Require exact owned session_id and non-inverted time range; no automatic frame/time selector mixing.",
+        "Preserve actual rows, truncated/total_scopes_before_truncation, GPU-presence/event counts and channel warnings.",
+        "Transport spill/truncation is an error; native data.truncated is a legitimate disclosed bounded-page limitation.",
+        "No exclusive/max-inclusive or percentile claims: this native implementation aggregates total_ms, avg_ms and call_count."
+      ],
+      "example": {
+        "sessionId": "trace-owned",
+        "startTime": 0,
+        "endTime": 5,
+        "maxResults": 25,
+        "sortBy": "totalInclusive",
+        "includeGpu": false
+      }
+    },
+    {
+      "id": "insights.trace.frames",
+      "description": "Read a bounded frame page from an owned trace, preserving open-frame nulls and page-only aggregates.",
+      "provider": "claireon",
+      "decision": "trace-analysis",
+      "effect": "read",
+      "contract": "insights.trace.frames",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "frameType": {
+            "type": "string",
+            "enum": [
+              "game",
+              "render"
+            ]
+          },
+          "startFrame": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "endFrame": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "maxResults": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "onlyHitches": {
+            "type": "boolean"
+          },
+          "hitchThresholdMs": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 60000
+          }
+        },
+        "required": [
+          "sessionId",
+          "frameType",
+          "startFrame",
+          "endFrame",
+          "maxResults",
+          "onlyHitches",
+          "hitchThresholdMs"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "trace_get_frame_stats",
+        "fixed": {}
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Require matching owned session_id and non-inverted frame range; returned row count must obey maxResults.",
+        "Preserve unterminated_frames and null frame durations. avg/min/max describe only the returned page.",
+        "game_thread_ms is the same native frame duration, not independently measured GameThread CPU time. No p95/p99 or inferred GPU timing."
+      ],
+      "example": {
+        "sessionId": "trace-owned",
+        "frameType": "game",
+        "startFrame": 0,
+        "endFrame": 99,
+        "maxResults": 50,
+        "onlyHitches": false,
+        "hitchThresholdMs": 33.3
+      }
+    },
+    {
+      "id": "insights.trace.close",
+      "description": "Explicitly close an analysis session opened by this adapter.",
+      "provider": "claireon",
+      "decision": "trace-analysis",
+      "effect": "lifecycle",
+      "contract": "insights.trace.close",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "trace_close",
+        "fixed": {}
+      },
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1",
+      "postconditions": [
+        "Require the exact owned session_id and closed=true before removing ownership.",
+        "Close frees reader memory, not capture state. No automatic stop/close on adapter shutdown."
+      ],
+      "example": {
+        "sessionId": "trace-owned"
+      }
+    },
+    {
+      "id": "material.parameter.scalar.persisted",
+      "description": "Set and verify one existing global material-instance scalar parameter, then require persisted success.",
+      "provider": "hayba",
+      "decision": "material-parameter-strict",
+      "effect": "write",
+      "contract": "material.parameter.scalar.persisted",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "instance_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^/[A-Za-z0-9_]+/[A-Za-z0-9_./]+$"
+          },
+          "param_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "value": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38
+          }
+        },
+        "required": [
+          "instance_path",
+          "param_name",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "hayba-specialist",
+        "tool": "material_set_param",
+        "variant": "material_scalar",
+        "fixed": {
+          "nexus_retry_policy": "never"
+        }
+      },
+      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "postconditions": [
+        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
+        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
+        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
+        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+      ],
+      "example": {
+        "instance_path": "/Game/Materials/MI_Vehicle",
+        "param_name": "Roughness",
+        "value": 0.5
+      }
+    },
+    {
+      "id": "material.parameter.vector.persisted",
+      "description": "Set and verify one existing global material-instance vector parameter, then require persisted success.",
+      "provider": "hayba",
+      "decision": "material-parameter-strict",
+      "effect": "write",
+      "contract": "material.parameter.vector.persisted",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "instance_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^/[A-Za-z0-9_]+/[A-Za-z0-9_./]+$"
+          },
+          "param_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "value": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "minItems": 3,
+            "maxItems": 4
+          }
+        },
+        "required": [
+          "instance_path",
+          "param_name",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "hayba-specialist",
+        "tool": "material_set_param",
+        "variant": "material_vector",
+        "fixed": {
+          "nexus_retry_policy": "never"
+        }
+      },
+      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "postconditions": [
+        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
+        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
+        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
+        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+      ],
+      "example": {
+        "instance_path": "/Game/Materials/MI_Vehicle",
+        "param_name": "Tint",
+        "value": [
+          0.2,
+          0.3,
+          0.4,
+          1
+        ]
+      }
+    },
+    {
+      "id": "material.parameter.texture.persisted",
+      "description": "Set and verify one existing global material-instance texture parameter, then require persisted success.",
+      "provider": "hayba",
+      "decision": "material-parameter-strict",
+      "effect": "write",
+      "contract": "material.parameter.texture.persisted",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "instance_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^/[A-Za-z0-9_]+/[A-Za-z0-9_./]+$"
+          },
+          "param_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^/[A-Za-z0-9_]+/[A-Za-z0-9_./]+$"
+          }
+        },
+        "required": [
+          "instance_path",
+          "param_name",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "hayba-specialist",
+        "tool": "material_set_param",
+        "variant": "material_texture",
+        "fixed": {
+          "nexus_retry_policy": "never"
+        }
+      },
+      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "postconditions": [
+        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
+        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
+        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
+        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+      ],
+      "example": {
+        "instance_path": "/Game/Materials/MI_Vehicle",
+        "param_name": "BaseTexture",
+        "value": "/Game/Textures/T_Vehicle"
+      }
+    }
+  ]
+}

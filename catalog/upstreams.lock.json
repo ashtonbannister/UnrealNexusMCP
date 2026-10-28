@@ -1,0 +1,55 @@
+{
+  "reviewDate": "2026-10-26",
+  "targetBaseCommit": "d57d7137020e2ef33a2aaf9abdb9f9fe5d9e3ba2",
+  "sources": {
+    "ue-mcp": {
+      "repository": "https://github.com/db-lyon/ue-mcp",
+      "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+      "license": "MIT",
+      "surface": "default micro gateway: tools(action=call, category, method, args)",
+      "defaultBranchHeadAtReview": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+      "commitDate": "2026-10-25T02:44:32Z"
+    },
+    "enginewire": {
+      "repository": "https://github.com/ChiR24/Unreal_mcp",
+      "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+      "license": "MIT",
+      "surface": "unreal(operation=describe|execute, tool, action, params)",
+      "defaultBranchHeadAtReview": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+      "commitDate": "2026-10-26T05:55:42Z"
+    },
+    "claireon": {
+      "repository": "https://github.com/believer-oss/Claireon",
+      "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+      "license": "MIT; bundled model has a separate MIT notice",
+      "surface": "tool_search and python_execute; internal functions are not MCP tool names",
+      "defaultBranchHeadAtReview": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+      "commitDate": "2026-09-15T01:25:31Z"
+    },
+    "unrealagentplayer": {
+      "repository": "https://github.com/ImagineTheGames/UnrealAgentPlayer",
+      "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+      "license": "MIT",
+      "surface": "direct tools from the Python registry",
+      "defaultBranchHeadAtReview": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+      "commitDate": "2026-10-24T03:29:21Z"
+    },
+    "hayba": {
+      "repository": "https://github.com/zajalist/hayba",
+      "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+      "license": "MIT; preserve bundled asset notices",
+      "surface": "default deferred gateway; direct visibility depends on settings",
+      "defaultBranchHeadAtReview": "b69ed11011f89aed3c444a50bd2331b99551c777",
+      "commitDate": "2026-10-14T00:30:41Z"
+    },
+    "ivan-unreal-mcp": {
+      "repository": "https://github.com/IvanMurzak/Unreal-MCP",
+      "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+      "license": "Apache-2.0 root; vendored RQL and Code-Exec use PolyForm Shield 1.0.0",
+      "surface": "external only; no component code copied, no runtime adapter selected",
+      "defaultBranchHeadAtReview": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+      "commitDate": "2026-10-24T01:58:52Z"
+    }
+  },
+  "defaultBranchHeadsRecheckedOn": "2026-10-26"
+}

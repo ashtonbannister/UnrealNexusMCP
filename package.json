@@ -1,0 +1,27 @@
+{
+  "name": "unreal-nexus-mcp",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Canonical Unreal MCP gateway with lazy verified backends and optional specialists; live Unreal qualification pending.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "test": "node --test --test-isolation=none test/*.test.mjs",
+    "check": "node scripts/validate-catalog.mjs && npm test",
+    "catalog": "node src/cli.mjs",
+    "catalog:check": "node scripts/validate-catalog.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@modelcontextprotocol/core": "2.4.0",
+    "@modelcontextprotocol/node": "2.1.2",
+    "@modelcontextprotocol/server": "2.4.0"
+  }
+}

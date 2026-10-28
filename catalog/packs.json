@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "defaultEnabled": [],
+  "packs": [
+    {
+      "id": "authoring-core",
+      "optional": false,
+      "description": "UE-MCP exact inspection, persistence and PCG authoring.",
+      "operations": [
+        "actor.inspect.editor",
+        "actor.inspect.pie",
+        "level.save.current",
+        "asset.save.exact",
+        "pcg.graph.connect.persisted",
+        "pcg.generation.execute",
+        "pcg.generation.wait"
+      ]
+    },
+    {
+      "id": "editor-observation",
+      "optional": false,
+      "description": "EngineWire current viewport image; source can be editor or PIE.",
+      "operations": [
+        "screenshot.viewport.current"
+      ]
+    },
+    {
+      "id": "playtesting",
+      "optional": true,
+      "description": "UAP confirmed lifecycle plus UE selected PIE capture and Enhanced Input.",
+      "operations": [
+        "pie.start.viewport",
+        "pie.stop",
+        "pie.status",
+        "screenshot.pie",
+        "input.action.once",
+        "input.action.hold.start",
+        "input.action.hold.update",
+        "input.action.hold.stop"
+      ],
+      "requiredCompatibility": {
+        "unrealagentplayer": "uap-nexus-no-replay-v1"
+      }
+    },
+    {
+      "id": "blueprint-compile",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "claireon",
+      "operations": [
+        "blueprint.compile.memory.asset",
+        "blueprint.compile.memory.session"
+      ],
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
+    },
+    {
+      "id": "material-strict",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "hayba",
+      "operations": [
+        "material.parameter.scalar.persisted",
+        "material.parameter.vector.persisted",
+        "material.parameter.texture.persisted"
+      ],
+      "requiredCompatibility": "hayba-nexus-no-retry-v1"
+    },
+    {
+      "id": "automation-tests",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "claireon",
+      "operations": [
+        "automation.tests.run",
+        "automation.tests.poll"
+      ],
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
+    },
+    {
+      "id": "insights-analysis",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "claireon",
+      "operations": [
+        "insights.capture.start",
+        "insights.capture.stop",
+        "insights.trace.open",
+        "insights.trace.scopes",
+        "insights.trace.frames",
+        "insights.trace.close"
+      ],
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
+    }
+  ]
+}

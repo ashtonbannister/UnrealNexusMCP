@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "enabledPacks": [],
+  "enabledCapabilities": [],
+  "allowWrites": false,
+  "timeoutMs": 120000,
+  "target": null,
+  "server": { "transport": "stdio" },
+  "backends": {}
+}

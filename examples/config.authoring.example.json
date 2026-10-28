@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "enabledPacks": ["authoring-core", "editor-observation"],
+  "enabledCapabilities": [],
+  "allowWrites": false,
+  "timeoutMs": 120000,
+  "target": {
+    "projectRoot": "C:/Projects/NexusDemo/NexusDemo.uproject",
+    "processId": 12345
+  },
+  "server": { "transport": "stdio" },
+  "backends": {
+    "ue-mcp": {
+      "sourceRoot": "C:/Tools/upstreams/ue-mcp",
+      "transport": {
+        "type": "stdio",
+        "command": "node",
+        "args": ["C:/Tools/upstreams/ue-mcp/dist/index.js", "C:/Projects/NexusDemo/NexusDemo.uproject"],
+        "cwd": "C:/Projects/NexusDemo",
+        "inheritEnv": ["PATH", "SystemRoot", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA"],
+        "env": {"UE_MCP_SERVER_MODE": "in-process"}
+      }
+    },
+    "enginewire": {
+      "sourceRoot": "C:/Tools/upstreams/EngineWire",
+      "transport": {
+        "type": "streamable-http",
+        "url": "http://127.0.0.1:3000/mcp",
+        "headerEnv": {"X-MCP-Capability-Token": "NEXUS_ENGINEWIRE_TOKEN"}
+      }
+    }
+  }
+}
