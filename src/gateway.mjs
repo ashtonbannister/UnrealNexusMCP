@@ -5,10 +5,15 @@ import { BackendPool } from './backends.mjs';
 import { selectCapabilities } from './packs.mjs';
 import { NexusError } from './errors.mjs';
 
-// These holds cannot safely be created or released through the pinned native
-// ID namespace: direct clients can populate its independent remote-ID map.
+// These reviewed routes remain held where native target or ownership
+// boundaries cannot be established before dispatch.
 const held = new Map([
   ['screenshot.pie',{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED',reason:'native output ownership and target identity unverified'}],
+  ['material.parameter.vector.persisted',{code:'MATERIAL_VECTOR_RECEIPT_UNVERIFIED',reason:'native vector receipt cannot reliably correlate requested values'}],
+  ['automation.tests.run',{code:'AUTOMATION_RUN_OWNERSHIP_UNVERIFIED',reason:'native run start can replace an independently owned active run'}],
+  ['insights.trace.open',{code:'TRACE_READER_OWNERSHIP_UNVERIFIED',reason:'native open can stop expired readers owned by other clients'}],
+  ...['insights.capture.start','insights.capture.stop'].map(id =>
+    [id,{code:'TRACE_CAPTURE_OWNERSHIP_UNVERIFIED',reason:'native trace output and global capture ownership unverified'}]),
   ...['input.action.hold.start','input.action.hold.update','input.action.hold.stop'].map(id =>
     [id,{code:'INPUT_HOLD_OWNERSHIP_UNVERIFIED',reason:'native hold ownership and local-only routing unverified'}]),
 ]);

@@ -857,3 +857,34 @@ test('one-shot input requires a correlated local native receipt and fences uncer
   assert.equal((await refusal.gateway.execute('input.action.once',args))._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
   assert.equal(refusal.gateway.status().queue.blocked,false);await refusal.gateway.close();
 });
+
+
+test('material vector mutation stays held without a correlatable native receipt',async()=>{
+  let starts=0;
+  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:['material.parameter.vector.persisted'],
+    backendFactories:new Map([['hayba',async()=>{starts++;throw new Error('must not start');}]])});
+  const args=catalog.get('material.parameter.vector.persisted').example;
+  assert.equal(g.plan('material.parameter.vector.persisted',args).dispatched,false);
+  await assert.rejects(g.execute('material.parameter.vector.persisted',args),{code:'MATERIAL_VECTOR_RECEIPT_UNVERIFIED'});
+  assert.equal(starts,0);
+  assert.equal(g.status().heldCapabilities[0].id,'material.parameter.vector.persisted');
+  await g.close();
+});
+
+
+test('automation start and trace capture routes stay held before backend startup',async()=>{
+  let starts=0;
+  const ids=['automation.tests.run','insights.capture.start','insights.capture.stop','insights.trace.open'];
+  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:[...ids,'automation.tests.poll','insights.trace.close'],
+    backendFactories:new Map([['claireon',async()=>{starts++;throw new Error('must not start');}]])});
+  for(const id of ids) {
+    const args=catalog.get(id).example;
+    assert.equal(g.plan(id,args).dispatched,false);
+    await assert.rejects(g.execute(id,args),{code:id==='automation.tests.run'?'AUTOMATION_RUN_OWNERSHIP_UNVERIFIED':id==='insights.trace.open'?'TRACE_READER_OWNERSHIP_UNVERIFIED':'TRACE_CAPTURE_OWNERSHIP_UNVERIFIED'});
+  }
+  assert.equal(starts,0);
+  assert.deepEqual(new Set(g.status().heldCapabilities.map(item=>item.id)),new Set(ids));
+  assert.ok(!g.status().heldCapabilities.some(item=>item.id==='automation.tests.poll'));
+  assert.ok(!g.status().heldCapabilities.some(item=>item.id==='insights.trace.close'));
+  await g.close();
+});

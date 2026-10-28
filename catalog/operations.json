@@ -883,7 +883,7 @@
     },
     {
       "id": "automation.tests.run",
-      "description": "Start strict native automation with an exact expected test set; acceptance is not a pass.",
+      "description": "Strict automation start is held: native start can replace another active run. Existing runs require external reconciliation.",
       "provider": "claireon",
       "decision": "automation-tests",
       "effect": "lifecycle",
@@ -1008,7 +1008,7 @@
     },
     {
       "id": "insights.capture.start",
-      "description": "Start one owned PIE trace in Saved/Profiling with a fresh generated safe basename and explicit channels.",
+      "description": "Trace capture start is held: native output ownership and physical target are not established.",
       "provider": "claireon",
       "decision": "trace-analysis",
       "effect": "lifecycle",
@@ -1056,7 +1056,7 @@
     },
     {
       "id": "insights.capture.stop",
-      "description": "Stop the trace started by this adapter and preserve its exact recorded path.",
+      "description": "Trace capture stop is held: native stop can affect an independently replaced global capture. Reconcile externally.",
       "provider": "claireon",
       "decision": "trace-analysis",
       "effect": "lifecycle",
@@ -1083,7 +1083,7 @@
     },
     {
       "id": "insights.trace.open",
-      "description": "Open an explicit absolute .utrace file for real analysis and retain the reader session.",
+      "description": "Trace reader open is held: native open can stop expired reader sessions owned by other clients.",
       "provider": "claireon",
       "decision": "trace-analysis",
       "effect": "lifecycle",
@@ -1370,7 +1370,7 @@
     },
     {
       "id": "material.parameter.vector.persisted",
-      "description": "Set and verify one existing global material-instance vector parameter, then require persisted success.",
+      "description": "Held before dispatch: native vector receipt cannot reliably correlate the requested components; source-backed typed echo and qualification are required.",
       "provider": "hayba",
       "decision": "material-parameter-strict",
       "effect": "write",

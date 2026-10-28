@@ -66,7 +66,7 @@ test('unreviewed records and incomplete counts cannot be relabeled complete',()=
 test('blocked source records require owner, reason, reopening condition and pinned evidence without route claims',()=>{
   const blocked=coverage.entries.filter(e=>e.disposition==='blocked');
   const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
-  for(const name of ['actor_find','actor_get_properties','exec_console','exec_python','actor_call_function']) assert.ok(blockedUap.has(name));
+  for(const name of ['actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call']) assert.ok(blockedUap.has(name));
   assert.equal(validateCapabilityCoverage().status,'partial-unreviewed');
   for (const change of [
     row=>{row.blockReason='';}, row=>{row.reopeningCondition='';},

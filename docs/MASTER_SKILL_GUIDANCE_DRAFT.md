@@ -275,9 +275,15 @@ remain distinct.
 
 **Use:** `material.parameter.scalar.persisted`,
 `material.parameter.vector.persisted`, `material.parameter.texture.persisted`.
-These use only the direct typed material_set_param tool.
+These use only the direct typed material_set_param tool. The vector operation is
+held before dispatch: the native vector text lacks source-backed precision and
+rounding guarantees needed to correlate it with requested components. A reviewed
+typed input echo and loaded compatibility evidence are required before release.
 
 Validate instance, declared parameter, type and read-only state before mutation.
+The native material receipt does not report the actual instance path; the
+normalized `instance_path` is the requested value, not independent target proof.
+Corroborate the intended instance separately before claiming it was changed.
 Allow scalar, 3/4-element finite vector or nonempty texture path; enforce float32
 range. Require actual value readback, verified=true and saved=true. If save fails,
 memory may already have changed: retry persistence, not the entire mutation.
@@ -299,15 +305,19 @@ falls back to hayba_invoke on demand.
 **Use:** `automation.tests.run` and `automation.tests.poll`; fixed native
 test_run/test_poll wrappers with the same no-autosave compatibility requirement.
 
-Use a narrow nonempty filter, strict=true, expected test set and reasoned allowed
-skips. Keep normal timeouts. Record run_id, then poll through a terminal result
+Automation start is held before dispatch: the pinned native start can replace
+an independently active run. Do not assume gateway-local ownership coordinates
+direct clients. Reconcile existing runs externally; no implicit cancellation is
+performed. When a reviewed native atomic ownership guard exists, use a narrow
+nonempty filter, strict=true, expected test set and reasoned allowed skips. Keep normal timeouts. Record run_id, then poll through a terminal result
 with editor frames between requests. Save that terminal evidence: it is emitted
 once. Polling is required to release the gate; there is no autonomous expiry.
 
 Missing/not-run/unfinished/timed-out tests and unauthorized skips are not passes.
-Cancel an owned run explicitly with `automation.tests.poll(cancel=true)` if
-abandoning, then confirm release. The adapter refuses an unowned run ID and
-retains the terminal strict evidence. Do not replace this with
+Cancellation or timeout can release the native gate before workers have stopped;
+a cancellation receipt is not cleanup confirmation. The adapter fences and
+retains ownership for external reconciliation. It refuses an unowned run ID and
+retains terminal strict evidence. Do not replace this with
 caller-recorded assertions, manual double-ticking or a synchronous game-thread
 runner that cannot service frame-dependent latent commands.
 
@@ -320,8 +330,16 @@ These are fixed wrappers for pie_trace_start/stop, trace_open,
 trace_get_top_scopes, trace_get_frame_stats and trace_close, with the same
 no-autosave compatibility requirement.
 
-Capture to a fresh path with needed channels; restore previous trace/named-event
-settings on stop. Open the returned real trace, retain the analysis session ID,
+Trace capture start and stop are held before dispatch: the pinned path write does
+not prove output ownership or physical target, and global stop can affect an
+independently replaced capture. Reconcile existing captures and named-event
+state externally; Nexus performs no implicit stop. A fresh basename does not
+establish physical file ownership. After a reviewed native ownership guard,
+capture with needed channels and restore prior settings on stop. Trace reader
+open is also held: the pinned native open first stops and removes all expired
+readers, including independently owned readers, before validating the input.
+Nexus does not implicitly close readers. After an ownership-aware native fix,
+open the returned real trace, retain the analysis session ID,
 query bounded pages, and close the session afterward.
 The adapter owns the capture and reader handles it creates; it refuses to stop,
 query or close unowned state. Shutdown closes transport connections but does not

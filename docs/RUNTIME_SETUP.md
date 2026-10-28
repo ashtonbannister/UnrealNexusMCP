@@ -89,7 +89,13 @@ This setting is not a model-callable argument and does not authorize the broad
 dirty-package sweep. `screenshot.pie` is held before dispatch until a reviewed
 native implementation proves output ownership and prevents link/reparse
 redirection. Neither a fresh basename nor a host write grant proves the physical
-output target; no configuration flag bypasses this hold. `requiredProviders` includes providers for enabled catalog entries, including held entries; a held entry never starts its backend. The three `input.action.hold.*` operations are also held because pinned native ID routing cannot establish local-only ownership before update or stop. Existing holds require external reconciliation; Nexus does not implicitly stop or reset them.
+output target; no configuration flag bypasses this hold. `requiredProviders`
+includes providers for enabled catalog entries, including held entries; a held
+entry never starts its backend. The three input-hold operations, vector material
+mutation, automation start, trace capture and trace-reader open are also held
+pending their native target or ownership boundaries. Existing holds, runs,
+captures and readers require external reconciliation; Nexus does not implicitly
+stop, cancel or reset them.
 
 Relative paths resolve against the configuration file's directory. Fields are
 strictly checked; unknown keys are rejected. Credential values come from named

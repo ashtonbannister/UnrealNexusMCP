@@ -3,7 +3,9 @@
 **One canonical tool set. One reviewed winning implementation per function.
 Only the backends needed by enabled capabilities. Optional specialists.**
 
-Nexus is an MCP gateway with a curated catalogue of **29 canonical operations**. `screenshot.pie` and the three input-hold operations are currently held before dispatch until their native output or ownership boundaries are established.
+Nexus is an MCP gateway with a curated catalogue of **29 canonical operations**. `screenshot.pie`, the three input-hold operations, vector material mutation,
+automation start, trace capture and trace-reader open are held before dispatch
+until their native target or ownership boundaries are established.
 It serves local stdio or authenticated loopback HTTP, starts selected backend
 connections on first execution, and applies the
 [master skill guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md) through MCP

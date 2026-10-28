@@ -290,13 +290,49 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
   }
   function interpretClaireon(result, frame, spec, args) {
     const native = frame.native, data = native.data;
+    // The pinned native cancellation/timeout path requests StopTests and then
+    // releases its gate without proving workers have actually stopped.
+    const unsettledReport = value => typeof value === 'string'
+      && /(?:^|\n)(?:Tests TIMED OUT after |Still In Progress: [1-9][0-9]*(?:\r?$))/m.test(value);
+    if (spec.id === 'automation.tests.poll' && (args.cancel
+      || (frame.ok === true && frame.error !== null)
+      || (Array.isArray(data.in_process) && data.in_process.length > 0)
+      || unsettledReport(frame.error) || unsettledReport(native.summary))) {
+      uncertain('Automation cancellation, timeout or in-progress work requires external reconciliation.', result);
+    }
     if (!frame.ok) {
       if (spec.id === 'automation.tests.poll') {
-        if (!['execution','discovery'].includes(data.strict_failure)) {
+        const expectedPrefix = `Tool 'test_poll' failed: Strict run FAILED for filter '${activeRun.testFilter}' (`;
+        const listFields = ['failed','not_run','in_process','unreported','unexpected_skips','skipped','unused_allowed_skips'];
+        const listsValid = listFields.every(key => data[key] === undefined
+          || (Array.isArray(data[key]) && data[key].length > 0 && data[key].every(text)
+            && new Set(data[key]).size === data[key].length));
+        const hasFailureEvidence = ['failed','not_run','unreported','unexpected_skips']
+          .some(key => Array.isArray(data[key]) && data[key].length > 0);
+        // Native derives unexpected_skips from skipped and unreported from the
+        // discovered-minus-reported set; those cannot contradict each other.
+        const unexpectedSkipsValid = data.unexpected_skips === undefined
+          || (Array.isArray(data.unexpected_skips) && Array.isArray(data.skipped)
+            && data.unexpected_skips.every(name => data.skipped.includes(name)));
+        const unreportedValid = data.unreported === undefined || !Array.isArray(data.unreported)
+          || ['failed','not_run','in_process','skipped'].every(key => !Array.isArray(data[key])
+            || data.unreported.every(name => !data[key].includes(name)));
+        // Each outcome list is drawn from the reported-name set. Unreported is
+        // discovered minus reported; report names need not all be discovered.
+        const cardinalitiesValid = count(data.discovered_count) && count(data.reported_count)
+          && ['failed','not_run','in_process','skipped'].every(key => !Array.isArray(data[key])
+            || data[key].length <= data.reported_count)
+          && (data.unreported === undefined || Array.isArray(data.unreported))
+          && (data.unreported?.length ?? 0) <= data.discovered_count
+          && (data.unreported?.length ?? 0) >= Math.max(0,data.discovered_count - data.reported_count);
+        if (data.strict_failure !== 'execution' || !count(data.discovered_count)
+          || data.discovered_count !== activeRun.expectedTests.length || !count(data.reported_count)
+          || !listsValid || !hasFailureEvidence || !unexpectedSkipsValid || !unreportedValid || !cardinalitiesValid
+          || typeof frame.error !== 'string' || !frame.error.startsWith(expectedPrefix)) {
           uncertain('Poll failed without a terminal strict receipt; run/gate state needs reconciliation.', result);
         }
         activeRun = null;
-        return normalized(result,native,{ok:false,phase:args.cancel ? 'cancelled' : 'failed',run_id:args.run_id,gateReleased:true},frame.error);
+        return normalized(result,native,{ok:false,phase:'failed',run_id:args.run_id,gateReleased:true},frame.error);
       }
       return normalized(result,native,{ok:false,phase:'native-error'},frame.error);
     }
@@ -327,7 +363,7 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
         || data.suggested_poll_after_seconds <= 0 || data.poll_with !== 'test_poll') {
         uncertain('Automation start did not return a correlated accepted-run receipt.', result);
       }
-      activeRun = {runId:data.run_id,expectedTests:[...args.expected_tests],allowedSkips:structuredClone(args.allowed_skips)};
+      activeRun = {runId:data.run_id,testFilter:args.testFilter,expectedTests:[...args.expected_tests],allowedSkips:structuredClone(args.allowed_skips)};
       return normalized(result,native,{ok:true,phase:'accepted',run_id:data.run_id,
         suggested_poll_after_seconds:data.suggested_poll_after_seconds});
     }
@@ -421,6 +457,12 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
       || (spec.id.includes('.scalar.') && (!finite(data.observed_value) || !finite(data.value)))
       || (!spec.id.includes('.scalar.') && (!text(data.observed_value) || !text(data.value)))) {
       uncertain('Typed material receipt lacks parameter/readback/save fields.', result);
+    }
+    // Pinned native scalar and texture handlers echo the original requested
+    // value before reporting readback. A mismatched echo cannot be correlated
+    // to this dispatched write, even if the native verification flag is true.
+    if ((spec.id.includes('.scalar.') || spec.id.includes('.texture.')) && data.value !== args.value) {
+      uncertain('Material receipt requested value does not match the dispatched write.', result);
     }
     const ok = data.verified && data.saved;
     return normalized(result,data,{ok,phase:ok?'persisted':data.verified?'persistence-failed':'readback-failed',

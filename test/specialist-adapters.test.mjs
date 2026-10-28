@@ -242,7 +242,7 @@ test('test summaries without strict proof do not pass or clear locally owned sta
 
 test('strict failure clears ownership only with its native terminal failure marker',async()=>{
   const failure=native({strict_failure:'execution',failed:['Vehicle.Smoke.Input'],discovered_count:1,reported_count:1},'');
-  const {adapter}=claireon((p)=>p.id==='automation.tests.run'?accepted():frameResult(p,failure,{ok:false,error:'Strict run FAILED'}));
+  const {adapter}=claireon((p)=>p.id==='automation.tests.run'?accepted():frameResult(p,failure,{ok:false,error:"Tool 'test_poll' failed: Strict run FAILED for filter 'Vehicle.Smoke' (1 finding(s)):\n  - test failure\n"}));
   await run(adapter,'automation.tests.run',startTests);
   const result=await run(adapter,'automation.tests.poll',{run_id:'run-owned'});
   assert.equal(result.isError,true);
@@ -251,13 +251,71 @@ test('strict failure clears ownership only with its native terminal failure mark
   assert.equal(adapter.ownedState().automationRun,null);
 });
 
-test('explicit test cancellation is never reported as a passing run',async()=>{
+test('poll discovery failure cannot release an owned run',async()=>{
+  const failure=native({strict_failure:'discovery',missing:['Vehicle.Smoke.Input']},'');
+  const {adapter}=claireon((p)=>p.id==='automation.tests.run'?accepted():frameResult(p,failure,{ok:false,error:'Strict discovery FAILED'}));
+  await run(adapter,'automation.tests.run',startTests);
+  await assert.rejects(run(adapter,'automation.tests.poll',{run_id:'run-owned'}),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
+  assert.equal(adapter.ownedState().automationRun.runId,'run-owned');
+});
+
+test('cancelled automation remains uncertain until workers are reconciled',async()=>{
   const {adapter}=claireon((p)=>p.id==='automation.tests.run'?accepted():terminal());
   await run(adapter,'automation.tests.run',startTests);
-  const result=await run(adapter,'automation.tests.poll',{run_id:'run-owned',cancel:true});
-  assert.equal(result.structuredContent.phase,'cancelled');
-  assert.equal(result.structuredContent.ok,false);
-  assert.equal(result.structuredContent.gateReleased,true);
+  await assert.rejects(run(adapter,'automation.tests.poll',{run_id:'run-owned',cancel:true}),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
+  assert.equal(adapter.ownedState().automationRun.runId,'run-owned');
+});
+
+test('malformed or still-active strict execution failures retain owned run',async()=>{
+  const prefix="Tool 'test_poll' failed: Strict run FAILED for filter 'Vehicle.Smoke' (1 finding(s)):\n";
+  for (const [data,error] of [
+    [{strict_failure:'execution'},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1},'unrelated error'],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,failed:['Vehicle.Smoke.Input','Vehicle.Smoke.Input']},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,failed:['Vehicle.Smoke.Input','Other.Test']},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,unreported:['Other.A','Other.B']},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,unexpected_skips:['Vehicle.Smoke.Input']},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,unexpected_skips:'malformed',skipped:['Vehicle.Smoke.Input']},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,unreported:['Vehicle.Smoke.Input'],failed:['Vehicle.Smoke.Input']},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,failed:['Vehicle.Smoke.Input']},prefix+'Still In Progress: 1\n'],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,in_process:['Vehicle.Smoke.Input']},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1,in_process:'malformed'},prefix],
+    [{strict_failure:'execution',discovered_count:1,reported_count:1},prefix+'Tests TIMED OUT after 3 seconds'],
+  ]) {
+    const {adapter}=claireon((p)=>p.id==='automation.tests.run'?accepted():frameResult(p,native(data,''),{ok:false,error}));
+    await run(adapter,'automation.tests.run',startTests);
+    await assert.rejects(run(adapter,'automation.tests.poll',{run_id:'run-owned'}),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
+    assert.equal(adapter.ownedState().automationRun.runId,'run-owned');
+  }
+});
+
+test('strict failure cannot underreport discovered-but-unreported tests',async()=>{
+  const args={...startTests,expected_tests:['Vehicle.Smoke.One','Vehicle.Smoke.Two','Vehicle.Smoke.Three']};
+  const prefix="Tool 'test_poll' failed: Strict run FAILED for filter 'Vehicle.Smoke' (1 finding(s)):\n";
+  const incomplete=native({strict_failure:'execution',discovered_count:3,reported_count:1,
+    failed:['Vehicle.Smoke.One'],unreported:['Vehicle.Smoke.Two']},'');
+  const {adapter}=claireon((p)=>p.id==='automation.tests.run'?accepted():frameResult(p,incomplete,{ok:false,error:prefix}));
+  await run(adapter,'automation.tests.run',args);
+  await assert.rejects(run(adapter,'automation.tests.poll',{run_id:'run-owned'}),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
+  assert.equal(adapter.ownedState().automationRun.runId,'run-owned');
+});
+
+test('contradictory successful automation summaries retain the owned run',async()=>{
+  for (const warning of ['Tests TIMED OUT after 3 seconds','Still In Progress: 1']) {
+    const summary=warning+'\n'+terminal().summary;
+    const {adapter}=claireon((p)=>p.id==='automation.tests.run'?accepted():native({},summary));
+    await run(adapter,'automation.tests.run',startTests);
+    await assert.rejects(run(adapter,'automation.tests.poll',{run_id:'run-owned'}),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
+    assert.equal(adapter.ownedState().automationRun.runId,'run-owned');
+  }
+});
+
+test('successful automation frame with an error remains uncertain',async()=>{
+  const {adapter}=claireon((p)=>p.id==='automation.tests.run'?accepted():frameResult(p,terminal(),{error:'contradictory error'}));
+  await run(adapter,'automation.tests.run',startTests);
+  await assert.rejects(run(adapter,'automation.tests.poll',{run_id:'run-owned'}),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
+  assert.equal(adapter.ownedState().automationRun.runId,'run-owned');
 });
 
 test('capture requires local ownership and a matching confirmed stop receipt',async()=>{
@@ -348,6 +406,18 @@ test('typed Hayba variants preserve real readback/save receipt and reject bool/s
   const vector=operation('material.parameter.vector.persisted');
   assert.throws(()=>buildSpecialistCall(vector,{...vector.example,value:[1,2]}),{code:'INVALID_ARGUMENTS'});
   assert.throws(()=>buildSpecialistCall(op,{...op.example,nexus_retry_policy:'always'}),{code:'INVALID_ARGUMENTS'});
+});
+
+test('material scalar and texture receipts must echo the dispatched requested value',async()=>{
+  for(const [variant,wrong] of [['scalar',999],['texture','/Game/Other.Other']]) {
+    const receiptHolder=[];
+    const {adapter,calls}=hayba(args=>{const receipt=materialReceipt(args,{value:wrong,observed_value:wrong});receiptHolder.push(receipt);return receipt;});
+    await assert.rejects(run(adapter,'material.parameter.'+variant+'.persisted'),error=>{
+      assert.equal(error.code,'SPECIALIST_OUTCOME_UNKNOWN');
+      assert.deepEqual(error.backendResult,receiptHolder[0]);return true;
+    });
+    assert.equal(calls.length,1);
+  }
 });
 
 test('material native Ok is insufficient when verified or saved is false',async()=>{
