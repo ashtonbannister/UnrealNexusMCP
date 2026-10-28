@@ -13,7 +13,7 @@ On 2026-10-27, read these exact public source snapshots without importing or exe
 | [UAP registry](https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/registry.py) | `2e1c39b44485434758006588bb0f7176ffb52bd322ecbcfd40c57c7d991776a1` | Existing literal descriptor inventory is static and does not prove live availability. |
 | [Hayba legacy sidecar](https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/legacy-commands/sidecar.json) | `012a0b1e0188468f3d7c2fa956f1fb41ad5a97264cf6a6fa366b5c8e49e45a19` | 160 legacy sidecar entries, not the complete dynamically loaded public surface. |
 
-JSON records were inspected as data. Source files were matched against the existing pinned hashes, not executed. Claireon internal operations, Ivan system/extensions, UE extensions, and live or dynamic registrations are not covered by this slice. The existing [inventory report](audit/inventory.md) records other measured subsets and limitations. Neither the counts nor the rows below establish equivalent implementations.
+JSON records were inspected as data. Source files were matched against the existing pinned hashes, not executed. The machine-readable ledger also includes separately scoped Claireon and Ivan source slices; remaining Claireon internals, Ivan system/extensions, UE extensions, and live or dynamic registrations are not covered. The existing [inventory report](audit/inventory.md) records other measured subsets and limitations. Neither the counts nor the rows below establish equivalent implementations.
 
 ## Candidate family: project and level lifecycle
 

@@ -333,7 +333,7 @@ Continue catalog/capability-coverage.json from auditable pinned-source extractio
 
 **Done when:** Every enumerated entry has a disposition: implemented canonical ID, planned contract/task, useful variant, rejected equivalent, blocked or deliberate defer with reason. Every in-scope semantic function has an owner task and candidate/review state. Residual dynamic/unknown coverage is explicit. Cross-check all ten unexposed decision groups below and identify missing families; never sum overlapping tool counts or claim exhaustive equivalence from names.
 
-**Progress:** [partial source inventory](CAP20_INVENTORY.md) and [machine-readable ledger](../catalog/capability-coverage.json) enumerate four pinned subsets, with unreviewed records explicitly marked. Semantic dispositions, missing source surfaces, family ownership and dynamic coverage remain open; no capability is admitted by this ledger.
+**Progress:** [partial source inventory](CAP20_INVENTORY.md) and [machine-readable ledger](../catalog/capability-coverage.json) enumerate six bounded pinned source slices, with unreviewed records explicitly marked. Semantic dispositions, missing source surfaces, family ownership and dynamic coverage remain open; no capability is admitted by this ledger.
 
 **Source basis:** [inventory](audit/inventory.md); [decisions](../catalog/decisions.json). Preserve the pinned upstream evidence in those records.
 

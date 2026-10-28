@@ -28,11 +28,116 @@
       "path": "mcp-tools/hayba-mcp/src/legacy-commands/sidecar.json",
       "sha256": "012a0b1e0188468f3d7c2fa956f1fb41ad5a97264cf6a6fa366b5c8e49e45a19",
       "count": 160
+    },
+    "ivan-unreal-mcp": {
+      "repository": "https://github.com/IvanMurzak/Unreal-MCP",
+      "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+      "scope": "Literal Registry.Tool(TEXT(...)) declarations in the five pinned source files listed here; source identifiers are not reviewed contracts or runtime availability. This does not enumerate all source files or surfaces.",
+      "extraction": "Read exact source bytes without compilation or execution; verify SHA-256, decode UTF-8, extract literal registrations and record source line numbers. The Blueprint file hash was independently matched to catalog/inventory-summary.json; other hashes are calculated from pinned GitHub source bytes.",
+      "limitations": [
+        "This is a 23-declaration source subset, not the 26-declaration six-family audit total or complete standard editor inventory.",
+        "System, extensions, external MCP server, dynamic registrations and runtime-dependent exposure are not enumerated.",
+        "Declared tool names are not proof of route equivalence, eligibility, behavior, safety, licensing, or live availability.",
+        "Root and component licensing differ; no vendored RQL or Code-Exec source is copied or evaluated.",
+        "Console, Python and source mutation identifiers are inventory only: Nexus does not expose arbitrary execution or bypass existing authority boundaries."
+      ],
+      "sources": [
+        {
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "sha256": "ce406d809abbf56eefaaf67698fb75d125ca8021f9357bdd15a501b8cbbf2f26",
+          "count": 11,
+          "sourceUrl": "https://github.com/IvanMurzak/Unreal-MCP/blob/1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07/UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp"
+        },
+        {
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpEditorTools.cpp",
+          "sha256": "4b603e924b163317ce1805811f1766cde0a3bacef946577538c56020a9952146",
+          "count": 1,
+          "sourceUrl": "https://github.com/IvanMurzak/Unreal-MCP/blob/1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07/UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpEditorTools.cpp"
+        },
+        {
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpPythonTools.cpp",
+          "sha256": "a0f3a0dac89a7d94c80c9b2bdd92b1738b8fbe48996ef6e73d2697ad3b684465",
+          "count": 1,
+          "sourceUrl": "https://github.com/IvanMurzak/Unreal-MCP/blob/1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07/UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpPythonTools.cpp"
+        },
+        {
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+          "sha256": "216fb20ba48fead57bc6eaa293af436e3baa582d02f963d31686233b23824868",
+          "count": 4,
+          "sourceUrl": "https://github.com/IvanMurzak/Unreal-MCP/blob/1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07/UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp"
+        },
+        {
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "sha256": "3200643733caf786f6f9306b125eb1f147ec23ac168090aebef76dfae7c34de7",
+          "count": 6,
+          "sourceUrl": "https://github.com/IvanMurzak/Unreal-MCP/blob/1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07/UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp"
+        }
+      ],
+      "count": 23
+    },
+    "claireon": {
+      "repository": "https://github.com/believer-oss/Claireon",
+      "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+      "scope": "Server MCP visible-name filter and seven trace internal name declarations only. This is not a complete Claireon inventory, semantic disposition ledger, or Nexus allowlist.",
+      "extraction": "Pinned GitHub recursive tree, per-file Git blob SHA-1 verification, SHA-256 recording, static literal extraction; no upstream code executed.",
+      "limitations": [
+        "Other internal tools and registrations, proxy descriptors, conditional compilation, schemas and dynamic surfaces are outside this slice.",
+        "Internal names are not direct MCP tools; a reviewed fixed wrapper is required.",
+        "Records remain unreviewed and do not prove native qualification or contract equivalence."
+      ],
+      "sources": [
+        {
+          "path": "Source/Claireon/Private/ClaireonServer.cpp",
+          "gitBlobSha1": "79172895a5f7ccc8d2275b62b703b1860d1fcb7c",
+          "sha256": "4ef0663a0276a19d90bc852df3e8ca6f417f1d75cb65de29c79e1cc294ca4258"
+        },
+        {
+          "path": "Source/Claireon/Public/Tools/IClaireonTool.h",
+          "gitBlobSha1": "0f094d0df939c10958c43e6c88c4e50571534378",
+          "sha256": "24c417480b4f00e3c472dd0644e421daa86804f028e84047aa84872fa1cc38fb"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceClose.cpp",
+          "gitBlobSha1": "4d1569a22c0fb08c6f49ab4380cc1aaeb60a51aa",
+          "sha256": "7345ed1ba644b5bc4fadb092aad69d30a9b6430da01979a7210b9558c619428e"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetFrameStats.cpp",
+          "gitBlobSha1": "5018588cd43b887cc19a1762cfd41a72082a22b1",
+          "sha256": "3e0148fe45a9a3ec80341123335a98a5b4825723b7d48b5b3dc47e5e23fa4fe4"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetScopeDetails.cpp",
+          "gitBlobSha1": "2641b84d8f06d3eb0580cb293748a7889e9fb7ac",
+          "sha256": "b4ff28b900539cfd22564bfd9324703f2c39ba8aba7c18fa4ee08ef5ae6f9093"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetSessionInfo.cpp",
+          "gitBlobSha1": "89be6e57ac00cd1e919b291a359640e34ab1b38d",
+          "sha256": "7d567bff548337558e7a6ec7088a02b7b445cc5c3f0e03dd2a8fb6c1fa274e58"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetThreads.cpp",
+          "gitBlobSha1": "d164d3c3c95a5008146d98c6a5c226f5995a6663",
+          "sha256": "147e338009bbb15c92f7031c22e3cade607b8f3e61d41801e8be310c72ffd694"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetTopScopes.cpp",
+          "gitBlobSha1": "912282568b24cbf2e80755ba8268e5fc5b2fe13b",
+          "sha256": "f09a93d53c08b066a37f2f2659a8f066222ab27939e13a9dc7cc5c17b09247c4"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceOpen.cpp",
+          "gitBlobSha1": "a869c7e2da321787e7f8c15958acc48640adc8de",
+          "sha256": "bf783baaaa92473d15900a1231225b83469168f90a04c636906e26b76edcb0c0"
+        }
+      ],
+      "count": 9
     }
   },
   "limitations": [
-    "Only the four named subsets were enumerated; entries may overlap and counts are not comparable public tool totals.",
-    "UE Epic catalog, local and extension behavior, Hayba dynamic packs and typed registrations, Claireon internals, Ivan system/extensions and native runtime registration are not enumerated.",
+    "Only the six documented static source subsets were enumerated; entries may overlap and counts are not comparable public tool totals.",
+    "UE Epic catalog, local and extension behavior, Hayba dynamic packs and typed registrations, remaining Claireon internals and proxy, Ivan system/extensions and native runtime registration are not enumerated.",
     "Unreviewed is not a selection, exclusion, callable operation or completed semantic disposition. CAP-20 must assign a specific task and candidate/review state after individual semantic comparison.",
     "Catalog and source versions may change independently; verify hashes and route mappings before relying on this snapshot."
   ],
@@ -25229,6 +25334,308 @@
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-create",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 192,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-get",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 271,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-add-component",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 388,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-remove-component",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 462,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-add-variable",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 491,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-modify-variable",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 538,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-set-default",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 601,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-add-function",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 656,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-add-event",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 696,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-compile",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 755,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "blueprint-spawn",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+      "line": 823,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "console-run-command",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpEditorTools.cpp",
+      "line": 30,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "python-execute",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpPythonTools.cpp",
+      "line": 79,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "screenshot-viewport",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+      "line": 362,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "screenshot-game-view",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+      "line": 384,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "screenshot-camera",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+      "line": 406,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "screenshot-isolated",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+      "line": 450,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "source-read",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+      "line": 286,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "source-create-class",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+      "line": 406,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "source-update",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+      "line": 499,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "source-delete",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+      "line": 621,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "source-list",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+      "line": 659,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "ivan-unreal-mcp",
+      "sourceEntry": "source-compile",
+      "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+      "line": 761,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": []
+    },
+    {
+      "provider": "claireon",
+      "surface": "mcp-visible-name-filter",
+      "sourceEntry": "tool_search",
+      "sourcePath": "Source/Claireon/Private/ClaireonServer.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "A visible-name filter is not proof of live registration or permission. Nexus does not expose arbitrary Python or raw provider calls."
+    },
+    {
+      "provider": "claireon",
+      "surface": "mcp-visible-name-filter",
+      "sourceEntry": "python_execute",
+      "sourcePath": "Source/Claireon/Private/ClaireonServer.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "A visible-name filter is not proof of live registration or permission. Nexus does not expose arbitrary Python or raw provider calls."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-tool-static-declaration",
+      "sourceEntry": "trace_close",
+      "category": "trace",
+      "operation": "close",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceClose.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-tool-static-declaration",
+      "sourceEntry": "trace_get_frame_stats",
+      "category": "trace",
+      "operation": "get_frame_stats",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetFrameStats.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-tool-static-declaration",
+      "sourceEntry": "trace_get_scope_details",
+      "category": "trace",
+      "operation": "get_scope_details",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetScopeDetails.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-tool-static-declaration",
+      "sourceEntry": "trace_get_session_info",
+      "category": "trace",
+      "operation": "get_session_info",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetSessionInfo.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-tool-static-declaration",
+      "sourceEntry": "trace_get_threads",
+      "category": "trace",
+      "operation": "get_threads",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetThreads.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-tool-static-declaration",
+      "sourceEntry": "trace_get_top_scopes",
+      "category": "trace",
+      "operation": "get_top_scopes",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetTopScopes.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-tool-static-declaration",
+      "sourceEntry": "trace_open",
+      "category": "trace",
+      "operation": "open",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceOpen.cpp",
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
     }
   ]
 }
