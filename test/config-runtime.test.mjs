@@ -110,6 +110,19 @@ test('source or identity failure refuses before a canonical call and closes open
     assert.equal(runtime.gateway.status().queue.blocked,false);await runtime.close();
   }
 });
+test('v2 is an explicit UAP compatibility alternative and keeps PIE dispatch held',async()=>{
+  const {events,adapters}=fixture();
+  const raw={version:1,target,enabledCapabilities:['pie.status'],backends:{unrealagentplayer:{
+    ...backend(),compatibilityPatch:'uap-nexus-strict-status-v2',rcEndpoint:'http://127.0.0.1:30011',
+  }}};
+  const runtime=await createRuntime(parseConfig(raw),adapters);
+  await assert.rejects(runtime.gateway.execute('pie.status'),{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED'});
+  assert.equal(events.filter(e=>e[0]==='connect').length,0);
+  await runtime.close();
+  raw.backends.unrealagentplayer.compatibilityPatch='unreviewed-v3';
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
+});
+
 test('stale OS process epoch refuses startup; absent target refuses before source or network work',async()=>{
   const {events,adapters}=fixture();const cfg=coreConfig();cfg.target.editorInstanceId='old-epoch';
   await assert.rejects(createRuntime(cfg,adapters),{code:'EDITOR_IDENTITY_UNCONFIRMED'});

@@ -24017,30 +24017,150 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "ui_menu_click",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The driver chooses the first top-level window by title substring, not editor PID/epoch; first-descendant name matching is ambiguous, and prior menu steps can expand or invoke before a later step fails.",
+      "reopeningCondition": "Define an exact attested window/process and unique target path, explicit partial-step receipt and interruption recovery before native qualification.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/ui.py",
+          "lines": [
+            17,
+            26
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/uia.py",
+          "lines": [
+            40,
+            57
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/uia.py",
+          "lines": [
+            59,
+            75
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/uia.py",
+          "lines": [
+            104,
+            118
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "ui_find_window",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The driver chooses the first top-level window by title substring and reports only a boolean, without editor PID, project, epoch or ambiguity evidence.",
+      "reopeningCondition": "Define bounded exact-window discovery with process/editor epoch and ambiguity handling; retain substring existence as a distinct candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/ui.py",
+          "lines": [
+            29,
+            32
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/uia.py",
+          "lines": [
+            40,
+            53
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "ui_list_menus",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "Title substring selects the first matching top-level window; descendant enumeration has no explicit result or traversal bound and does not establish editor PID or epoch.",
+      "reopeningCondition": "Review bounded, exact editor/window identity and enumeration/truncation semantics with duplicate-title cases and live evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/ui.py",
+          "lines": [
+            35,
+            38
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/uia.py",
+          "lines": [
+            40,
+            53
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/uia.py",
+          "lines": [
+            84,
+            102
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "read_viewport_ui",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "Missing Remote Control ReturnValue is reported as unavailable, and the native reader chooses the first active PIE world and first controller without an explicit instance, while iterating text objects without an explicit cap.",
+      "reopeningCondition": "Require exact selected world/client and editor epoch, bounded enumeration, explicit missing-value errors and native observation before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/ui_read.py",
+          "lines": [
+            17,
+            35
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayerRuntime/Private/AgentUIReader.cpp",
+          "lines": [
+            96,
+            105
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayerRuntime/Private/AgentUIReader.cpp",
+          "lines": [
+            136,
+            153
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "Plugin/Source/UnrealAgentPlayerRuntime/Private/AgentWorld.cpp",
+          "lines": [
+            6,
+            15
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",

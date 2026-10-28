@@ -72,6 +72,21 @@ test('compatibility-dependent passing cases declare the exact reviewed patch and
 });
 
 
+test('UAP v2 evidence must identify the explicit patch and both reviewed markers',()=>{
+  const m=passing();const v1=compatibility.patches.find(p=>p.id==='uap-nexus-no-replay-v1');
+  const v2=compatibility.patches.find(p=>p.id==='uap-nexus-strict-status-v2');
+  m.profile.enabled_operations=['pie.status'];m.profile.providers=['unrealagentplayer'];
+  Object.assign(m.cases[0],{operation:'pie.status',provider:'unrealagentplayer',provider_pin:v2.baseCommit,
+    compatibility_patch:v2.id,patch_sha256:v2.sha256,live_marker:structuredClone(v2.capabilityMarker),no_replay_marker:structuredClone(v1.capabilityMarker)});
+  assert.equal(validateQualificationManifest(m).valid,true);
+  for(const mutate of [x=>{x.no_replay_marker.value.post_send_replay=true;},x=>{x.live_marker.value.version=1;},
+    x=>{x.patch_sha256=v1.sha256;},x=>{x.compatibility_patch='unreviewed-v3';}]) {
+    const bad=structuredClone(m);mutate(bad.cases[0]);assert.equal(validateQualificationManifest(bad).valid,false);
+  }
+  const missing=structuredClone(m);delete missing.cases[0].no_replay_marker;
+  assert.equal(validateQualificationManifest(missing).valid,false);
+});
+
 test('profile rejects unknown, duplicate, and unrelated provider claims',()=>{
   const m=passing();m.profile.providers=['ue-mcp','ue-mcp','unknown','enginewire'];
   const result=validateQualificationManifest(m);assert.equal(result.valid,false);

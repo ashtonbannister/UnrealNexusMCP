@@ -1,6 +1,6 @@
 {
   "id": "uap-nexus-strict-status-v2-proposal",
-  "status": "proposal-not-integrated",
+  "status": "registered-opt-in-not-qualified",
   "provider": "unrealagentplayer",
   "baseCommit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
   "file": "patches/uap-nexus-strict-status-v2.patch",
@@ -49,7 +49,7 @@
     }
   ],
   "limits": [
-    "Proposal only: not in active compatibility manifest, no route enabled or hold lifted.",
+    "Registered for explicit opt-in source/fixture verification; no route enabled or hold lifted.",
     "No proof of loaded binaries, live status, PIE ownership, or exclusive project grants.",
     "Native enum representation must be verified against the selected engine; unknown serialization fails closed."
   ]

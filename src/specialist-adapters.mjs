@@ -178,6 +178,8 @@ function parseFrame(result, spec, nonce, probe = false) {
     uncertain('Specialist frame does not correlate to this invocation.', result);
   }
   if (value.unknown) uncertain('Python failed without a native result envelope; outcome is unknown.', result);
+  // A successful fixed wrapper never sets an error.
+  if (value.ok && value.error !== null) uncertain('Successful specialist frame contains an inconsistent error.', result);
   if (!record(value.native) || !record(value.native.data) || typeof value.native.summary !== 'string'
     || !Array.isArray(value.native.warnings) || value.native.warnings.some((v) => typeof v !== 'string')
     || (value.native.logs !== undefined && typeof value.native.logs !== 'string')
@@ -421,7 +423,10 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
         || data.scopes.some((row) => !record(row) || !text(row.name) || !finite(row.total_ms)
           || !finite(row.avg_ms) || !count(row.call_count))
         || typeof data.truncated !== 'boolean' || !count(data.total_scopes_before_truncation)
-        || typeof data.gpu_timelines_present !== 'boolean' || !count(data.gpu_event_count)) {
+        || data.scopes.length !== Math.min(data.total_scopes_before_truncation,args.maxResults)
+        || data.truncated !== (data.total_scopes_before_truncation > args.maxResults)
+        || typeof data.gpu_timelines_present !== 'boolean' || !count(data.gpu_event_count)
+        || data.gpu_timelines_present !== (data.gpu_event_count > 0)) {
         uncertain('Scope page is missing bounded native timing/truncation evidence.', result);
       }
       return normalized(result,native,{ok:true,phase:'observed',session_id:args.sessionId,

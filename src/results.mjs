@@ -142,6 +142,7 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
   let outcomeUnknown = nativeOutcomeUnknown(operation.provider,result);
   if (operation.provider === 'unrealagentplayer') {
     policy = 'uap-json-envelope';
+    if (payload?.error?.code === 'UE_STATUS_UNVERIFIED') { failed = true; outcomeUnknown = true; }
     if (!payload || typeof payload.ok !== 'boolean' || typeof payload.phase !== 'string' || !payload.phase) failed = true;
     if (operation.id === 'pie.status' && payload && typeof payload.phase === 'string'
       && !['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)) {
@@ -156,7 +157,7 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     // still take effect. Stop can likewise return before teardown is complete.
     outcomeUnknown = !payload
       || typeof payload.phase !== 'string' || !['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)
-      || ['UE_CONNECTION_RESET','UE_CROSSED_RESPONSE','PYTHON_RUNTIME'].includes(payload.error?.code)
+      || ['UE_CONNECTION_RESET','UE_CROSSED_RESPONSE','PYTHON_RUNTIME','UE_STATUS_UNVERIFIED'].includes(payload.error?.code)
       || (payload.queued === true && payload.confirmed !== true)
       || ['Starting','Ending'].includes(payload.phase)
       || (operation.id === 'pie.stop' && payload.stopped === false

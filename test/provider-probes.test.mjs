@@ -266,6 +266,23 @@ test('UAP lifecycle support proves both native channels and reflected polling fu
   const identity = await f.probe.attestIdentity(); assert.equal(identity.evidence.sourceRevisionProven, false);
 });
 
+test('UAP v2 requires both strict-status and no-replay markers without treating a null phase as success', async (t) => {
+  const f = await fixture(t, 'unrealagentplayer');
+  const v2 = createProviderProbe({...f.options,compatibilityPatch:'uap-nexus-strict-status-v2'});
+  await assert.rejects(v2.attestIdentity(), /strict-status/u);
+  f.state.bridgeStatus.nexus_pie_status_validation={version:2,phase:'exact_native_enum',elapsed:'finite_nonnegative',missing_or_invalid:'error'};
+  f.state.bridgeStatus.pie_phase=null;
+  assert.equal((await v2.attestIdentity()).identityVerified,true,'mode marker is independent of the status read');
+  assert.equal(await v2.supports(op('pie.status')),false,'null phase is never accepted as successful status');
+  f.state.bridgeStatus.pie_phase='Ending';
+  assert.equal(await v2.supports(op('pie.status')),true);
+  f.state.bridgeStatus.nexus_pie_status_validation={version:2,phase:'wrong',elapsed:'finite_nonnegative',missing_or_invalid:'error'};
+  await assert.rejects(v2.attestIdentity(), /strict-status/u);
+  f.state.bridgeStatus.nexus_pie_status_validation={version:2,phase:'exact_native_enum',elapsed:'finite_nonnegative',missing_or_invalid:'error'};
+  f.state.bridgeStatus.nexus_python_dispatch.post_send_replay=true;
+  await assert.rejects(v2.attestIdentity(), /single-dispatch/u);
+});
+
 test('UAP RC endpoint must match live client binding, not only declared target', async (t) => {
   const f = await fixture(t, 'unrealagentplayer');
   const otherPort = createProviderProbe({ ...f.options, rcEndpoint: 'http://127.0.0.1:30011' });

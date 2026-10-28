@@ -1,17 +1,24 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {readFile} from 'node:fs/promises';
+import {readFile,mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {verifySourceSnapshot} from '../src/source-verification.mjs';
+import {normalizeResult} from '../src/results.mjs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import proposal from '../catalog/uap-strict-status-v2-proposal.json' with {type:'json'};
+import active from '../catalog/compatibility-patches.json' with {type:'json'};
 
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const patch=await readFile(new URL('../'+proposal.file,import.meta.url),'utf8');
 
 test('strict UAP status patch remains a content-addressed, opt-in proposal',()=>{
-  assert.equal(proposal.status,'proposal-not-integrated');
+  assert.equal(proposal.status,'registered-opt-in-not-qualified');
+  const registered=active.patches.find(p=>p.id==='uap-nexus-strict-status-v2');
+  assert.equal(registered.file,proposal.file);assert.equal(registered.sha256,proposal.sha256);
+  assert.deepEqual(registered.files,proposal.files);assert.deepEqual(registered.capabilityMarker,proposal.capabilityMarker);
   assert.equal(proposal.baseCommit,'4ab7a62eb78612c2ec110f683b6e11f5dea62e95');
   assert.equal(sha(patch),proposal.sha256);
   assert.equal(proposal.capabilityMarker.value.version,2);
@@ -157,4 +164,44 @@ test('strict status patch applies to exact UAP pin and isolated functions fail c
   }
   const output=execFileSync('python3',['-c',harness],{input:JSON.stringify(sources),encoding:'utf8',timeout:10000,maxBuffer:1024*1024});
   assert.match(output,/strict phase and elapsed/u);
+});
+
+
+test('registered v2 verifies exact source bytes and is not interchangeable with v1 source',async(t)=>{
+  const source=process.env.NEXUS_UAP_SOURCE_ROOT;
+  if (!source) return t.skip('Set NEXUS_UAP_SOURCE_ROOT to the pristine pinned checkout');
+  const root=await mkdtemp(path.join(tmpdir(),'nexus-uap-v2-'));
+  try {
+    execFileSync('git',['clone','--shared','--quiet','--no-checkout',source,root],{timeout:30000});
+    execFileSync('git',['-C',root,'checkout','--quiet','--detach',proposal.baseCommit],{timeout:30000});
+    const patchPath=fileURLToPath(new URL('../'+proposal.file,import.meta.url));
+    execFileSync('git',['-C',root,'apply',patchPath],{timeout:10000});
+    const expected={commit:proposal.baseCommit};
+    const v2=await verifySourceSnapshot('unrealagentplayer',{sourceRoot:root,compatibilityPatch:'uap-nexus-strict-status-v2'},expected);
+    assert.equal(v2.compatibilityPatch,'uap-nexus-strict-status-v2');
+    await assert.rejects(verifySourceSnapshot('unrealagentplayer',{sourceRoot:root,compatibilityPatch:'uap-nexus-no-replay-v1'},expected),{code:'SOURCE_REVISION_UNPROVEN'});
+    const modified=path.join(root,proposal.files[0].path);
+    const original=await readFile(modified);
+    await writeFile(modified,Buffer.concat([original,Buffer.from('\n# modified fixture\n')]));
+    await assert.rejects(verifySourceSnapshot('unrealagentplayer',{sourceRoot:root,compatibilityPatch:'uap-nexus-strict-status-v2'},expected),{code:'SOURCE_REVISION_UNPROVEN'});
+    await writeFile(modified,original);
+    execFileSync('git',['-C',root,'apply','--reverse',patchPath],{timeout:10000});
+    const v1Path=fileURLToPath(new URL('../patches/uap-nexus-no-replay.patch',import.meta.url));
+    execFileSync('git',['-C',root,'apply',v1Path],{timeout:10000});
+    const v1=await verifySourceSnapshot('unrealagentplayer',{sourceRoot:root,compatibilityPatch:'uap-nexus-no-replay-v1'},expected);
+    assert.equal(v1.compatibilityPatch,'uap-nexus-no-replay-v1');
+    await assert.rejects(verifySourceSnapshot('unrealagentplayer',{sourceRoot:root,compatibilityPatch:'uap-nexus-strict-status-v2'},expected),{code:'SOURCE_REVISION_UNPROVEN'});
+  } finally {await rm(root,{recursive:true,force:true});}
+});
+
+test('strict-status errors fence lifecycle and are never called successful status',()=>{
+  for(const op of [{id:'pie.start.viewport',provider:'unrealagentplayer',effect:'lifecycle'},
+    {id:'pie.stop',provider:'unrealagentplayer',effect:'lifecycle'},
+    {id:'pie.status',provider:'unrealagentplayer',effect:'read'}]) {
+    for(const body of [{ok:false,error:{code:'UE_STATUS_UNVERIFIED',message:'unverified',domain:'transport',recoverable:false,retry_hint:null}},
+      {ok:false,phase:'NotPlaying',error:{code:'UE_STATUS_UNVERIFIED'}}]) {
+      const out=normalizeResult(op,{content:[{type:'text',text:JSON.stringify(body)}]});
+      assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    }
+  }
 });

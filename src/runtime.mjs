@@ -1,3 +1,4 @@
+import { compatibilitySatisfied } from './compatibility.mjs';
 import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { loadCatalog } from './catalog.mjs';
@@ -31,7 +32,7 @@ export async function createRuntime(config, {
     if (!config.backends[provider]) throw new NexusError('INVALID_CONFIGURATION','Missing backend configuration for enabled provider ' + provider + '.');
     const required = new Set(enabled.map(id=>catalog.get(id)).filter(op=>op.provider===provider)
       .map(op=>op.requiredCompatibility).filter(Boolean));
-    if (required.size > 1 || (required.size === 1 && !required.has(config.backends[provider].compatibilityPatch))) {
+    if (required.size > 1 || (required.size === 1 && !compatibilitySatisfied(provider,[...required][0],config.backends[provider].compatibilityPatch))) {
       throw new NexusError('COMPATIBILITY_PATCH_REQUIRED','Enabled capabilities require the reviewed compatibility patch for ' + provider + '.');
     }
     if (provider === 'hayba') {
@@ -83,7 +84,7 @@ export async function createRuntime(config, {
           startupTimeoutMs:Math.min(Math.floor(config.timeoutMs / 2),30000),
           closeTimeoutMs:Math.min(Math.floor(config.timeoutMs / 4),5000)});
         const tools = await connection.listTools({timeoutMs:Math.min(config.timeoutMs,10000)});
-        const probe = probeFactory({provider,connection,tools,target,
+        const probe = probeFactory({provider,connection,tools,target,compatibilityPatch:sourceEvidence.compatibilityPatch,
           endpointUrl:backendConfig.transport.url,rcEndpoint:backendConfig.rcEndpoint,
           nativeEndpoint:provider==='hayba'?'http://127.0.0.1:'+backendConfig.transport.env.UE_TCP_PORT:undefined,
           timeoutMs:Math.min(config.timeoutMs,10000),processInspector});
@@ -99,7 +100,7 @@ export async function createRuntime(config, {
           tools:new Set(tools.map(t=>t.name)),sourceCommit:sourceEvidence.commit,
           identityVerified:true,target,
           supports:async (operation,options = {}) => {
-            if (operation.requiredCompatibility && sourceEvidence.compatibilityPatch !== operation.requiredCompatibility) return false;
+            if (operation.requiredCompatibility && !compatibilitySatisfied(provider,operation.requiredCompatibility,sourceEvidence.compatibilityPatch)) return false;
             if (specialist) {
               // Specialized schema probes must not precede independent identity.
               await probe.attestIdentity(options);

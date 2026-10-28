@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+import compatibilityPatches from '../catalog/compatibility-patches.json' with {type:'json'};
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { readFile, readlink, readdir, realpath } from 'node:fs/promises';
@@ -329,7 +331,7 @@ async function readPreset(endpoint, fetchImpl, timeoutMs, signal) {
  * Injection hooks are trusted in-process test seams, not JSON configuration.
  */
 export function createProviderProbe({ provider, connection, tools, target, endpointUrl, nativeEndpoint,
-  rcEndpoint = 'http://127.0.0.1:30010', timeoutMs = 5000,
+  rcEndpoint = 'http://127.0.0.1:30010', compatibilityPatch, timeoutMs = 5000,
   processInspector = inspectEditorProcess, listenerInspector = inspectListenerOwner, fetchImpl = fetch }) {
   if (!validPid(target?.processId) || typeof target.editorInstanceId !== 'string' || !target.editorInstanceId
     || typeof target.projectRoot !== 'string' || !/\.uproject$/iu.test(target.projectRoot)) fail('A concrete project and OS-attested process instance are required');
@@ -393,6 +395,12 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       await listener(rcEndpoint);
       const status = payload(await call('bridge_status', {}));
       if (status.ok !== true || status.rc_reachable !== true || status.remote_exec_reachable !== true) fail('UAP RC and Python channels are not both live');
+      if (compatibilityPatch === 'uap-nexus-strict-status-v2') {
+        const patch = compatibilityPatches.patches.find(p => p.id === compatibilityPatch && p.provider === provider);
+        if (!patch || !isDeepStrictEqual(status.nexus_pie_status_validation,patch.capabilityMarker.value)) {
+          fail('UAP live strict-status compatibility marker is absent or mismatched');
+        }
+      }
       const dispatch = status.nexus_python_dispatch;
       if (dispatch?.attempts !== 1 || dispatch.success_field !== 'success' || dispatch.post_send_replay !== false
         || dispatch.holds_machine_on_python_error !== true) {
@@ -404,6 +412,7 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       }
       const nonce = randomBytes(16).toString('hex');
       native = pythonIdentity(await call('exec_python', { code: identityPython(nonce), context: 'editor' }), nonce);
+      if (compatibilityPatch === 'uap-nexus-strict-status-v2') native.strictStatusPhase = status.pie_phase;
       if (native.pid !== target.processId || native.role !== 'editor') fail('UAP Python channel reached a different process or role');
       if (await normalizedPath(native.project, before.platform, before.cwd) !== expected) fail('UAP Python channel reached a different project');
     } else if (provider === 'claireon') {
@@ -491,6 +500,8 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
         || !description.legacyIds?.some((id) => id.tool === operation.route.tool && id.action === operation.route.action)
         || !covers(description.inputSchema, routeSchema(operation, { action: operation.route.action }))) return false;
     } else if (provider === 'unrealagentplayer' && operation.route.kind === 'direct') {
+      if (compatibilityPatch === 'uap-nexus-strict-status-v2'
+        && !['NotPlaying','Starting','Playing','Paused','Ending'].includes(identity.native.strictStatusPhase)) return false;
       const names = new Set(['pie_start', 'pie_stop', 'pie_status']);
       if (!names.has(operation.route.tool) || !covers(tool(operation.route.tool)?.inputSchema, routeSchema(operation))) return false;
       if ((operation.route.tool === 'pie_start' && identity.native.start !== true)

@@ -66,7 +66,7 @@ test('unreviewed records and incomplete counts cannot be relabeled complete',()=
 test('blocked source records require owner, reason, reopening condition and pinned evidence without route claims',()=>{
   const blocked=coverage.entries.filter(e=>e.disposition==='blocked');
   const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
-  for(const name of ['actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','game_launch','game_attach','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
+  for(const name of ['actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
   assert.equal(validateCapabilityCoverage().status,'partial-unreviewed');
   for (const change of [
     row=>{row.blockReason='';}, row=>{row.reopeningCondition='';},

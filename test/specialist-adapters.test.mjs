@@ -179,6 +179,15 @@ test('outer errors, missing/duplicate/partial/spilled/wrong nonce frames fail cl
   }
 });
 
+test('a successful compile frame with an error cannot establish a result',async()=>{
+  const {adapter}=claireon((p)=>frameResult(p,compileReceipt(),{error:'contradictory error'}));
+  await assert.rejects(run(adapter,'blueprint.compile.memory.asset'),error=>{
+    assert.equal(error.code,'SPECIALIST_OUTCOME_UNKNOWN');
+    assert.ok(error.backendResult);
+    return true;
+  });
+});
+
 test('unknown Python exceptions are not relabeled as native refusal or rollback',async()=>{
   const {adapter}=claireon((p)=>frameResult(p,null,{ok:false,unknown:true,error:'Watchdog timeout'}));
   await assert.rejects(run(adapter,'blueprint.compile.memory.asset'),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
@@ -345,7 +354,7 @@ test('trace readback distinguishes legitimate bounded pages and unterminated fra
     return native({session_id:'trace-owned',closed:true});
   });
   await run(adapter,'insights.trace.open',{filePath:path});
-  const scopes=await run(adapter,'insights.trace.scopes');
+  const scopes=await run(adapter,'insights.trace.scopes',{...operation('insights.trace.scopes').example,maxResults:1});
   assert.equal(scopes.structuredContent.truncated,true);
   assert.deepEqual(scopes.structuredContent.native.warnings,['GPU absent']);
   const frames=await run(adapter,'insights.trace.frames');
@@ -354,6 +363,41 @@ test('trace readback distinguishes legitimate bounded pages and unterminated fra
   assert.equal(frames.structuredContent.native.data.frames[1].duration_ms,null);
   await run(adapter,'insights.trace.close');
   assert.deepEqual(adapter.ownedState().traceSessions,[]);
+});
+
+test('a native-shaped empty scope page is a valid bounded result',async()=>{
+  const path='C:/Project/Saved/Profiling/nexus_capture_001.utrace';
+  const {adapter}=claireon((p)=>p.id==='insights.trace.open'
+    ?native({session_id:'trace-owned',trace_file:path,frame_count:0,duration_ms:0})
+    :native({session_id:'trace-owned',scopes:[],truncated:false,total_scopes_before_truncation:0,
+      gpu_timelines_present:false,gpu_event_count:0}));
+  await run(adapter,'insights.trace.open',{filePath:path});
+  const result=await run(adapter,'insights.trace.scopes');
+  assert.equal(result.isError,undefined);
+  assert.deepEqual(result.structuredContent.native.data.scopes,[]);
+  assert.equal(result.structuredContent.truncated,false);
+  assert.equal(adapter.ownedState().traceSessions.length,1);
+});
+
+test('scope pages reject contradictory truncation, totals and GPU presence without losing the owned session',async()=>{
+  const path='C:/Project/Saved/Profiling/nexus_capture_001.utrace';
+  const base={session_id:'trace-owned',scopes:[{name:'Tick',total_ms:8,avg_ms:4,call_count:2}],
+    truncated:false,total_scopes_before_truncation:1,gpu_timelines_present:false,gpu_event_count:0};
+  for(const changes of [
+    {total_scopes_before_truncation:0},
+    {truncated:true},
+    {gpu_event_count:1},
+    {gpu_timelines_present:true},
+  ]) {
+    const reply=native({...base,...changes});
+    const {adapter}=claireon((p)=>p.id==='insights.trace.open'
+      ?native({session_id:'trace-owned',trace_file:path,frame_count:1,duration_ms:1}) : reply);
+    await run(adapter,'insights.trace.open',{filePath:path});
+    await assert.rejects(run(adapter,'insights.trace.scopes'),error=>{
+      assert.equal(error.code,'SPECIALIST_OUTCOME_UNKNOWN');assert.ok(error.backendResult);return true;
+    });
+    assert.equal(adapter.ownedState().traceSessions.length,1);
+  }
 });
 
 test('query ranges, owned sessions and exact result session IDs are enforced',async()=>{

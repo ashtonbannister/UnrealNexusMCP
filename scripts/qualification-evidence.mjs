@@ -4,6 +4,7 @@ import {pathToFileURL} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
 import compatibility from '../catalog/compatibility-patches.json' with {type:'json'};
 import {loadCatalog} from '../src/catalog.mjs';
+import {compatibilitySatisfied} from '../src/compatibility.mjs';
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const present = value => typeof value === 'string' && value.trim().length > 0;
@@ -67,11 +68,18 @@ export function validateQualificationManifest(manifest, {catalog = loadCatalog()
       requireField(operation && item.provider===operation.provider,prefix+'.provider must match the selected operation provider');
       requireField(operation && item.provider_pin===catalog.upstreams.sources[operation.provider]?.commit,prefix+'.provider_pin must match the selected provider lock');
       if(operation?.requiredCompatibility) {
-        const patch=compatibility.patches.find(p=>p.id===operation.requiredCompatibility && p.provider===operation.provider && p.baseCommit===item.provider_pin);
-        requireField(Boolean(patch) && item.patch_sha256===patch.sha256,prefix+'.patch_sha256 must match the required compatibility patch');
-        // A supplied marker is an assertion only. The validator does not query
-        // the live tool or verify loaded binaries or an observation artifact.
-        requireField(Boolean(patch) && isDeepStrictEqual(item.live_marker,patch.capabilityMarker),prefix+'.live_marker must match the required compatibility marker');
+        // Omitted patch ID preserves legacy v1 evidence; newer variants must
+        // be explicitly named and satisfy the narrowly reviewed relation.
+        const actual=item.compatibility_patch ?? operation.requiredCompatibility;
+        const allowed=compatibilitySatisfied(operation.provider,operation.requiredCompatibility,actual);
+        const patch=allowed && compatibility.patches.find(p=>p.id===actual && p.provider===operation.provider && p.baseCommit===item.provider_pin);
+        requireField(Boolean(patch) && item.patch_sha256===patch.sha256,prefix+'.patch_sha256 must match the selected compatibility patch');
+        // These are assertions only; no live marker or loaded binary is checked.
+        requireField(Boolean(patch) && isDeepStrictEqual(item.live_marker,patch.capabilityMarker),prefix+'.live_marker must match the selected compatibility marker');
+        if (actual==='uap-nexus-strict-status-v2') {
+          const v1=compatibility.patches.find(p=>p.id==='uap-nexus-no-replay-v1' && p.provider===operation.provider);
+          requireField(Boolean(v1) && isDeepStrictEqual(item.no_replay_marker,v1.capabilityMarker),prefix+'.no_replay_marker must match the v1 no-replay marker');
+        }
       }
       requireField(Array.isArray(profile.providers) && profile.providers.includes(item.provider),prefix+'.provider must be declared in profile');
       requireField(hash(item.loaded_artifact_sha256),prefix+'.loaded_artifact_sha256 required for pass');

@@ -64,7 +64,7 @@ This schema illustration is not a completed record. Use null for unknowns and ex
   "cases": [{
     "operation": null, "case": null, "case_kind": null, "applicability": null, "outcome": "not-run",
     "provider": null,
-    "provider_pin": null, "patch_sha256": null, "live_marker": null, "loaded_artifact_sha256": null,
+    "provider_pin": null, "compatibility_patch": null, "patch_sha256": null, "live_marker": null, "no_replay_marker": null, "loaded_artifact_sha256": null,
     "preconditions": [], "canonical_arguments_redacted": null, "target_identity": null,
     "dispatch_count": null, "receipt_artifact": null, "receipt_sha256": null,
     "before_artifacts": [], "after_artifacts": [], "reload_evidence": null,
@@ -74,7 +74,7 @@ This schema illustration is not a completed record. Use null for unknowns and ex
 }
 ```
 
-For compatibility-dependent passing cases, `patch_sha256` and `live_marker` declare the reviewed patch digest and compatibility-marker object. They are assertions; the offline validator does not query the editor or verify a loaded binary.
+For compatibility-dependent passing cases, `compatibility_patch`, `patch_sha256` and `live_marker` declare the selected patch ID, reviewed digest and compatibility-marker object. Omitted patch ID retains the legacy required patch. UAP strict-status v2 additionally declares the v1 `no_replay_marker` object. They are assertions; the offline validator does not query the editor or verify a loaded binary.
 
 Each artifact reference identifies its storage and digest. Preserve original image bytes and record dimensions and MIME type. For each provider distinguish source/patch, live marker, actual loaded artifact, listener and process identity. Record each common-matrix case separately so omission cannot appear as a pass. This design supplies no run results or project assets.
 
