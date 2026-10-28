@@ -1,6 +1,6 @@
 import {Client, SSEClientTransport, StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
 import {DEFAULT_INHERITED_ENV_VARS, StdioClientTransport} from '@modelcontextprotocol/client/stdio';
-import {NexusError} from './errors.mjs';
+import {NexusError, markCleanupIncomplete} from './errors.mjs';
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_CLOSE_TIMEOUT_MS = 5000;
@@ -143,7 +143,9 @@ export async function createMcpConnection(config, {
     lifetime.abort(failure ?? safeError('BACKEND_CLOSED','Backend connection is closed.'));
     // Start teardown synchronously, so an EventSource error cannot reconnect
     // before close marks it CLOSED. SDK owns/reaps only the stdio child it spawned.
-    const closing = client.close();
+    let closing;
+    try { closing = client.close(); } catch { closing = Promise.reject(safeError('BACKEND_CLOSE_FAILED',
+      'Backend transport could not be closed.')); }
     closePromise = new Promise((resolve,reject) => {
       const timer = setTimeout(() => reject(safeError('BACKEND_CLOSE_TIMEOUT',
         'Backend close deadline exceeded; cleanup is not confirmed.')),closeTimeoutMs);
@@ -210,8 +212,15 @@ export async function createMcpConnection(config, {
     }
   };
 
-  await run((options)=>client.connect(transport,options),{signal,timeoutMs:startupTimeoutMs},true);
-  if (closed) throw failure ?? safeError('BACKEND_CLOSED','Backend closed during initialization.');
+  try {
+    await run((options)=>client.connect(transport,options),{signal,timeoutMs:startupTimeoutMs},true);
+    if (closed) throw failure ?? safeError('BACKEND_CLOSED','Backend closed during initialization.');
+  } catch (error) {
+    // The connection was never returned, so its owner cannot observe teardown.
+    // Preserve the startup refusal while passing cleanup uncertainty to the pool.
+    try { await close(); } catch { markCleanupIncomplete(error); }
+    throw error;
+  }
 
   return Object.freeze({
     get closed() { return closed; },

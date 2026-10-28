@@ -28,6 +28,10 @@ project through Nexus.
 
 **Always:** distinguish requested, accepted, completed, verified and persisted.
 Preserve images, warnings, diagnostics, per-item failures and partial changes.
+For UE-MCP, an absent, contradictory or uninterpretable completion envelope
+fences subsequent work; retain the receipt and reconcile externally before restart.
+Failed backend cleanup is separately reported as unconfirmed; do not infer that
+a process or connection has stopped.
 Use stable full paths/GUIDs and explicit world/player selectors.
 
 **Never:** bypass a refusal with another provider/Python/console; turn a scoped

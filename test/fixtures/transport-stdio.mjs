@@ -17,7 +17,7 @@ const reply = (params) => ({
 });
 
 const input = createInterface({input:process.stdin});
-if (mode === 'linger-on-close') {
+if (mode === 'linger-on-close' || mode === 'hang-initialize-linger') {
   const alive = setInterval(()=>{},1000);
   input.on('close',()=>setTimeout(()=>clearInterval(alive),250));
 }
@@ -25,7 +25,7 @@ input.on('line',(line) => {
   const request = JSON.parse(line);
   const {id,method,params={}} = request;
   if (method === 'initialize') {
-    if (mode === 'hang-initialize') return;
+    if (mode === 'hang-initialize' || mode === 'hang-initialize-linger') return;
     if (mode === 'exit-initialize') { process.exit(3); }
     send(id,{protocolVersion:params.protocolVersion,capabilities:{tools:{}},
       serverInfo:{name:'nexus-protocol-fixture',version:'1.0.0'}});

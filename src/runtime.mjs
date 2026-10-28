@@ -8,7 +8,7 @@ import { createMcpConnection } from './transport-client.mjs';
 import { createProviderProbe, inspectEditorProcess } from './provider-probes.mjs';
 import { verifySourceSnapshot } from './source-verification.mjs';
 import { createSpecialistAdapter } from './specialist-adapters.mjs';
-import { NexusError, markCleanupIncomplete } from './errors.mjs';
+import { NexusError, markCleanupIncomplete, cleanupIncomplete, boundedCleanup } from './errors.mjs';
 
 export async function createRuntime(config, {
   catalog = loadCatalog(), guidanceLoader = loadGuidance,
@@ -73,7 +73,9 @@ export async function createRuntime(config, {
       }
       let connection;
       try {
-        connection = await connect(backendConfig.transport, {timeoutMs:config.timeoutMs,startupTimeoutMs:Math.min(config.timeoutMs,30000)});
+        connection = await connect(backendConfig.transport, {timeoutMs:config.timeoutMs,
+          startupTimeoutMs:Math.min(Math.floor(config.timeoutMs / 2),30000),
+          closeTimeoutMs:Math.min(Math.floor(config.timeoutMs / 4),5000)});
         const tools = await connection.listTools({timeoutMs:Math.min(config.timeoutMs,10000)});
         const probe = probeFactory({provider,connection,tools,target,
           endpointUrl:backendConfig.transport.url,rcEndpoint:backendConfig.rcEndpoint,
@@ -108,7 +110,9 @@ export async function createRuntime(config, {
       } catch (error) {
         const refusal = error instanceof NexusError ? error
           : new NexusError('BACKEND_PREPARATION_FAILED','Backend connection or verification failed for ' + provider + '. No operation was dispatched.');
-        try { await connection?.close(); } catch { markCleanupIncomplete(refusal); }
+        if (cleanupIncomplete(error)) markCleanupIncomplete(refusal);
+        try { await boundedCleanup(() => connection?.close(), Math.min(5000, Math.floor(config.timeoutMs / 2))); }
+        catch { markCleanupIncomplete(refusal); }
         throw refusal;
       }
     });

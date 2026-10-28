@@ -170,6 +170,7 @@ test('a backend revision mismatch or wrong editor refuses before tool dispatch',
       target:mismatch==='target'?{...target,editorInstanceId:'other'}:target,
       supports:async()=>true,
       call:async()=>{calls++;return json({ok:true,phase:'NotPlaying'});},
+      close:async()=>{},
     }))});
     await assert.rejects(g.execute('pie.status'),{
       code:mismatch==='surface'?'BACKEND_SURFACE_MISMATCH':'BACKEND_ATTESTATION_FAILED'
@@ -216,6 +217,7 @@ test('a public meta tool does not prove an inner capability is enabled',async()=
     tools:new Set(['pie_status']),sourceCommit:catalog.upstreams.sources.unrealagentplayer.commit,
     identityVerified:true,target,supports:async()=>false,
     call:async()=>{calls++;return json({ok:true,phase:'NotPlaying'});},
+    close:async()=>{},
   }))});
   await assert.rejects(g.execute('pie.status'),{code:'CAPABILITY_UNAVAILABLE'});
   assert.equal(calls,0);
@@ -280,7 +282,13 @@ test('UE malformed completion fences the editor and preserves the receipt, while
   for (const reply of [
     {content:[{type:'text',text:'unparseable completion'}]},
     {content:[{type:'text',text:'{}'}]},
+    {content:[{type:'text',text:'{\"unexpected\":true}'}]},
+    {content:[{type:'text',text:'{\"success\":\"true\"}'}]},
+    {isError:true,content:[{type:'text',text:'{\"success\":false,\"dialogBlocking\":true,\"partiallyApplied\":true}'}]},
     {content:[{type:'text',text:'{}'},{type:'text',text:'{}'}]},
+    {structuredContent:{success:true},content:[{type:'text',text:'{\"success\":false}'}]},
+    {isError:true,content:[{type:'text',text:'Error [NOT_CONNECTED]: refused'},
+      {type:'text',text:'{\"success\":true}'},{type:'text',text:'{\"success\":false}'}]},
   ]) {
     const {gateway:g,calls}=fixture({reply:()=>reply});
     const out=await g.execute('asset.save.exact',{assetPaths:['/Game/A']});

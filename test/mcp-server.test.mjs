@@ -236,6 +236,21 @@ test('a returned UE native timeout receipt fences later HTTP calls without losin
   assert.deepEqual(f.runtime.state.starts,['ue-mcp']);
 });
 
+test('malformed UE receipt keeps content and metadata while fencing both HTTP clients',async(t)=>{
+  const f=await httpFixture(t,{mode:'malformed-ue'});
+  const a=await f.client(),b=await f.client();
+  const first=await call(a,'asset.save.exact',{assetPaths:['/Game/Exact']});
+  assert.equal(first.isError,true);
+  assert.deepEqual(first.content,[{type:'text',text:'unparseable completion'},
+    {type:'image',data:'AA==',mimeType:'image/png'}]);
+  assert.equal(first._meta['fixture/receipt'],'retained');
+  assert.equal(first._meta['unreal-nexus/receipt'].outcome,'outcome_unknown');
+  assert.equal((await call(b,'nexus.status')).structuredContent.queue.blocked,true);
+  toolError(await call(b,'asset.save.exact',{assetPaths:['/Game/Exact']}),'EDITOR_OUTCOME_UNKNOWN');
+  assert.equal(f.runtime.state.calls.length,1);
+  assert.deepEqual(f.runtime.state.starts,['ue-mcp']);
+});
+
 test('modern HTTP cancellation reaches the backend and fences new requests without claiming rollback',async(t)=>{
   const f=await httpFixture(t,{mode:'late'});
   const a=await f.client({pin:'2026-07-28'}),b=await f.client();

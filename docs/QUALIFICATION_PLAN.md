@@ -20,7 +20,7 @@ Native execution in this plan is future work within an assigned integration task
 
 **Dependencies:** Native host availability; no prior task.
 
-Initial target lane: Windows x64 on an interactive desktop. A connected native host is the current blocker. Discover the actual Windows version, exact Unreal patch/build, compiler/SDK, Node/Python versions, project revision and .uproject. Do not infer an engine version from a catalog snapshot or upgrade the user's engine implicitly.
+Initial target lane: Windows x64 on an interactive desktop. The user has not selected a project or editor and requested source/fixture work first; native qualification remains blocked on that target. Discover the actual Windows version, exact Unreal patch/build, compiler/SDK, Node/Python versions, project revision and .uproject. Do not infer an engine version from a catalog snapshot or upgrade the user's engine implicitly.
 
 **Done when:** An environment manifest reconciles build/runtime requirements for the selected pinned providers and names the enabled operation profile. Record actual editor PID/start epoch per run. Incompatible combinations and missing tools have precise blockers. Linux Node 24.22.1 remains the fixture-tested baseline; Node 22 and Windows runtime support require their own evidence.
 
@@ -50,7 +50,7 @@ Inventory enabled native and Nexus listeners: owning process, bind address, endp
 
 **Dependencies:** [ENV-01](#env-01).
 
-Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. Harness/source design may start before host access; executable native fixture verification needs ENV-01.
+Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [29-operation harness design](qualification/HARNESS_DESIGN.md) is available; executable native fixture verification still needs ENV-01.
 
 **Done when:** Each of the 29 rows below has setup, exact inputs, expected effects/state, applicable failure cases, cleanup and artifact requirements. Known setup dependencies are explicit. Tests can establish native fixture state outside Nexus, but that setup is not counted as a gateway capability. Secret-free evidence templates and a repeatable project revision exist.
 

@@ -49,6 +49,8 @@ Define explicit stable paths/GUIDs, world/client identity, pagination and trunca
 
 **Done when:** An agent can discover an exact actor/asset and inspect PCG node/pin identities through fixed canonical reads. Ambiguous labels, stale identities and unsupported worlds refuse; large results stay bounded. Native read evidence and source comparison identify every admitted route.
 
+**Source progress:** [Prerequisite research](CAP_PREREQUISITES_RESEARCH.md) and the [PCG graph contract analysis](CAP01_PCG_CONTRACT.md) identify missing stable identities and revision checks. No new route is selected.
+
 **Source basis:** [world](audit/world-assets.md); [graphs](audit/graphs-materials-ui.md); [specialized](audit/specialized.md). Preserve the pinned upstream evidence in those records.
 
 ### CAP-02
@@ -285,6 +287,8 @@ Add graph/node/property/parameter contracts sufficient for agent-owned authoring
 
 Define fresh-file-to-image delivery tied to the selected project/capture, safe basename/path, actual write receipt, dimensions and payload bounds. It may be an explicit resource or canonical follow-up after review; no arbitrary host-file reader.
 
+**Source progress:** [PIE image delivery contract design](CAP18A_IMAGE_CONTRACT.md) identifies the required native ownership and host validation work; it is not implemented or qualified.
+
 **Done when:** The agent receives real image bytes for the requested PIE client and can inspect them. Test stale/pre-existing files, traversal, mismatched target, failed write and oversize payloads while preserving the original receipt. Native promotion requires LIVE-03. Source/fixture work can precede that live lane.
 
 **Source basis:** [testing](audit/testing-observation.md). Preserve the pinned upstream evidence in those records.
@@ -319,15 +323,17 @@ This task delivers source-backed intake contracts and decisions, not implemented
 
 ### CAP-20
 
-**Reconcile the complete target capability inventory** — Priority: **Now**; state: **ready**; owner role: **Capability inventory curator**; assignee: **unassigned**.
+**Reconcile the complete target capability inventory** — Priority: **Now**; state: **in_progress**; owner role: **Capability inventory curator**; assignee: **Codex inventory workstream**.
 
 **Dependencies:** None. Additional scope-specific prerequisites are stated below.
 
 **Candidate state:** No winner implied for unreviewed families. Existing static inventories measure different layers and overlap; dynamic registration still needs live corroboration.
 
-Produce catalog/capability-coverage.json (planned artifact) from auditable pinned-source extraction without importing upstream modules for enumeration. Map public wrappers, native operations and distinct semantics; include project/level lifecycle and any other discovered domains. Define intended project scope and record exclusions.
+Continue catalog/capability-coverage.json from auditable pinned-source extraction without importing upstream modules for enumeration. Map public wrappers, native operations and distinct semantics; include project/level lifecycle and any other discovered domains. Define intended project scope and record exclusions.
 
 **Done when:** Every enumerated entry has a disposition: implemented canonical ID, planned contract/task, useful variant, rejected equivalent, blocked or deliberate defer with reason. Every in-scope semantic function has an owner task and candidate/review state. Residual dynamic/unknown coverage is explicit. Cross-check all ten unexposed decision groups below and identify missing families; never sum overlapping tool counts or claim exhaustive equivalence from names.
+
+**Progress:** [partial source inventory](CAP20_INVENTORY.md) and [machine-readable ledger](../catalog/capability-coverage.json) enumerate four pinned subsets, with unreviewed records explicitly marked. Semantic dispositions, missing source surfaces, family ownership and dynamic coverage remain open; no capability is admitted by this ledger.
 
 **Source basis:** [inventory](audit/inventory.md); [decisions](../catalog/decisions.json). Preserve the pinned upstream evidence in those records.
 

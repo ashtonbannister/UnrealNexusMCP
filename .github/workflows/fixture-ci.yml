@@ -1,0 +1,79 @@
+name: Fixture and contract validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    name: Linux Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    env:
+      NEXUS_UAP_SOURCE_ROOT: ${{ github.workspace }}/_ci/upstream-unrealagentplayer
+      CI_EVIDENCE: ${{ runner.temp }}/nexus-fixture-evidence
+    steps:
+      - name: Check out Nexus
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Check out reviewed UAP source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ImagineTheGames/UnrealAgentPlayer
+          ref: 4ab7a62eb78612c2ec110f683b6e11f5dea62e95
+          path: _ci/upstream-unrealagentplayer
+          persist-credentials: false
+      - name: Record environment and verify source pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$CI_EVIDENCE"
+          {
+            printf 'Nexus commit: '; git rev-parse HEAD
+            printf 'UAP commit: '; git -C "$NEXUS_UAP_SOURCE_ROOT" rev-parse HEAD
+            printf 'Runner OS: '; uname -a
+            printf 'Node: '; node --version
+            printf 'npm: '; npm --version
+            printf 'Python: '; python3 --version
+            printf 'Lockfile hashes: '; sha256sum package-lock.json catalog/upstreams.lock.json
+          } | tee "$CI_EVIDENCE/environment.txt"
+          cp package-lock.json catalog/upstreams.lock.json "$CI_EVIDENCE/"
+          expected=$(node --input-type=module -e "import {readFileSync} from 'node:fs'; const lock=JSON.parse(readFileSync('catalog/upstreams.lock.json')); const source=lock.sources.unrealagentplayer; if(source.repository!=='https://github.com/ImagineTheGames/UnrealAgentPlayer'||!/^[0-9a-f]{40}$/.test(source.commit)) process.exit(1); console.log(source.commit)")
+          test "$(git -C "$NEXUS_UAP_SOURCE_ROOT" rev-parse HEAD)" = "$expected"
+          test -z "$(git -C "$NEXUS_UAP_SOURCE_ROOT" status --porcelain)"
+          git -C "$NEXUS_UAP_SOURCE_ROOT" apply --check "$GITHUB_WORKSPACE/patches/uap-nexus-no-replay.patch"
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts 2>&1 | tee "$CI_EVIDENCE/npm-ci.log"
+      - name: Run required fixture checks
+        shell: bash
+        env:
+          NODE_OPTIONS: --test-reporter=tap
+        run: |
+          set -euo pipefail
+          npm run check 2>&1 | tee "$CI_EVIDENCE/check.log"
+          grep -Fx '# skipped 0' "$CI_EVIDENCE/check.log"
+          grep -Fx '# cancelled 0' "$CI_EVIDENCE/check.log"
+      - name: Retain fixture evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fixture-evidence-linux-node-${{ matrix.node }}
+          path: ${{ runner.temp }}/nexus-fixture-evidence
+          if-no-files-found: warn
+          retention-days: 14

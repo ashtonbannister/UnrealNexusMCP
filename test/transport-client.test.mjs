@@ -4,6 +4,7 @@ import {createServer} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 import {createMcpConnection} from '../src/transport-client.mjs';
+import {cleanupIncomplete} from '../src/errors.mjs';
 
 const fixturePath = fileURLToPath(new URL('./fixtures/transport-stdio.mjs',import.meta.url));
 const stdio = (mode = 'normal',more = {}) => ({type:'stdio',command:process.execPath,
@@ -242,4 +243,13 @@ test('legacy SSE is explicit, works, and does not automatically reconnect',async
   assert.equal(f.state.gets,1);
   assert.equal(f.state.calls,2);
   assert.equal(c.closed,true);
+});
+
+
+test('failed startup reports unconfirmed bounded cleanup without replacing the original refusal',async()=>{
+  let failure;
+  try { await createMcpConnection(stdio('hang-initialize-linger'),{startupTimeoutMs:150,closeTimeoutMs:30}); }
+  catch (error) { failure=error; }
+  assert.equal(failure?.code,'BACKEND_TIMEOUT');
+  assert.equal(cleanupIncomplete(failure),true);
 });

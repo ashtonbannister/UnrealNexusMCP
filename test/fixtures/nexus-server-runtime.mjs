@@ -28,6 +28,10 @@ export async function createFixtureRuntime({mode = 'normal',allowWrites = true} 
         state.active++;state.maxActive=Math.max(state.maxActive,state.active);
         try {
           if(mode==='throw') throw new Error('fixture-private-detail-must-not-reach-client');
+          if(mode==='malformed-ue' && provider==='ue-mcp') {
+            return {content:[{type:'text',text:'unparseable completion'},
+              {type:'image',data:'AA==',mimeType:'image/png'}],_meta:{'fixture/receipt':'retained'}};
+          }
           if(mode==='native-timeout' && provider==='ue-mcp') {
             return {isError:true,content:[
               {type:'text',text:'Error [TASK_FAILED]: fixture native deadline'},
