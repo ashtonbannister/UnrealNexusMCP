@@ -28,7 +28,7 @@ Current implementation evidence:
 | Guidance | Draft served through instructions, resources and workflow prompt; no personal skill installed |
 | Validation | 154 passing tests, zero failures/cancellations/skips at baseline, reproduced during [PR #1](https://github.com/ashtonbannister/UnrealNexusMCP/pull/1) review on Linux Node 24.22.1 |
 | Native state | No native Unreal build or real-editor qualification established |
-| Open reliability findings | [FIX-01](#fix-01) and [FIX-02](#fix-02) fixes have local fixture evidence and await review |
+| Reliability findings | [FIX-01](#fix-01) and [FIX-02](#fix-02) closed with source and fixture evidence; native qualification remains pending |
 | Review evidence qualification | Full-PR whitespace checks flag unified-diff context in the content-addressed patch files; do not generalize the historical local diff-check claim |
 
 The 154-test result belongs to the implementation baseline. It is not a fresh test run of this documentation commit, a permanent expected test count, or native qualification. See [VALIDATION.md](docs/VALIDATION.md) for its environment and limits. Historical audit reports describe their source-review snapshot; current adapter availability comes from the executable catalog and current implementation documents.
@@ -108,7 +108,7 @@ Both findings are reproduced in [PR #1](https://github.com/ashtonbannister/Unrea
 
 ### FIX-01
 
-**Fence uninterpretable UE completion receipts** — Priority: **Now**; state: **in_review**; owner role: **Gateway maintainer**; assignee: **Codex FIX-01 workstream**.
+**Fence uninterpretable UE completion receipts** — Priority: **Now**; state: **done**; owner role: **Gateway maintainer**; assignee: **Codex FIX-01 workstream**.
 
 **Dependencies:** None.
 
@@ -116,11 +116,11 @@ Resolve review finding R1 (review severity P2) in src/results.mjs and the gatewa
 
 **Done when:** Regressions cover unparseable text, multiple ambiguous envelopes, preservation of text/images/metadata, an uncertainty fence across a second HTTP client, and recognized ordinary refusals. Prove one native dispatch, no fallback/retry/reset, and that the returned receipt distinguishes failure from unknown completion. Run the repository checks and align the affected guarantees with observed behavior.
 
-**Evidence:** PR #1 R1; initial fix `ac46404`, followed by subsequent changes on `codex/implementation-curation`: gateway and shared HTTP regressions cover ambiguous UE receipts, retained images/metadata and a second-client fence. Linux Node 24.22.1 with the exact UAP pin: 164 passed, zero failed or skipped. Source and fixture evidence only; native qualification remains pending.
+**Evidence:** PR #1 R1; initial fix `ac46404`, followed by `1044b50` on `codex/implementation-curation`: gateway and shared HTTP regressions cover ambiguous UE receipts, retained images/metadata and a second-client fence. Linux Node 24.22.1 with the exact UAP pin: 164 passed, zero failed or skipped. Source and fixture evidence only; native qualification remains pending.
 
 ### FIX-02
 
-**Report unresolved cleanup after rejected startup** — Priority: **Now**; state: **in_review**; owner role: **Runtime lifecycle maintainer**; assignee: **Codex FIX-02 workstream**.
+**Report unresolved cleanup after rejected startup** — Priority: **Now**; state: **done**; owner role: **Runtime lifecycle maintainer**; assignee: **Codex FIX-02 workstream**.
 
 **Dependencies:** None.
 
@@ -128,7 +128,7 @@ Resolve review finding R2 (review severity P2) in src/runtime.mjs and src/backen
 
 **Done when:** Regressions show successful cleanup, rejecting cleanup, bounded cleanup timeout, and repeated shutdown. Status and shutdown retain unresolved cleanup; the original preparation error remains identifiable. No canonical operation dispatches, startup is not retried, and a pre-dispatch refusal is not relabeled as an uncertain native mutation. Run the repository checks.
 
-**Evidence:** PR #1 R2; initial fix `ac46404`, followed by subsequent changes on `codex/implementation-curation`: bounded rejected-startup, transport teardown and pool cleanup, late startup and repeated shutdown are exercised in `test/backend-cleanup.test.mjs` and `test/transport-client.test.mjs`. Linux Node 24.22.1 with the exact UAP pin: 164 passed, zero failed or skipped. No live backend cleanup claim.
+**Evidence:** PR #1 R2; initial fix `ac46404`, followed by `1044b50` on `codex/implementation-curation`: bounded rejected-startup, transport teardown and pool cleanup, late startup and repeated shutdown are exercised in `test/backend-cleanup.test.mjs` and `test/transport-client.test.mjs`. Linux Node 24.22.1 with the exact UAP pin: 164 passed, zero failed or skipped. No live backend cleanup claim.
 
 
 ## 6. Capability and qualification work registers
