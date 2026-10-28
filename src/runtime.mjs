@@ -8,7 +8,7 @@ import { createMcpConnection } from './transport-client.mjs';
 import { createProviderProbe, inspectEditorProcess } from './provider-probes.mjs';
 import { verifySourceSnapshot } from './source-verification.mjs';
 import { createSpecialistAdapter } from './specialist-adapters.mjs';
-import { NexusError } from './errors.mjs';
+import { NexusError, markCleanupIncomplete } from './errors.mjs';
 
 export async function createRuntime(config, {
   catalog = loadCatalog(), guidanceLoader = loadGuidance,
@@ -106,9 +106,10 @@ export async function createRuntime(config, {
           close:async () => {await specialist?.close();await connection.close();},
         };
       } catch (error) {
-        try { await connection?.close(); } catch { /* Keep the original pre-dispatch refusal. */ }
-        if (error instanceof NexusError) throw error;
-        throw new NexusError('BACKEND_PREPARATION_FAILED','Backend connection or verification failed for ' + provider + '. No operation was dispatched.');
+        const refusal = error instanceof NexusError ? error
+          : new NexusError('BACKEND_PREPARATION_FAILED','Backend connection or verification failed for ' + provider + '. No operation was dispatched.');
+        try { await connection?.close(); } catch { markCleanupIncomplete(refusal); }
+        throw refusal;
       }
     });
   }

@@ -274,3 +274,37 @@ test('current viewport capture preserves a PIE source without claiming an editor
   assert.deepEqual(result.structuredContent.shaderWait,{remaining:3});
   assert.throws(()=>g.plan('screenshot.editor'),{code:'OPERATION_NOT_EXPOSED'});
 });
+
+
+test('UE malformed completion fences the editor and preserves the receipt, while a known refusal stays open',async()=>{
+  for (const reply of [
+    {content:[{type:'text',text:'unparseable completion'}]},
+    {content:[{type:'text',text:'{}'}]},
+    {content:[{type:'text',text:'{}'},{type:'text',text:'{}'}]},
+  ]) {
+    const {gateway:g,calls}=fixture({reply:()=>reply});
+    const out=await g.execute('asset.save.exact',{assetPaths:['/Game/A']});
+    assert.deepEqual(out.content,reply.content);
+    assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    assert.equal(g.status().queue.blocked,true);
+    await assert.rejects(g.execute('asset.save.exact',{assetPaths:['/Game/A']}),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);
+    await g.close();
+  }
+  const {gateway:g}=fixture({reply:()=>({isError:true,content:[{type:'text',text:'Error [NOT_CONNECTED]: refused'}]})});
+  const out=await g.execute('asset.save.exact',{assetPaths:['/Game/A']});
+  assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
+  assert.equal(g.status().queue.blocked,false);
+  await g.close();
+});
+
+test('backend contract refusal reports failed cleanup on shutdown',async()=>{
+  const {gateway:g}=fixture({modifyFactories:m=>m.set('ue-mcp',async()=>({
+    tools:new Set(['tools']),sourceCommit:'wrong',identityVerified:true,target,
+    supports:async()=>true,call:async()=>json({success:true}),close:async()=>{throw new Error('cleanup failed');},
+  }))});
+  await assert.rejects(g.execute('asset.save.exact',{assetPaths:['/Game/A']}),{code:'BACKEND_ATTESTATION_FAILED'});
+  assert.deepEqual(g.status().backends,[{provider:'ue-mcp',state:'failed',cleanup:'unconfirmed'}]);
+  await assert.rejects(g.close(),{code:'BACKEND_CLEANUP_INCOMPLETE'});
+});

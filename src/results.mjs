@@ -42,7 +42,13 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
         && payload.phase !== 'NotPlaying');
     if (outcomeUnknown) failed = true;
   }
-  if (operation.provider === 'ue-mcp' && !payload) failed = true;
+  if (operation.provider === 'ue-mcp' && (!payload || Object.keys(payload).length === 0)) {
+    failed = true;
+    // Only reviewed pre-dispatch refusals can substitute for a native JSON receipt.
+    const refusal = result.isError === true && result.content[0]?.type === 'text'
+      && /^Error \[(?:NOT_CONNECTED|INVALID_PARAMS)\]: /u.test(result.content[0].text);
+    if (!refusal) outcomeUnknown = true;
+  }
   if (operation.id === 'screenshot.viewport.current') {
     policy = 'require-inline-current-viewport-image';
     if (!result.content.some((part) => part.type === 'image'

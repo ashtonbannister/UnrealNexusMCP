@@ -1,4 +1,4 @@
-import { NexusError } from './errors.mjs';
+import { NexusError, markCleanupIncomplete, cleanupIncomplete } from './errors.mjs';
 
 // Host-owned factories supply actual MCP transports. No server processes start
 // during construction, discovery or planning. A failed start is cached, not retried.
@@ -10,6 +10,7 @@ export class BackendPool {
   #target;
   #closed = false;
   #closePromise;
+  #cleanupFailures = new Set();
 
   constructor(factories, sources, target) {
     this.#factories = new Map(factories);
@@ -34,14 +35,16 @@ export class BackendPool {
           || backend.target?.projectRoot !== this.#target.projectRoot
           || backend.target?.editorInstanceId !== this.#target.editorInstanceId;
         if (invalid || this.#closed) {
-          try { await backend?.close?.(); } catch { /* Preserve the refusal, never dispatch. */ }
-          throw new NexusError(invalid ? 'BACKEND_ATTESTATION_FAILED' : 'GATEWAY_CLOSED',
+          const refusal = new NexusError(invalid ? 'BACKEND_ATTESTATION_FAILED' : 'GATEWAY_CLOSED',
             'Backend contract, reviewed source pin or host-verified editor identity did not match.');
+          try { await backend?.close?.(); } catch { markCleanupIncomplete(refusal); }
+          throw refusal;
         }
         this.#states.set(provider, 'ready');
         return backend;
       }).catch((error) => {
         this.#states.set(provider, 'failed');
+        if (cleanupIncomplete(error)) this.#cleanupFailures.add(provider);
         throw error;
       });
       this.#promises.set(provider, promise);
@@ -50,7 +53,7 @@ export class BackendPool {
   }
 
   get status() {
-    return [...this.#states].map(([provider,state]) => ({provider,state}));
+    return [...this.#states].map(([provider,state]) => ({provider,state,...(this.#cleanupFailures.has(provider) ? {cleanup:'unconfirmed'} : {})}));
   }
 
   close() {
@@ -59,7 +62,7 @@ export class BackendPool {
       this.#closePromise = (async () => {
         const results = await Promise.allSettled([...this.#promises.values()]);
         const closed = await Promise.allSettled(results.filter((r) => r.status === 'fulfilled').map((r) => r.value.close?.()));
-        if (closed.some(r => r.status === 'rejected')) {
+        if (this.#cleanupFailures.size || closed.some(r => r.status === 'rejected')) {
           throw new NexusError('BACKEND_CLEANUP_INCOMPLETE', 'One or more backend connections did not confirm shutdown. Inspect the host before restarting.');
         }
       })();

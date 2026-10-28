@@ -140,3 +140,18 @@ test('UAP native bindings derive from the attested target and explicit RC port, 
   cfg.backends.unrealagentplayer.rcEndpoint='http://example.invalid:30011';
   await assert.rejects(createRuntime(cfg,adapters),{code:'BACKEND_BINDING_REQUIRED'});
 });
+
+
+test('identity refusal preserves its code and exposes unconfirmed startup cleanup',async()=>{
+  let calls=0, closes=0;
+  const {adapters}=fixture({
+    connect:async()=>({listTools:async()=>[{name:'tools'}],callTool:async()=>{calls++;},
+      close:async()=>{closes++;throw new Error('private cleanup detail');}}),
+    probeFactory:()=>({attestIdentity:async()=>({identityVerified:false,target:{}})}),
+  });
+  const runtime=await createRuntime(coreConfig(),adapters);
+  await assert.rejects(runtime.gateway.execute('actor.inspect.editor',{actorPath:'/Game/A'}),{code:'BACKEND_ATTESTATION_FAILED'});
+  assert.equal(calls,0);assert.equal(closes,1);
+  assert.deepEqual(runtime.status().backends,[{provider:'ue-mcp',state:'failed',cleanup:'unconfirmed'}]);
+  await assert.rejects(runtime.close(),{code:'BACKEND_CLEANUP_INCOMPLETE'});
+});
