@@ -287,10 +287,12 @@ remain distinct.
 
 **Use:** `material.parameter.scalar.persisted`,
 `material.parameter.vector.persisted`, `material.parameter.texture.persisted`.
-These use only the direct typed material_set_param tool. The vector operation is
-held before dispatch: the native vector text lacks source-backed precision and
-rounding guarantees needed to correlate it with requested components. A reviewed
-typed input echo and loaded compatibility evidence are required before release.
+These use only the direct typed material_set_param tool. All three material
+operations are held before dispatch: scalar precision, vector text rounding and
+texture path canonicalization are not established by source-backed contracts,
+and the receipt omits the actual material instance path. A reviewed typed
+request/readback and target-identity contract, plus loaded compatibility
+evidence, are required before release.
 
 Validate instance, declared parameter, type and read-only state before mutation.
 The native material receipt does not report the actual instance path; the

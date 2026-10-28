@@ -11,7 +11,9 @@ const held = new Map([
   ...['pie.start.viewport','pie.stop','pie.status'].map(id =>
     [id,{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED',reason:'native PIE ownership and phase attestation unverified'}]),
   ['screenshot.pie',{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED',reason:'native output ownership and target identity unverified'}],
+  ['material.parameter.scalar.persisted',{code:'MATERIAL_SCALAR_RECEIPT_UNVERIFIED',reason:'native scalar readback cannot be independently correlated to the requested value'}],
   ['material.parameter.vector.persisted',{code:'MATERIAL_VECTOR_RECEIPT_UNVERIFIED',reason:'native vector receipt cannot reliably correlate requested values'}],
+  ['material.parameter.texture.persisted',{code:'MATERIAL_TEXTURE_RECEIPT_UNVERIFIED',reason:'native texture readback cannot independently establish the requested target and value'}],
   ['automation.tests.run',{code:'AUTOMATION_RUN_OWNERSHIP_UNVERIFIED',reason:'native run start can replace an independently owned active run'}],
   ...['blueprint.compile.memory.asset','blueprint.compile.memory.session'].map(id =>
     [id,{code:'BLUEPRINT_SESSION_OWNERSHIP_UNVERIFIED',reason:'native Blueprint session ownership and reuse unverified'}]),

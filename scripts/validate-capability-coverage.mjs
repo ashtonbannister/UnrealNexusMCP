@@ -132,6 +132,10 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
     const isEpic=entry.provider==='ue-mcp' && surface==='recorded-epic-catalog';
     if (group) {
       if (!group.fileSet.has(entry.sourcePath) || group.unmatched.has(entry.sourcePath)) fail('unknown group record source for ' + entry.provider);
+      if (surface==='internal-automation-trace-declaration' && (!nonempty(entry.category)
+        || !nonempty(entry.operation) || entry.sourceEntry !== entry.category + '_' + entry.operation
+        || !nonempty(entry.className) || !Number.isSafeInteger(entry.categoryLine) || entry.categoryLine < 1
+        || !Number.isSafeInteger(entry.operationLine) || entry.operationLine < 1)) fail('invalid internal declaration evidence for ' + entry.provider);
       if (surface==='material-custom-handler' && (!nonempty(entry.handlerExport)
         || !Number.isSafeInteger(entry.handlerDeclarationLine) || entry.handlerDeclarationLine < 1
         || !Number.isSafeInteger(entry.nativeDispatchLine) || entry.nativeDispatchLine < 1

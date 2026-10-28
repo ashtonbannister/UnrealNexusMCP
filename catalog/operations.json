@@ -1315,7 +1315,7 @@
     },
     {
       "id": "material.parameter.scalar.persisted",
-      "description": "Set and verify one existing global material-instance scalar parameter, then require persisted success.",
+      "description": "Held before dispatch: native scalar readback precision and target identity cannot be independently verified against the requested mutation.",
       "provider": "hayba",
       "decision": "material-parameter-strict",
       "effect": "write",
@@ -1435,7 +1435,7 @@
     },
     {
       "id": "material.parameter.texture.persisted",
-      "description": "Set and verify one existing global material-instance texture parameter, then require persisted success.",
+      "description": "Held before dispatch: native texture readback cannot independently correlate the requested asset and material target.",
       "provider": "hayba",
       "decision": "material-parameter-strict",
       "effect": "write",

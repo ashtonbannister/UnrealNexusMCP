@@ -374,7 +374,43 @@
           "sha256": "bf783baaaa92473d15900a1231225b83469168f90a04c636906e26b76edcb0c0"
         }
       ],
-      "count": 9
+      "count": 9,
+      "additionalSourceGroups": {
+        "internal-automation-trace-declaration": {
+          "sourceVersion": 1,
+          "provider": "claireon",
+          "status": "partial-unreviewed",
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "repository": "https://github.com/believer-oss/Claireon",
+          "scope": "Literal category and operation declarations for the two automation and two PIE trace internal tools in three exact pinned files; not a complete Claireon inventory or public MCP tool list.",
+          "method": "Read exact pinned source bytes without execution; verify Git blob IDs and SHA-256; match literal GetCategory/GetOperation definitions and record exact lines.",
+          "sourceCount": 3,
+          "entryCount": 4,
+          "unmatchedSourceCount": 0,
+          "unmatchedSources": [],
+          "limitations": [
+            "Internal declarations are not direct MCP tools or proof of runtime registration.",
+            "Schemas, dynamic registration, capability selection, ownership and live qualification remain separately reviewed."
+          ],
+          "sources": [
+            {
+              "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+              "gitBlobSha1": "dd8c86b65e8c860dba2f8e296e173f3cb55d6bba",
+              "sha256": "5e272618f13eb256fd369ca139ffc48f247eb91f021cd5ee989971620186fb55"
+            },
+            {
+              "path": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStart.cpp",
+              "gitBlobSha1": "129067fd572eb1dbf0805363f5ccc713deecdc79",
+              "sha256": "fb7bd751b8cbedcaea7670d869e7779897d7515fc619fab804ad12659408726f"
+            },
+            {
+              "path": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStop.cpp",
+              "gitBlobSha1": "bdc4180632bbf64a42d6dcc48f654f69d1c12ea2",
+              "sha256": "5a27ada78166aeadf0a901e12431abcbbffc23b9e01ca2b164222bbdf0e976c2"
+            }
+          ]
+        }
+      }
     }
   },
   "limitations": [
@@ -24781,9 +24817,29 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "game_list",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The process-local registry is unbounded and can include unverified port attachments; attached instances have unknown PID and liveness, with no attested process epoch or project identity.",
+      "reopeningCondition": "Review bounded discovery with explicit unknown, stale and unavailable results and independently attested process, project, endpoint and epoch; retain attached and launched instances as distinct states.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/game.py",
+          "lines": [
+            94,
+            109
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/instances.py",
+          "lines": [
+            10,
+            51
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -37436,6 +37492,66 @@
       "disposition": "unreviewed",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": []
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-automation-trace-declaration",
+      "sourceEntry": "test_run",
+      "category": "test",
+      "operation": "run",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+      "className": "ClaireonTool_TestRun",
+      "categoryLine": 158,
+      "operationLine": 159,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": [],
+      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-automation-trace-declaration",
+      "sourceEntry": "test_poll",
+      "category": "test",
+      "operation": "poll",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+      "className": "ClaireonTool_TestPoll",
+      "categoryLine": 357,
+      "operationLine": 358,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": [],
+      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-automation-trace-declaration",
+      "sourceEntry": "pie_trace_start",
+      "category": "pie",
+      "operation": "trace_start",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStart.cpp",
+      "className": "ClaireonTool_PIETraceStart",
+      "categoryLine": 13,
+      "operationLine": 14,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": [],
+      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted."
+    },
+    {
+      "provider": "claireon",
+      "surface": "internal-automation-trace-declaration",
+      "sourceEntry": "pie_trace_stop",
+      "category": "pie",
+      "operation": "trace_stop",
+      "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStop.cpp",
+      "className": "ClaireonTool_PIETraceStop",
+      "categoryLine": 8,
+      "operationLine": 9,
+      "disposition": "unreviewed",
+      "reviewOwnerTask": "CAP-20",
+      "canonicalRouteReferences": [],
+      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted."
     }
   ]
 }

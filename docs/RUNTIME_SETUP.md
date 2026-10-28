@@ -95,8 +95,7 @@ entry never starts its backend. PIE start, stop and status are held because nati
 ownership and epoch-bound lifecycle are unverified and status may default
 malformed phase data to NotPlaying. Reconcile existing PIE sessions and grants
 externally; Nexus performs no implicit stop or grant release. The three
-input-hold operations, vector material
-mutation, automation start, both Blueprint compile forms, trace capture and
+input-hold operations, the material parameter pack, automation start, both Blueprint compile forms, trace capture and
 trace-reader open are also held
 pending their native target or ownership boundaries. Existing holds, runs,
 captures and readers require external reconciliation; Nexus does not implicitly

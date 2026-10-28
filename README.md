@@ -3,7 +3,7 @@
 **One canonical tool set. One reviewed winning implementation per function.
 Only the backends needed by enabled capabilities. Optional specialists.**
 
-Nexus is an MCP gateway with a curated catalogue of **29 canonical operations**. The three PIE lifecycle/status operations, `screenshot.pie`, the three input-hold operations, vector material mutation,
+Nexus is an MCP gateway with a curated catalogue of **29 canonical operations**. The three PIE lifecycle/status operations, `screenshot.pie`, the three input-hold operations, the material parameter pack,
 automation start, both Blueprint compile forms, trace capture and trace-reader
 open are held before dispatch
 until their native target or ownership boundaries are established.

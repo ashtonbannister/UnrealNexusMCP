@@ -166,7 +166,7 @@ Split contracts by graph schema, pin direction/identity, break policy, conversio
 
 **Dependencies:** [CAP-01](#cap-01). Additional scope-specific prerequisites are stated below.
 
-**Candidate state:** Strict persisted instance parameters already exist. Master-material graphs, dynamic/layered parameters, parents, static switches and unsaved variants need separate comparison.
+**Candidate state:** Strict persisted instance parameter routes are catalogued but held pending reliable native target/readback evidence. The [Hayba receipt v2 design](HAYBA_MATERIAL_RECEIPT_V2_DESIGN.md) is source-only and does not lift those holds. Master-material graphs, dynamic/layered parameters, parents, static switches and unsaved variants need separate comparison.
 
 Define granular create/node/connect/value contracts and their compile/save effects. Session variants require CAP-02. Do not expose a native boolean branch through a mismatched public schema. Atomic batch claims require CAP-11.
 

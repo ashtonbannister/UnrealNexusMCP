@@ -66,7 +66,7 @@ test('unreviewed records and incomplete counts cannot be relabeled complete',()=
 test('blocked source records require owner, reason, reopening condition and pinned evidence without route claims',()=>{
   const blocked=coverage.entries.filter(e=>e.disposition==='blocked');
   const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
-  for(const name of ['perf_stat','pie_pause','pie_resume','screenshot_viewport','log_tail','log_since','helper_list','actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
+  for(const name of ['perf_stat','pie_pause','pie_resume','screenshot_viewport','log_tail','log_since','helper_list','actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_list','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
   assert.equal(validateCapabilityCoverage().status,'partial-unreviewed');
   for (const change of [
     row=>{row.blockReason='';}, row=>{row.reopeningCondition='';},
@@ -138,4 +138,17 @@ test('custom material handlers retain separately scoped registry and helper evid
   assert.throws(()=>validateCapabilityCoverage({ledger:missingBlob}),/custom handler source reconciliation mismatch/);
   const dup=copy();const support=dup.sources.hayba.additionalSourceGroups['material-custom-handler'].supportingSources;support.push({...support[0]});
   assert.throws(()=>validateCapabilityCoverage({ledger:dup}),/invalid supporting source/);
+});
+
+
+test('Claireon automation and trace declarations remain source-scoped internal records',()=>{
+  const ledger=copy(), surface='internal-automation-trace-declaration';
+  const rows=ledger.entries.filter(e=>e.provider==='claireon' && e.surface===surface);
+  assert.deepEqual(new Set(rows.map(e=>e.sourceEntry)),new Set(['test_run','test_poll','pie_trace_start','pie_trace_stop']));
+  assert.ok(rows.every(e=>e.disposition==='unreviewed' && e.canonicalRouteReferences.length===0));
+  assert.equal(validateCapabilityCoverage({ledger}).status,'partial-unreviewed');
+  const incorrect=copy();incorrect.entries.find(e=>e.provider==='claireon' && e.surface===surface).categoryLine=0;
+  assert.throws(()=>validateCapabilityCoverage({ledger:incorrect}),/invalid internal declaration evidence/);
+  const wrongSource=copy();wrongSource.entries.find(e=>e.provider==='claireon' && e.surface===surface).sourcePath='Source/Claireon/Private/ClaireonServer.cpp';
+  assert.throws(()=>validateCapabilityCoverage({ledger:wrongSource}),/unknown group record source/);
 });

@@ -921,3 +921,33 @@ test('UAP Ending and unrecognized Stopping phases both remain uncertain',()=>{
   assert.equal(status._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
   assert.notEqual(normalizeResult(catalog.get('pie.status'),json({ok:true,phase:'Ending'})).isError,true);
 });
+
+
+test('material scalar mutation stays held without source-backed readback identity',async()=>{
+  let starts=0;
+  const id='material.parameter.scalar.persisted';
+  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:[id],
+    backendFactories:new Map([['hayba',async()=>{starts++;throw new Error('must not start');}]])});
+  const args=catalog.get(id).example;
+  assert.equal(g.plan(id,args).dispatched,false);
+  await assert.rejects(g.execute(id,args),{code:'MATERIAL_SCALAR_RECEIPT_UNVERIFIED'});
+  assert.throws(()=>g.plan(id,{...args,allowOverride:true}),{code:'INVALID_ARGUMENTS'});
+  assert.equal(starts,0);
+  assert.equal(g.status().heldCapabilities[0].id,id);
+  await g.close();
+});
+
+
+test('material texture mutation stays held without source-backed target and readback identity',async()=>{
+  let starts=0;
+  const id='material.parameter.texture.persisted';
+  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:[id],
+    backendFactories:new Map([['hayba',async()=>{starts++;throw new Error('must not start');}]])});
+  const args=catalog.get(id).example;
+  assert.equal(g.plan(id,args).dispatched,false);
+  await assert.rejects(g.execute(id,args),{code:'MATERIAL_TEXTURE_RECEIPT_UNVERIFIED'});
+  assert.throws(()=>g.plan(id,{...args,allowOverride:true}),{code:'INVALID_ARGUMENTS'});
+  assert.equal(starts,0);
+  assert.equal(g.status().heldCapabilities[0].id,id);
+  await g.close();
+});
