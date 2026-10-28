@@ -92,7 +92,8 @@ redirection. Neither a fresh basename nor a host write grant proves the physical
 output target; no configuration flag bypasses this hold. `requiredProviders`
 includes providers for enabled catalog entries, including held entries; a held
 entry never starts its backend. The three input-hold operations, vector material
-mutation, automation start, trace capture and trace-reader open are also held
+mutation, automation start, both Blueprint compile forms, trace capture and
+trace-reader open are also held
 pending their native target or ownership boundaries. Existing holds, runs,
 captures and readers require external reconciliation; Nexus does not implicitly
 stop, cancel or reset them.

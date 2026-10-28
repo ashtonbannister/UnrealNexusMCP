@@ -223,8 +223,10 @@ separate, not weaker duplicates of this exact persisted contract.
 5. Inspect the generated content appropriate to the graph. Nonzero ISM count
    alone is not a universal completion or correctness test.
 
-**Failures:** do not trigger another run because waiting timed out. Inspect the
-existing run/state first; generation may still be active.
+**Failures:** a native wait timeout or generation-state read failure fences
+subsequent gateway work because the existing generation may still be active.
+Reconcile the run externally before restart; do not trigger another run or
+interpret the timeout as cancellation.
 
 ## 8. Enhanced Input and owned holds — UE-MCP
 
@@ -253,7 +255,12 @@ need separate contracts.
 **Trigger:** diagnose a Blueprint while preserving an explicit no-save boundary.
 
 **Use:** `blueprint.compile.memory.asset` or `blueprint.compile.memory.session`.
-Both delegate to the fixed bp_compile function via public python_execute.
+Both delegate to the fixed bp_compile function via public python_execute, but
+both are held before dispatch. The native session form does not verify session
+ownership; the asset form can reuse another client's same-tool session and
+clean up expired sessions without ownership. Do not implicitly close or alter
+existing sessions; reconcile them externally until a reviewed native ownership
+contract is available.
 
 Use exactly one asset_path or session_id; preserve bounded diagnostics, severity,
 node GUIDs and truncation. Require actual compile status, not Python wrapper

@@ -11,6 +11,8 @@ const held = new Map([
   ['screenshot.pie',{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED',reason:'native output ownership and target identity unverified'}],
   ['material.parameter.vector.persisted',{code:'MATERIAL_VECTOR_RECEIPT_UNVERIFIED',reason:'native vector receipt cannot reliably correlate requested values'}],
   ['automation.tests.run',{code:'AUTOMATION_RUN_OWNERSHIP_UNVERIFIED',reason:'native run start can replace an independently owned active run'}],
+  ...['blueprint.compile.memory.asset','blueprint.compile.memory.session'].map(id =>
+    [id,{code:'BLUEPRINT_SESSION_OWNERSHIP_UNVERIFIED',reason:'native Blueprint session ownership and reuse unverified'}]),
   ['insights.trace.open',{code:'TRACE_READER_OWNERSHIP_UNVERIFIED',reason:'native open can stop expired readers owned by other clients'}],
   ...['insights.capture.start','insights.capture.stop'].map(id =>
     [id,{code:'TRACE_CAPTURE_OWNERSHIP_UNVERIFIED',reason:'native trace output and global capture ownership unverified'}]),

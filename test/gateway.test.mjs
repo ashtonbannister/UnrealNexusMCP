@@ -741,7 +741,7 @@ test('PCG wait failure fences contradictory reported target but allows omitted p
     assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);assert.deepEqual(out.content,reply.content);
     await assert.rejects(g.execute('pcg.generation.wait',args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);await g.close();
   }
-  for(const reply of [json(failure),json({success:false,error:'preflight refusal'})]) {
+  for(const reply of [json({success:false,error:'preflight refusal'})]) {
     const {gateway:g}=fixture({config:{enabledCapabilities:['pcg.generation.wait']},reply:()=>reply});
     const out=await g.execute('pcg.generation.wait',args);assert.equal(out.isError,true);
     assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);await g.close();
@@ -886,5 +886,43 @@ test('automation start and trace capture routes stay held before backend startup
   assert.deepEqual(new Set(g.status().heldCapabilities.map(item=>item.id)),new Set(ids));
   assert.ok(!g.status().heldCapabilities.some(item=>item.id==='automation.tests.poll'));
   assert.ok(!g.status().heldCapabilities.some(item=>item.id==='insights.trace.close'));
+  await g.close();
+});
+
+
+test('PCG waiter timeout or state-read failure preserves receipt and fences subsequent work',async()=>{
+  const args={actorPath:'/Game/A',componentName:'PCG',runId:7,timeoutSeconds:1};
+  for (const body of [
+    {success:false,state:'timed_out',runId:7,componentName:'PCG',lastRun:{id:7,state:'generating'},error:'The generation did not finish within 1s.'},
+    {success:false,state:'timed_out',runId:7,error:'get_pcg_generation_state failed'},
+  ]) {
+    const receipt={...json(body),_meta:{'fixture/native':'preserved'}};
+    const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pcg.generation.wait']},reply:()=>receipt});
+    const out=await g.execute('pcg.generation.wait',args);
+    assert.equal(out.isError,true);
+    assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    assert.equal(out._meta['fixture/native'],'preserved');
+    assert.deepEqual(out.content,receipt.content);
+    assert.equal(g.status().queue.blocked,true);
+    await assert.rejects(g.execute('pcg.generation.wait',args),{code:'EDITOR_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);
+    await g.close();
+  }
+});
+
+
+test('both Blueprint compile forms stay held before backend startup',async()=>{
+  let starts=0;
+  const ids=['blueprint.compile.memory.asset','blueprint.compile.memory.session'];
+  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:ids,
+    backendFactories:new Map([['claireon',async()=>{starts++;throw new Error('must not start');}]])});
+  for(const id of ids) {
+    const args=catalog.get(id).example;
+    assert.equal(g.plan(id,args).dispatched,false);
+    await assert.rejects(g.execute(id,args),{code:'BLUEPRINT_SESSION_OWNERSHIP_UNVERIFIED'});
+    assert.throws(()=>g.plan(id,{...args,allowOverride:true}),{code:'INVALID_ARGUMENTS'});
+  }
+  assert.equal(starts,0);
+  assert.deepEqual(new Set(g.status().heldCapabilities.map(item=>item.id)),new Set(ids));
   await g.close();
 });

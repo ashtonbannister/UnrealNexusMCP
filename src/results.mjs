@@ -290,6 +290,9 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
   }
   if (operation.id === 'pcg.generation.wait') {
     policy = 'require-exact-generated-run';
+    // The pinned waiter uses timed_out for both an elapsed deadline and a
+    // failed state read. Neither establishes that the native run has stopped.
+    if (payload?.state === 'timed_out') { failed = true; outcomeUnknown = true; }
     // Native success:true also covers cancelled, idle, cleaned and not_started.
     if (!payload || payload.state !== 'generated'
       || payload.runId !== expectedArgs.runId || payload.lastRun?.id !== expectedArgs.runId

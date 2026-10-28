@@ -23617,51 +23617,191 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_key",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct key wrapper has no explicit editor/PIE-instance target; its shared Remote Control helper accepts a missing ReturnValue as success, and interruption during timed press can leave the release unconfirmed.",
+      "reopeningCondition": "Review a fixed target/epoch-bound key contract with confirmed acknowledgments, ownership, bounded duration and interruption-safe release evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            10,
+            22
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            25,
+            35
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_mouse_move",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct mouse move wrapper has no explicit editor/PIE-instance target, and its shared Remote Control helper accepts a missing ReturnValue as success.",
+      "reopeningCondition": "Review bounded absolute and relative pointer contracts separately with exact target identity, validated acknowledgments and observable state evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            10,
+            22
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            38,
+            52
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_mouse_button",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct mouse button wrapper has no explicit editor/PIE-instance target, and its shared Remote Control helper accepts a missing ReturnValue as success; press/release ownership is not established.",
+      "reopeningCondition": "Review exact target, confirmed button acknowledgment, ownership and interruption-safe release as a separate bounded contract.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            10,
+            22
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            55,
+            63
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_axis",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper selects either Slate user or current viewport without explicit editor/PIE-instance identity; its shared Remote Control helper accepts a missing ReturnValue as success.",
+      "reopeningCondition": "Review separate exact Slate-user and gameplay-viewport contracts with bounded finite values, confirmed acknowledgments and release semantics.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            10,
+            22
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            66,
+            81
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_gamepad",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The direct gamepad wrapper accepts Slate-user or viewport routing without explicit editor/PIE-instance identity; the shared helper accepts a missing ReturnValue as success.",
+      "reopeningCondition": "Review exact device/user and world target, finite ranges, confirmed acknowledgments and ownership/release semantics for separately scoped gamepad contracts.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            10,
+            22
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            95,
+            114
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_sequence",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper runs selected input steps in order without explicit editor/PIE-instance targeting or compensation; an unknown or failing later step can follow earlier effects, and the shared helper can accept a missing ReturnValue.",
+      "reopeningCondition": "Review a fixed bounded sequence with explicit target and owned resources, per-step effects, interruption recovery and unambiguous completion evidence; never infer rollback or replay.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            10,
+            22
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            144,
+            171
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "input_xr_button",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-18B",
+      "canonicalRouteReferences": [],
+      "blockReason": "The XR button wrapper has no explicit editor/PIE-instance target and its shared Remote Control helper accepts a missing ReturnValue as success; physical device behavior is not established.",
+      "reopeningCondition": "Review an exact synthetic-XR target, hand and action contract with trustworthy acknowledgment, owned release and native device evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            10,
+            22
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/input.py",
+          "lines": [
+            117,
+            125
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -23721,16 +23861,48 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "perf_trace_start",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper builds a console command from caller-supplied channels, writes a shared temporary path, and returns a fixed trace ID without establishing an exclusive output target or owned native capture.",
+      "reopeningCondition": "Review a distinct fixed-channel capture contract with authorized target, unique ownership, explicit output bounds, correlated native acknowledgment and failure recovery.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/perf.py",
+          "lines": [
+            49,
+            57
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "perf_trace_stop",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper accepts trace_id but does not use it to select or verify a capture; it issues global Trace.Stop and reports a fixed path without confirming which capture stopped.",
+      "reopeningCondition": "Review an identity-bound native stop contract that proves ownership before stopping and confirms completion; reconcile existing captures externally.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/perf.py",
+          "lines": [
+            49,
+            50
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/perf.py",
+          "lines": [
+            60,
+            65
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -23812,16 +23984,48 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "game_launch",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The native wrapper accepts caller-supplied extra process arguments and map, uses configured or fallback executable/project paths, and does not confirm process cleanup after startup timeout. It does not establish a scoped launch or owned-process cleanup contract.",
+      "reopeningCondition": "Review a separate host-authorized launch contract with fixed arguments, attested executable and project, process epoch, endpoint identity, and bounded failure cleanup.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/game.py",
+          "lines": [
+            23,
+            39
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/game.py",
+          "lines": [
+            59,
+            91
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "game_attach",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper registers a caller-selected port with no PID and no editor/project identity attestation; registration alone does not establish an authorized target.",
+      "reopeningCondition": "Review an explicit attachment contract with independently attested process epoch, project and endpoint ownership before any dispatch.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/game.py",
+          "lines": [
+            94,
+            98
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -23833,9 +24037,21 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "game_stop",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The wrapper suppresses termination errors, removes the registry entry and reports stopped without waiting for process exit; an attached entry may have no owned process.",
+      "reopeningCondition": "Review an owned-process stop contract that distinguishes attached and launched instances and preserves unconfirmed termination and cleanup.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/game.py",
+          "lines": [
+            112,
+            124
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",

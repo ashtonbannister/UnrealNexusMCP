@@ -803,7 +803,7 @@
     },
     {
       "id": "blueprint.compile.memory.asset",
-      "description": "Compile one exact Blueprint asset without implicit package saves; native session may open.",
+      "description": "Held before dispatch: native asset-form compilation may reuse an independently owned Blueprint session or clean up other expired sessions.",
       "provider": "claireon",
       "decision": "blueprint-compile-memory",
       "effect": "write",
@@ -843,7 +843,7 @@
     },
     {
       "id": "blueprint.compile.memory.session",
-      "description": "Compile a named existing Blueprint edit session without implicit package saves.",
+      "description": "Held before dispatch: native session-form compilation does not establish ownership of the supplied Blueprint session.",
       "provider": "claireon",
       "decision": "blueprint-compile-memory",
       "effect": "write",
