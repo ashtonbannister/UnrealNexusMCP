@@ -33,6 +33,14 @@ project and deployed builds.
   cannot satisfy this contract. Neither comparison establishes a native runtime
   result or an exhaustive survey of every upstream surface.
 
+- EngineWire's pinned [PCG dispatcher](https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/PCG/McpPCGHandlers.cpp#L30-L90)
+  handles graph creation, execution, node creation, pin connection and settings;
+  this dispatcher does not provide a graph snapshot read. Its [node resolver](https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/PCG/McpPCGGraph.cpp#L45-L98)
+  accepts a current array index and returns the first case-insensitive name, path
+  or title match. Those selectors do not establish unique stable identity or a
+  checked revision. This review is limited to this dispatcher and resolver; it
+  does not establish the absence of a graph read elsewhere in EngineWire.
+
 A fixed Nexus wrapper around either reviewed stock read would preserve an
 observation but would not fulfill the backlog's complete pin discovery,
 boundedness and stale-identity requirements. Do not advertise it as the CAP-01
