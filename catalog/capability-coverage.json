@@ -26844,9 +26844,21 @@
       "sourceEntry": "blueprint-get",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 271,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The Blueprint summary iterates all variables, components, function graphs, event nodes and interfaces into arrays without a native enumeration or serialized-response bound.",
+      "reopeningCondition": "Require a fixed bounded Blueprint inspection contract with exact identity, explicit truncation or snapshot semantics, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            271,
+            382
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26862,9 +26874,21 @@
       "sourceEntry": "blueprint-remove-component",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 462,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler removes the named SCS node and promotes its children, but the result reports only the component and Blueprint names; it neither carries a revision precondition nor reports the resulting child hierarchy.",
+      "reopeningCondition": "Require exact Blueprint and component identity, explicit child-promotion semantics, a checked state precondition, resulting hierarchy receipt and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            462,
+            484
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26889,9 +26913,21 @@
       "sourceEntry": "blueprint-set-default",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 601,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler imports arbitrary property text directly into the class default object and explicitly notes that a parse failure may leave the value partially written before returning an error.",
+      "reopeningCondition": "Require a typed and scoped property contract with exact Blueprint identity, checked preconditions, atomic or explicitly reported partial-write behavior, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            598,
+            649
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26916,18 +26952,50 @@
       "sourceEntry": "blueprint-compile",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 755,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler compiles a resolved Blueprint without a checked revision or editor context precondition, and collects all compiler messages and tokens into an unbounded result; its structured result does not identify the resolved asset.",
+      "reopeningCondition": "Require exact asset identity and revision or explicit staleness semantics, bounded diagnostics, compile ownership and completion correlation, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            55,
+            65
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            755,
+            816
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "blueprint-spawn",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 823,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler selects the current editor world rather than an explicitly requested world or level, and its receipt returns the actor label and class name rather than an independently correlated exact actor and world identity.",
+      "reopeningCondition": "Require exact world and level targeting, stable actor identity and effect correlation, explicit persistence semantics and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            823,
+            867
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26984,36 +27052,116 @@
       "sourceEntry": "screenshot-viewport",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
       "line": 362,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler selects the active viewport, which may be a PIE view, and reads the full viewport pixel array before applying output dimension caps; it does not establish the selected viewport identity or a pre-read allocation bound.",
+      "reopeningCondition": "Require exact viewport targeting and a reviewed pre-allocation native capture and response budget with correlated image bytes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+          "lines": [
+            186,
+            207
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+          "lines": [
+            361,
+            380
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "screenshot-game-view",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
       "line": 384,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler selects the editor PIE viewport without a requested exact PIE instance or world and reads its full pixel array before output dimension caps.",
+      "reopeningCondition": "Require unique, attested PIE world and instance selection, a pre-allocation capture bound and correlated direct-byte response with native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+          "lines": [
+            186,
+            207
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+          "lines": [
+            383,
+            402
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "screenshot-camera",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
       "line": 406,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The camera is resolved in the editor world from a label, name or path; the resolver returns the first matching actor or first case-insensitive label fallback without proving uniqueness, while the receipt names a label.",
+      "reopeningCondition": "Require exact unique world and camera identity, bounded capture and response limits, a correlated receipt and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+          "lines": [
+            405,
+            446
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpRuntime/Private/Tools/UnrealMcpObjectRef.cpp",
+          "lines": [
+            81,
+            110
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "screenshot-isolated",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
       "line": 450,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The isolated actor is resolved in the editor world from a label, name or path; the resolver returns the first matching actor or first case-insensitive label fallback without proving uniqueness, while the receipt names a label.",
+      "reopeningCondition": "Require exact unique world and actor identity, bounded capture and response limits, a correlated receipt and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpScreenshotTools.cpp",
+          "lines": [
+            449,
+            506
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpRuntime/Private/Tools/UnrealMcpObjectRef.cpp",
+          "lines": [
+            81,
+            110
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -27049,9 +27197,29 @@
       "sourceEntry": "source-create-class",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
       "line": 406,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The scaffold writes a header and cpp through separately checked pathnames; force can overwrite existing files and a later cpp failure deletes the just-written header, while the source jail is explicitly subject to a link-swap race.",
+      "reopeningCondition": "Require an authorized exact-file creation contract with race-safe containment, overwrite and partial-failure semantics, owned cleanup and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            61,
+            103
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            455,
+            482
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -27116,27 +27284,104 @@
       "sourceEntry": "source-list",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
       "line": 659,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The source listing gathers (recursively by default) all matching paths for every requested extension, sorts them and builds the entire response without a native enumeration or output bound; its path jail also has a documented link-swap race.",
+      "reopeningCondition": "Require a reviewed bounded source discovery contract with secure path containment, explicit completeness and pagination semantics, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            61,
+            103
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            658,
+            758
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "source-compile",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
       "line": 761,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The source compile can patch the running editor through Live Coding and, after failure or a non-start, fall through to a separate UBT invocation; the synchronous process call has no operation-specific timeout or owned process reconciliation shown.",
+      "reopeningCondition": "Require an explicitly authorized build contract with exact project and target, build ownership, bounded execution and output, no blind fallback after an uncertain outcome, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            761,
+            836
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            875,
+            903
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",
       "surface": "mcp-visible-name-filter",
       "sourceEntry": "tool_search",
       "sourcePath": "Source/Claireon/Private/ClaireonServer.cpp",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "limitations": "A visible-name filter is not proof of live registration or permission. Nexus does not expose arbitrary Python or raw provider calls."
+      "limitations": "A visible-name filter is not proof of live registration or permission. Search returns information about provider tools but does not itself execute them.",
+      "canonicalRouteReferences": [],
+      "blockReason": "The raw search supports caller-supplied select lists that bypass max_results and return a full schema for each matched requested name, including repetitions. Category and empty-query modes scan the dynamic registry, and empty-query mode sorts matches before truncating. The stock schema has no query or category length limit or max_results upper bound. These behaviors do not establish bounded native work, output or an authorized complete snapshot.",
+      "reopeningCondition": "Review a separate fixed discovery contract with bounded selectors, native work and response bytes, explicit dynamic-registry and permission semantics, and source and live evidence. Do not expose raw provider calls or infer registration or authorization from a search result.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/ClaireonServer.cpp",
+          "lines": [
+            71,
+            75
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_SearchTools.cpp",
+          "lines": [
+            120,
+            156
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_SearchTools.cpp",
+          "lines": [
+            362,
+            479
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_SearchTools.cpp",
+          "lines": [
+            658,
+            703
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",
