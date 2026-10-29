@@ -16684,18 +16684,58 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "delete_graph",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "blueprint"
+      "category": "blueprint",
+      "blockReason": "The handler can remove a graph and its nodes and accepts force to remove an owned graph while leaving its owner node. It reports rollbackPossible false and recompiles and attempts to save after mutation without a checked asset revision.",
+      "reopeningCondition": "Require exact Blueprint and graph identity, checked prior state, explicit authorization for graph and dependent-node effects, compile/save scope, correlated outcomes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            2557,
+            2701
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            375,
+            385
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
       "sourceEntry": "delete_macro",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "blueprint"
+      "category": "blueprint",
+      "blockReason": "The handler removes a macro graph, reports potentially orphaned instances and a lossy inverse, then recompiles and attempts to save. It has no checked asset revision before mutation.",
+      "reopeningCondition": "Require exact Blueprint, macro and dependent-instance identities, checked prior state, explicit destructive and compile/save scope, truthful loss and persistence outcomes, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            2706,
+            2785
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            375,
+            385
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -16908,18 +16948,58 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "edit_graph_parameters",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "blueprint"
+      "category": "blueprint",
+      "blockReason": "The handler combines add, remove, rename, retype, default and reorder operations. Removal or retyping can break wires and the handler explicitly reports its inverse as lossy; it recompiles and attempts to save after changes without a checked asset revision.",
+      "reopeningCondition": "Require exact Blueprint, graph and pin identity, checked prior state, operation-specific effect and partial-outcome semantics, explicit compile and save scope, and native evidence; a narrower reviewed operation remains a separate candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            921,
+            1437
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            375,
+            385
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
       "sourceEntry": "edit_local_variable",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "blueprint"
+      "category": "blueprint",
+      "blockReason": "The handler combines remove, rename, type and default edits. Removing a variable deletes associated get and set nodes and wires; retyping also reports a lossy inverse. It recompiles and attempts to save after edits without a checked asset revision.",
+      "reopeningCondition": "Require exact Blueprint, function and local-variable identity, checked prior state, explicit destructive and compile/save scope, correlated effects and truthful loss/persistence outcomes, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            1789,
+            2050
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            375,
+            385
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -21037,10 +21117,30 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "remove_blueprint_interface",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "blueprint"
+      "category": "blueprint",
+      "blockReason": "The handler defaults preserveFunctions to false and can destroy interface implementation graphs; it reports that re-adding the interface restores empty stubs rather than their bodies. It structurally recompiles and attempts to save after mutation, without a checked asset revision.",
+      "reopeningCondition": "Require exact Blueprint and interface identity, checked prior state, explicit authorization for graph destruction, compile and save effects, truthful loss and persistence outcomes, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            508,
+            600
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            375,
+            385
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -21149,10 +21249,30 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "remove_event_dispatcher",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "blueprint"
+      "category": "blueprint",
+      "blockReason": "The handler can remove a dispatcher member and its signature graph, recompiles and attempts to save, and reports its inverse as lossy. It does not require a checked asset revision before these effects.",
+      "reopeningCondition": "Require exact Blueprint and dispatcher identity, checked prior state, explicit authorization for graph, binding, compile and save effects, truthful partial and loss outcomes, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            2112,
+            2211
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Members.cpp",
+          "lines": [
+            375,
+            385
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -25851,92 +25971,272 @@
     {
       "provider": "hayba",
       "sourceEntry": "spline_create",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": false,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler spawns an actor in the current editor level with a generated name and returns only its name and label; omitted or unreadable location defaults to zero.",
+      "reopeningCondition": "Require explicit world and level targeting, validated location, correlated actor and component identity, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            15,
+            42
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            75,
+            102
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
       "sourceEntry": "spline_add_point",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": false,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler selects the first matching name or label in the editor world and the first spline component, adds a world-space point, and returns only the point count. A supplied nonnegative index is passed to the engine without an explicit upper-bound check here.",
+      "reopeningCondition": "Require exact world, actor and component identity, bounded index and strict coordinates, checked prior spline state, correlated effect and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            15,
+            42
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            105,
+            136
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
       "sourceEntry": "spline_set_point",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": false,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler selects the first name or label match and first spline component in the editor world; it bounds the index against the current count but has no checked prior spline state and returns only updated=true.",
+      "reopeningCondition": "Require exact world, actor and component identity, strict coordinates and index, checked prior spline state, correlated effect and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            15,
+            42
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            139,
+            170
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
       "sourceEntry": "spline_remove_point",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": false,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler selects the first name or label match and first spline component in the editor world; it bounds the index against the current count but has no checked prior spline state and returns only the remaining count.",
+      "reopeningCondition": "Require exact world, actor and component identity, checked prior spline state, authorized point removal, correlated effect and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            15,
+            42
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            173,
+            200
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
       "sourceEntry": "spline_get_info",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": false,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler selects the first name or label match and first spline component in the editor world, then returns all point positions and tangents without a native point or output cap and without resolved target identity.",
+      "reopeningCondition": "Require exact world, actor and component identity, bounded native traversal and output with explicit completeness, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            15,
+            42
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPSplineHandler.cpp",
+          "lines": [
+            203,
+            234
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
       "sourceEntry": "ism_create_actor",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": true,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler spawns an actor with an instanced mesh component in the current editor level and returns only generated name and label, without the resolved world, component or mesh identity; unreadable location defaults to zero.",
+      "reopeningCondition": "Require explicit world and level, strict location and mesh inputs, correlated actor, component and mesh identities, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPISMHandler.cpp",
+          "lines": [
+            15,
+            42
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPISMHandler.cpp",
+          "lines": [
+            75,
+            111
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
       "sourceEntry": "ism_add_instance",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": false,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler selects the first name or label match and first ISM component in the editor world. Transform fields that cannot be read retain defaults; its receipt gives an index and total count but not resolved target or transform.",
+      "reopeningCondition": "Require exact world, actor and component identity, strict transform semantics, correlated per-instance effect and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPISMHandler.cpp",
+          "lines": [
+            15,
+            52
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPISMHandler.cpp",
+          "lines": [
+            114,
+            138
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
       "sourceEntry": "ism_add_instances",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": true,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler selects the first name or label match and first ISM component in the editor world, processes at most 1000 inputs, skips non-object entries and counts AddInstance invocations, returning aggregate counts without per-input results. Transform fields that cannot be read retain defaults.",
+      "reopeningCondition": "Require exact world, actor and component identity, strict bounded transforms, explicit truncation and partial outcomes, correlated per-instance results and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPISMHandler.cpp",
+          "lines": [
+            15,
+            52
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPISMHandler.cpp",
+          "lines": [
+            141,
+            173
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
       "sourceEntry": "ism_clear_instances",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "agentCallable": true,
       "hasTsWrapper": false,
-      "aliases": []
+      "aliases": [],
+      "blockReason": "The handler selects the first name or label match and first ISM component in the editor world and clears all instances; its removed count does not establish exact target identity or a checked expected instance set.",
+      "reopeningCondition": "Require explicit world, actor and component identity, authorization for the exact clear scope, a checked prior instance set, correlated outcome and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPISMHandler.cpp",
+          "lines": [
+            15,
+            42
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPISMHandler.cpp",
+          "lines": [
+            176,
+            199
+          ]
+        }
+      ]
     },
     {
       "provider": "hayba",
