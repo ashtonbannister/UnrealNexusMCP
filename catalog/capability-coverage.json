@@ -4960,7 +4960,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "control_actor.attach",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -4972,6 +4972,26 @@
           "tool": "control_actor",
           "action": "attach_actor",
           "folded": {}
+        }
+      ],
+      "blockReason": "The handler resolves child and parent through non-exact actor lookup, attaches a selected parent component or socket and changes actor owner before verifying attachment. It has no expected world/epoch or prior owner and attachment precondition.",
+      "reopeningCondition": "Require exact child, parent, component and world/epoch identities, checked previous attachment and ownership, authorized owner and transform effects, correlated partial outcomes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLookup.cpp",
+          "lines": [
+            5,
+            76
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorAttachment.cpp",
+          "lines": [
+            4,
+            103
+          ]
         }
       ]
     },
@@ -5017,7 +5037,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "control_actor.delete",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -5037,6 +5057,34 @@
           "action": "destroy_actor",
           "folded": {}
         }
+      ],
+      "blockReason": "The named delete resolves label, name or path against the implicitly selected world, deletes sequentially and reports submitted names with missing or failed names rather than exact resolved paths. Its delete_by_tag selector enumerates matching actors in the active PIE or editor world, destroys them and returns a success receipt even if some destruction attempts fail. Neither selector binds an exact target world or a checked precondition.",
+      "reopeningCondition": "Require an explicit authorized bounded target set, exact actor/world and epoch binding, checked pre-state, truthful per-object and partial outcomes for both named and tag selection, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLookup.cpp",
+          "lines": [
+            5,
+            76
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLifecycle.cpp",
+          "lines": [
+            5,
+            99
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLifecycle.cpp",
+          "lines": [
+            213,
+            288
+          ]
+        }
       ]
     },
     {
@@ -5055,7 +5103,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "control_actor.detach",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -5068,18 +5116,58 @@
           "action": "detach_actor",
           "folded": {}
         }
+      ],
+      "blockReason": "The handler resolves the actor through non-exact lookup, detaches its root and clears its owner, or returns an already-detached no-op. It has no expected world/epoch or prior owner and attachment precondition.",
+      "reopeningCondition": "Require exact actor and world/epoch identity, checked previous attachment and ownership, authorized owner effects, correlated results and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLookup.cpp",
+          "lines": [
+            5,
+            76
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorAttachment.cpp",
+          "lines": [
+            105,
+            157
+          ]
+        }
       ]
     },
     {
       "provider": "enginewire",
       "sourceEntry": "control_actor.duplicate",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
         {
           "tool": "control_actor",
           "action": "duplicate"
+        }
+      ],
+      "blockReason": "The handler resolves a caller name with non-exact matching, duplicates in the resolved actor world and can change the new label; its receipt supplies the new path but does not establish a host-selected world or checked source state.",
+      "reopeningCondition": "Require exact source and target-world/epoch identity, checked source state, explicit duplicate and label scope, correlated resulting identity, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLookup.cpp",
+          "lines": [
+            5,
+            76
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLifecycle.cpp",
+          "lines": [
+            102,
+            152
+          ]
         }
       ]
     },
@@ -5302,13 +5390,33 @@
     {
       "provider": "enginewire",
       "sourceEntry": "control_actor.rename",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
         {
           "tool": "control_actor",
           "action": "rename"
+        }
+      ],
+      "blockReason": "The handler resolves a name or label, changes the label and can additionally sanitize and uniquify the object name. External-package or engine refusal paths can retain the old object name with a note; there is no checked prior state or selected world/epoch.",
+      "reopeningCondition": "Require exact actor/world identity and checked prior state, explicit authorization and correlated outcomes for label and optional object rename, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLookup.cpp",
+          "lines": [
+            5,
+            76
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLifecycle.cpp",
+          "lines": [
+            157,
+            211
+          ]
         }
       ]
     },
@@ -5377,7 +5485,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "control_actor.set_transform",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -5417,6 +5525,26 @@
           "tool": "control_actor",
           "action": "set_actor_transform",
           "folded": {}
+        }
+      ],
+      "blockReason": "The handler supports single and up to 500-item batch mutations using non-exact actor selection; it accepts relative offsets and modifies and dirties actors before tolerant readback, which can report a mismatch after effects. Neither mode binds an expected world/epoch or checked prior transform.",
+      "reopeningCondition": "Require exact world/epoch and actor identities, checked prior transform, bounded explicit batch and relative-effect semantics, truthful per-item and partial outcomes, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLookup.cpp",
+          "lines": [
+            5,
+            76
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp",
+          "lines": [
+            7,
+            184
+          ]
         }
       ]
     },
@@ -14824,10 +14952,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "add_streaming_sublevel",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The handler adds to the implicit editor world and temporarily changes the current edit level, then attempts to restore it without verifying the result. The response echoes the caller path and name rather than the resolved package identity.",
+      "reopeningCondition": "Require exact world and editor epoch, resolved package identity, authorized current-level effects, checked resulting state and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "lines": [
+            841,
+            888
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -15818,10 +15958,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "connect_material_expressions",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "material"
+      "category": "material",
+      "blockReason": "Expression names and pin aliases resolve to a target input that may be overwritten without a checked graph-state precondition. The updated receipt reports expression classes rather than resolved expression names; the handler reports no inverse when the input was previously unconnected.",
+      "reopeningCondition": "Require exact graph, expression and pin identities, a checked prior graph state, explicitly authorized affected connections and persistence scope, correlated outcomes and native evidence; retain a separately reviewed narrower contract as a candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Material/MaterialHandlers_Graph.cpp",
+          "lines": [
+            229,
+            335
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -15852,18 +16004,42 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "connect_texture_to_material",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "material"
+      "category": "material",
+      "blockReason": "Every call that reaches mutation creates a texture sample node and may overwrite the existing material property connection. The proposed node-deletion inverse is explicitly lossy when a previous connection existed; no checked graph-state precondition is provided.",
+      "reopeningCondition": "Require exact graph, expression and pin identities, a checked prior graph state, explicitly authorized affected connections and persistence scope, correlated outcomes and native evidence; retain a separately reviewed narrower contract as a candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Material/MaterialHandlers_Graph.cpp",
+          "lines": [
+            134,
+            225
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
       "sourceEntry": "connect_to_material_property",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "material"
+      "category": "material",
+      "blockReason": "The handler overwrites the existing property binding without recording the prior binding and suggests disconnect as an inverse; disconnect cannot restore an overwritten prior wire. No checked graph-state precondition is supplied.",
+      "reopeningCondition": "Require exact graph, expression and pin identities, a checked prior graph state, explicitly authorized affected connections and persistence scope, correlated outcomes and native evidence; retain a separately reviewed narrower contract as a candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Material/MaterialHandlers_Graph.cpp",
+          "lines": [
+            339,
+            418
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -16292,10 +16468,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "create_new_level",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "editor"
+      "category": "editor",
+      "blockReason": "The handler creates and opens a map after a separate existence check. A templated partitioned world can save the world and loaded external packages, switch to a blank map and reload; failure can follow creation or saving. Its proposed inverse deletes the asset.",
+      "reopeningCondition": "Require exact destination and editor epoch, collision and concurrency guards, authorized save and world-switch scope, correlated partial outcomes, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "lines": [
+            3804,
+            3957
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -16740,10 +16928,30 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "delete_material_expression",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "material"
+      "category": "material",
+      "blockReason": "The handler accepts material or material-function targets and deletes an expression with its connections. The material and function inverses each add a fresh default node without restoring authored values and wiring and are explicitly lossy; the function path also updates and attempts to save the function.",
+      "reopeningCondition": "Require exact graph, expression and pin identities, a checked prior graph state, explicitly authorized affected connections and persistence scope, correlated outcomes and native evidence; retain a separately reviewed narrower contract as a candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Material/MaterialHandlers_Graph.cpp",
+          "lines": [
+            422,
+            553
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Material/MaterialHandlers_Function.cpp",
+          "lines": [
+            431,
+            489
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -16884,10 +17092,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "disconnect_material_property",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "material"
+      "category": "material",
+      "blockReason": "The handler clears the current material property connection without an expected prior-state or graph revision precondition. Its suggested inverse is a separate later write, not a concurrency-safe rollback.",
+      "reopeningCondition": "Require exact graph, expression and pin identities, a checked prior graph state, explicitly authorized affected connections and persistence scope, correlated outcomes and native evidence; retain a separately reviewed narrower contract as a candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Material/MaterialHandlers_Graph.cpp",
+          "lines": [
+            566,
+            660
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -19357,10 +19577,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "load_level",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The handler can save all dirty world packages or discard unsaved changes, ends an active play session and runs garbage collection before loading. A later failure can follow these effects, and its inverse explicitly cannot restore discarded changes or the ended play session.",
+      "reopeningCondition": "Require exact world and editor epoch, authorized save or discard scope and session ownership, correlated partial outcomes, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            2521,
+            2704
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -21549,10 +21781,30 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "remove_streaming_sublevel",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The name resolver returns the first package, base-name or object-name match encountered in the implicit editor world. Removal can discard unsaved loaded-level edits; a missing target reports alreadyRemoved with candidates, and its inverse explicitly loses unsaved changes, properties and other state.",
+      "reopeningCondition": "Require unique exact world and package identity, ownership and dirty-state authorization, truthful destructive outcomes and native evidence; do not treat the inverse as rollback.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "lines": [
+            797,
+            808
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "lines": [
+            890,
+            962
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -22401,10 +22653,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "set_current_edit_level",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The handler targets the implicit editor world and switches by name; duplicate level names are first-match wins. The response gives the resulting path only after the switch, and its name-based inverse is explicitly lossy for duplicate previous names.",
+      "reopeningCondition": "Require a unique exact level path and world, checked prior state, correlated result and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "lines": [
+            713,
+            786
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -23393,10 +23657,30 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "set_streaming_sublevel_properties",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The handler resolves the first matching name in the implicit editor world, writes loading, visibility and location fields, defaults missing location coordinates to zero and may skip editor visibility when the level is unloaded. Its main result identifies the caller token rather than the resolved package; the inverse payload uses the resolved package. No checked prior-state precondition is supplied.",
+      "reopeningCondition": "Require exact world and package identity, checked prior state, strict value validation, correlated partial outcomes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "lines": [
+            797,
+            808
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "lines": [
+            965,
+            1061
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -23569,10 +23853,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "set_world_game_mode",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "gameplay"
+      "category": "gameplay",
+      "blockReason": "The handler resolves a class through several forms, changes the implicit editor world and dirties its package. The receipt identifies the class but not the world or checked prior state, and no inverse is emitted when the previous game mode is null.",
+      "reopeningCondition": "Require exact world and editor epoch, checked class and prior state, explicit persistence scope and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Gameplay/GameplayHandlers.cpp",
+          "lines": [
+            2411,
+            2480
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -23585,10 +23881,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "set_world_settings",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The handler mutates settings in the implicit current editor world and marks the package dirty even when no fields change. Its response reports a world name, not an exact world path, and there is no checked world or prior-state precondition.",
+      "reopeningCondition": "Require exact world and editor epoch, checked prior state, explicit dirty and save scope, correlated result and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            3365,
+            3454
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
