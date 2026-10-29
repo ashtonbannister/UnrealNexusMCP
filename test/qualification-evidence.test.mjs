@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {mkdtempSync, writeFileSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {spawnSync} from 'node:child_process';
 import {validateQualificationManifest} from '../scripts/qualification-evidence.mjs';
 import {loadCatalog} from '../src/catalog.mjs';
 import compatibility from '../catalog/compatibility-patches.json' with {type:'json'};
@@ -91,4 +95,19 @@ test('profile rejects unknown, duplicate, and unrelated provider claims',()=>{
   const m=passing();m.profile.providers=['ue-mcp','ue-mcp','unknown','enginewire'];
   const result=validateQualificationManifest(m);assert.equal(result.valid,false);
   assert.ok(result.errors.some(e=>e.includes('unknown provider')));assert.ok(result.errors.some(e=>e.includes('duplicate provider')));assert.ok(result.errors.some(e=>e.includes('exactly match')));
+});
+
+
+test('qualification CLI bounds manifest bytes and rejects malformed UTF-8',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'nexus-qualification-'));
+  const path=join(dir,'manifest.json');
+  const run=()=>spawnSync(process.execPath,['scripts/qualification-evidence.mjs',path],{encoding:'utf8'});
+  try {
+    writeFileSync(path,JSON.stringify(manifest()));
+    assert.equal(run().status,0);
+    writeFileSync(path,Buffer.alloc(1024*1024+1,0x20));
+    const oversized=run();assert.equal(oversized.status,2);assert.match(oversized.stderr,/Could not read or parse manifest/);
+    writeFileSync(path,Buffer.from([0x7b,0x22,0x78,0x22,0x3a,0x22,0xff,0x22,0x7d]));
+    const malformed=run();assert.equal(malformed.status,2);assert.match(malformed.stderr,/Could not read or parse manifest/);
+  } finally {rmSync(dir,{recursive:true,force:true});}
 });

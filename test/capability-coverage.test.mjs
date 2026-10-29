@@ -67,6 +67,14 @@ test('blocked source records require owner, reason, reopening condition and pinn
   const blocked=coverage.entries.filter(e=>e.disposition==='blocked');
   const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
   for(const name of ['perf_stat','pie_pause','pie_resume','screenshot_viewport','log_tail','log_since','helper_list','actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_list','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
+  const blockedUe=new Set(blocked.filter(e=>e.provider==='ue-mcp').map(e=>e.sourceEntry));
+  for(const name of ['delete_asset','delete_asset_batch','rename_asset','move_asset']) assert.ok(blockedUe.has(name));
+  const blockedHayba=new Set(blocked.filter(e=>e.provider==='hayba').map(e=>e.sourceEntry));
+  for(const name of ['actor_call_function','actor_batch_spawn','actor_tag','actor_snap_to_socket','actor_duplicate']) assert.ok(blockedHayba.has(name));
+  const blockedIvan=new Set(blocked.filter(e=>e.provider==='ivan-unreal-mcp').map(e=>e.sourceEntry));
+  for(const name of ['console-run-command','python-execute','source-read','source-update','source-delete']) assert.ok(blockedIvan.has(name));
+  const blockedEngineWire=new Set(blocked.filter(e=>e.provider==='enginewire').map(e=>e.sourceEntry));
+  for(const name of ['system_control.package_project','system_control.package_status','system_control.launch_build']) assert.ok(blockedEngineWire.has(name));
   const blockedClaireon=new Set(blocked.filter(e=>e.provider==='claireon').map(e=>e.sourceEntry));
   for(const name of ['trace_get_threads','trace_get_session_info','trace_get_scope_details']) assert.ok(blockedClaireon.has(name));
   assert.equal(validateCapabilityCoverage().status,'partial-unreviewed');
@@ -147,7 +155,10 @@ test('Claireon automation and trace declarations remain source-scoped internal r
   const ledger=copy(), surface='internal-automation-trace-declaration';
   const rows=ledger.entries.filter(e=>e.provider==='claireon' && e.surface===surface);
   assert.deepEqual(new Set(rows.map(e=>e.sourceEntry)),new Set(['test_run','test_poll','pie_trace_start','pie_trace_stop']));
-  assert.ok(rows.every(e=>e.disposition==='unreviewed' && e.canonicalRouteReferences.length===0));
+  for(const name of ['test_run','pie_trace_start','pie_trace_stop']) assert.equal(rows.find(e=>e.sourceEntry===name).disposition,'blocked');
+  assert.equal(rows.find(e=>e.sourceEntry==='test_poll').disposition,'unreviewed');
+  assert.ok(rows.every(e=>e.canonicalRouteReferences.length===0));
+  assert.equal(ledger.entries.find(e=>e.provider==='claireon' && e.sourceEntry==='trace_open').disposition,'blocked');
   assert.equal(validateCapabilityCoverage({ledger}).status,'partial-unreviewed');
   const incorrect=copy();incorrect.entries.find(e=>e.provider==='claireon' && e.surface===surface).categoryLine=0;
   assert.throws(()=>validateCapabilityCoverage({ledger:incorrect}),/invalid internal declaration evidence/);

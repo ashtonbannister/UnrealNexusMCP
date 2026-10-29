@@ -1,5 +1,5 @@
 // Offline structural review only. This does not inspect an editor or establish truth.
-import {readFile} from 'node:fs/promises';
+import {open} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
 import compatibility from '../catalog/compatibility-patches.json' with {type:'json'};
@@ -113,7 +113,20 @@ export function validateQualificationManifest(manifest, {catalog = loadCatalog()
 async function main() {
   if(process.argv.length!==3) {console.error('Usage: node scripts/qualification-evidence.mjs <manifest.json>');process.exitCode=2;return;}
   try {
-    const manifest=JSON.parse(await readFile(process.argv[2],'utf8'));
+    const file=await open(process.argv[2],'r');
+    let manifest;
+    try {
+      if (!(await file.stat()).isFile()) throw new Error('Manifest must be a file');
+      const buffer=Buffer.alloc(1024*1024+1);
+      let length=0;
+      while (length<buffer.length) {
+        const {bytesRead}=await file.read(buffer,length,buffer.length-length,null);
+        if (!bytesRead) break;
+        length+=bytesRead;
+      }
+      if (length>1024*1024) throw new Error('Manifest too large');
+      manifest=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(buffer.subarray(0,length)));
+    } finally { await file.close(); }
     const result=validateQualificationManifest(manifest);
     console.log(JSON.stringify({...result,scope:'structural check only; no native qualification or artifact verification'},null,2));
     if(!result.valid) process.exitCode=1;

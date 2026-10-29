@@ -353,8 +353,9 @@ independently replaced capture. Reconcile existing captures and named-event
 state externally; Nexus performs no implicit stop. A fresh basename does not
 establish physical file ownership. After a reviewed native ownership guard,
 capture with needed channels and restore prior settings on stop. Trace reader
-open is also held: the pinned native open first stops and removes all expired
-readers, including independently owned readers, before validating the input.
+open is also held: after preliminary path checks, the pinned native session
+manager stops and removes all expired readers, including independently owned
+readers, before its own file and extension validation.
 Nexus does not implicitly close readers. After an ownership-aware native fix,
 open the returned real trace, retain the analysis session ID,
 query bounded pages, and close the session afterward.

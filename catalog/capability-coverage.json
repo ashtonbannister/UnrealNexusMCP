@@ -13460,13 +13460,33 @@
     {
       "provider": "enginewire",
       "sourceEntry": "system_control.launch_build",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
         {
           "tool": "system_control",
           "action": "launch_build"
+        }
+      ],
+      "blockReason": "The Windows launch path deletes a shared build-run log before spawning; at deadline it requests process termination and marks completion without a confirmed exit receipt.",
+      "reopeningCondition": "Review an explicitly owned build and output log, collision-safe launch lifecycle, process epoch and confirmed termination/cleanup before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemLaunchBuild.cpp",
+          "lines": [
+            54,
+            72
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemLaunchBuild.cpp",
+          "lines": [
+            119,
+            174
+          ]
         }
       ]
     },
@@ -13538,7 +13558,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "system_control.package_project",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -13546,18 +13566,58 @@
           "tool": "system_control",
           "action": "package_project"
         }
+      ],
+      "blockReason": "The native route can create a game target, accepts a resolved caller-selected archive directory, and starts asynchronous UAT packaging without a source-established caller ownership or physical destination boundary.",
+      "reopeningCondition": "Review a scoped host-authorized project, exact output destination, immutable job identity, completion and cleanup contract before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemPackage.cpp",
+          "lines": [
+            68,
+            183
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemPackageJobs.h",
+          "lines": [
+            6,
+            43
+          ]
+        }
       ]
     },
     {
       "provider": "enginewire",
       "sourceEntry": "system_control.package_status",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
         {
           "tool": "system_control",
           "action": "package_status"
+        }
+      ],
+      "blockReason": "The native process-global editor-session registry lists all job IDs when the selector is omitted and returns command line and archive path for a selected job without caller ownership or pagination; jobs do not survive restart.",
+      "reopeningCondition": "Review bounded, owner- and epoch-bound job observation with explicit unavailable/stale states and appropriate path disclosure before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemPackage.cpp",
+          "lines": [
+            187,
+            237
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemPackageJobs.h",
+          "lines": [
+            34,
+            43
+          ]
         }
       ]
     },
@@ -16380,18 +16440,42 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "delete_asset",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-06",
       "canonicalRouteReferences": [],
-      "category": "asset"
+      "category": "asset",
+      "blockReason": "The handler treats a missing asset-registry entry as already deleted before checking for orphaned disk files; deletion and forced reference/editor effects require explicit authority.",
+      "reopeningCondition": "Review exact target and references, confirm registry and disk state, explicitly authorize force/editor effects and verify partial failure and no-rollback behavior.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            2942,
+            3020
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
       "sourceEntry": "delete_asset_batch",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-06",
       "canonicalRouteReferences": [],
-      "category": "asset"
+      "category": "asset",
+      "blockReason": "The handler skips invalid or empty inputs and applies remaining deletes independently while returning an aggregate receipt containing refused and failed rows.",
+      "reopeningCondition": "Define per-input validation and exact targets, authorize destructive scope and force behavior, preserve each partial result and verify disk and recovery evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            3023,
+            3118
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -19297,10 +19381,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "move_asset",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-05",
       "canonicalRouteReferences": [],
-      "category": "asset"
+      "category": "asset",
+      "blockReason": "The move handler delegates to rename, including its two selector forms, destination-exists no-op and possible world-external reconciliation without prior-object identity proof.",
+      "reopeningCondition": "Review move as a distinct identity-bound contract, bind source and destination before mutation and verify world-external effects, persistence and partial failures.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            2542,
+            2708
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -21193,10 +21289,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "rename_asset",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
+      "disposition": "blocked",
+      "reviewOwnerTask": "CAP-05",
       "canonicalRouteReferences": [],
-      "category": "asset"
+      "category": "asset",
+      "blockReason": "The handler accepts two selector forms and treats a missing source with an existing destination as a prior-success no-op without proving object identity; world rename can reconcile external packages.",
+      "reopeningCondition": "Bind source and destination identities at mutation time, distinguish selector forms and world-external effects, and verify persistence and partial failure without inferring success from destination existence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            2542,
+            2704
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -25283,9 +25391,29 @@
     {
       "provider": "hayba",
       "sourceEntry": "actor_call_function",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler resolves an editor actor by first matching object name and invokes a caller-selected zero-parameter BlueprintCallable function through ProcessEvent. Nexus forbids arbitrary backend calls.",
+      "reopeningCondition": "Do not admit this unrestricted record. A distinct fixed operation requires its own source-backed decision, target identity, authorization and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            26,
+            34
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            645,
+            671
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
@@ -25293,9 +25421,29 @@
     {
       "provider": "hayba",
       "sourceEntry": "actor_duplicate",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler chooses the editor world, duplicates the first actor matching an object name and offsets the duplicate without an exact actor path or world epoch guard.",
+      "reopeningCondition": "Require reviewed exact actor and world epoch targeting, duplicate receipt and mutation semantics, and native evidence before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            26,
+            34
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            549,
+            578
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
@@ -25303,9 +25451,29 @@
     {
       "provider": "hayba",
       "sourceEntry": "actor_tag",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler chooses the editor world and mutates tags on the first actor whose object name matches, without establishing an exact full actor path or world epoch.",
+      "reopeningCondition": "Require a reviewed native target identity and world epoch guard, bounded tag mutation semantics and native evidence before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            26,
+            34
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            466,
+            499
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
@@ -25323,9 +25491,29 @@
     {
       "provider": "hayba",
       "sourceEntry": "actor_snap_to_socket",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler resolves both editor actors by first matching object name, chooses the first skeletal or static mesh component, and attaches the actor without an exact actor, component and world identity guard.",
+      "reopeningCondition": "Require reviewed exact actor, component and world epoch targeting, attachment outcome semantics and native evidence before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            26,
+            34
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            505,
+            543
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
@@ -25333,9 +25521,21 @@
     {
       "provider": "hayba",
       "sourceEntry": "actor_batch_spawn",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler calls spawn for up to 100 caller-supplied entries and returns an outer success containing separate spawned and error arrays, so a batch can partially mutate even when some entries fail.",
+      "reopeningCondition": "Review a separate bounded spawn operation with explicit world and target authorization, per-entry correlation, partial-result semantics and native evidence before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPActorHandler.cpp",
+          "lines": [
+            677,
+            719
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
@@ -26606,18 +26806,50 @@
       "sourceEntry": "console-run-command",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpEditorTools.cpp",
       "line": 30,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The whole tool dispatches a caller-selected command through GEngine::Exec in the editor world; arbitrary console execution is outside the Nexus public contract.",
+      "reopeningCondition": "Reopen only as a separately reviewed fixed operation with bounded arguments, exact target/authority and native receipt evidence; do not expose caller-selected console commands.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpEditorTools.cpp",
+          "lines": [
+            30,
+            49
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "python-execute",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpPythonTools.cpp",
       "line": 79,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The whole tool accepts caller-selected Python code and helper include paths and executes through PythonScriptPlugin; arbitrary Python is outside the Nexus public contract.",
+      "reopeningCondition": "Reopen only as separately reviewed fixed wrappers with bounded inputs, explicit authority and native results; do not expose caller-selected code or includes, and verify component licensing.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpPythonTools.cpp",
+          "lines": [
+            79,
+            106
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpPythonTools.cpp",
+          "lines": [
+            119,
+            140
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26660,9 +26892,29 @@
       "sourceEntry": "source-read",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
       "line": 286,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The source-file read uses a path-level Source directory containment check followed by a separate pathname read; the pinned source explicitly notes a junction/symlink replacement race. A returned-byte cap does not establish race-safe target ownership.",
+      "reopeningCondition": "Review a distinct bounded source-read contract with host-authorized exact target, handle-based containment and file identity checked at access, explicit truncation and fixture/native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            61,
+            103
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            286,
+            327
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26678,18 +26930,58 @@
       "sourceEntry": "source-update",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
       "line": 499,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The source update accepts caller content and a full-file or line-range write after a separate path-level containment check; a junction/symlink replacement race can change the target before the pathname operation.",
+      "reopeningCondition": "Review a separately authorized exact-file update contract with race-safe target/handle containment, version preconditions, scoped writes, partial-failure and recovery evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            61,
+            103
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            499,
+            530
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "source-delete",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
       "line": 621,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The source delete performs an irreversible pathname deletion after a separate path-level containment check; a junction/symlink replacement race can change the target before deletion.",
+      "reopeningCondition": "Review a separately authorized exact-file deletion contract with race-safe target/handle containment, identity and ownership preconditions, explicit no-rollback behavior and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            61,
+            103
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpSourceTools.cpp",
+          "lines": [
+            621,
+            650
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26863,9 +27155,38 @@
       "category": "trace",
       "operation": "open",
       "sourcePath": "Source/Claireon/Private/Tools/ClaireonTool_TraceOpen.cpp",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization."
+      "limitations": "Static name declaration only; does not establish registration, schema, licensing of dependencies, runtime availability, equivalence, or authorization.",
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler checks a nonempty existing path, but the global session manager then cleans all expired reader sessions without owner distinction before its own path/extension validation.",
+      "reopeningCondition": "Reopen a distinct trace reader open only after native ownership-aware cleanup and bounded target/session evidence, with live qualification.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceOpen.cpp",
+          "lines": [
+            41,
+            57
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/ClaireonTraceSession.cpp",
+          "lines": [
+            64,
+            80
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/ClaireonTraceSession.cpp",
+          "lines": [
+            188,
+            211
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -37566,10 +37887,30 @@
       "className": "ClaireonTool_TestRun",
       "categoryLine": 158,
       "operationLine": 159,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted."
+      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted.",
+      "blockReason": "The internal test start can replace process-global run state without an atomic caller-ownership check, affecting an independent active run.",
+      "reopeningCondition": "Reopen a distinct fixed start only after native atomic run ownership and no-replacement evidence, correlated receipts and live qualification.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+          "lines": [
+            210,
+            338
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/ClaireonBridge.cpp",
+          "lines": [
+            553,
+            565
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",
@@ -37596,10 +37937,22 @@
       "className": "ClaireonTool_PIETraceStart",
       "categoryLine": 13,
       "operationLine": 14,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted."
+      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted.",
+      "blockReason": "The editor-wide capture constructs a path-based output and starts a global trace without an established exclusive physical-target or ownership boundary.",
+      "reopeningCondition": "Reopen a distinct capture start only after reviewed native output ownership, target identity and lifecycle evidence, with live qualification.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStart.cpp",
+          "lines": [
+            55,
+            134
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",
@@ -37611,10 +37964,22 @@
       "className": "ClaireonTool_PIETraceStop",
       "categoryLine": 8,
       "operationLine": 9,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted."
+      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted.",
+      "blockReason": "The parameterless native operation stops the current global trace before returning its destination, without an owner or capture-identity precondition.",
+      "reopeningCondition": "Reopen a distinct stop only after native atomic capture-identity and ownership checks with confirmed cleanup and live evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStop.cpp",
+          "lines": [
+            27,
+            50
+          ]
+        }
+      ]
     }
   ]
 }
