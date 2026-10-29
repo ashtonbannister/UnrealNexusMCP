@@ -1511,7 +1511,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "asset.duplicate",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -1523,6 +1523,42 @@
           "tool": "manage_asset",
           "action": "duplicate_asset",
           "folded": {}
+        }
+      ],
+      "blockReason": "Destination interpretation depends on existing folders and newName. The folder branch creates directories, recursively enumerates cached registry data that can be incomplete, and returns success if at least one duplicate succeeds while only aggregate duplicate and save counts are reported. A single copy also reports saved separately from outer success.",
+      "reopeningCondition": "Require explicit exact source and destination identity, bounded complete registry enumeration, authorized directory creation and save scope, per-item correlated outcomes including failures, checked prior state and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/McpAssetHandlers.cpp",
+          "lines": [
+            98,
+            99
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetImportDuplicate.cpp",
+          "lines": [
+            188,
+            227
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetImportDuplicate.cpp",
+          "lines": [
+            241,
+            311
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetImportDuplicate.cpp",
+          "lines": [
+            314,
+            345
+          ]
         }
       ]
     },
@@ -1746,7 +1782,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "asset.move",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -1758,6 +1794,42 @@
           "tool": "manage_asset",
           "action": "move_asset",
           "folded": {}
+        }
+      ],
+      "blockReason": "The handler resolves source names and accepts either an asset or a folder. Folder moves fix redirectors before enumeration, may fix them again and delete an emptied source folder, and can switch away from an open clean level whose reload can fail. Asset moves can update project settings that reference the asset. The destination existence check is separate from the rename and the folder receipt reports aggregate counts.",
+      "reopeningCondition": "Require distinct explicit asset and folder contracts, exact source and destination identity, registry readiness and checked prior state; authorize and correlate settings, redirector, folder deletion and editor-level effects, preserve partial outcomes, and obtain native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/McpAssetHandlers.cpp",
+          "lines": [
+            98,
+            102
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp",
+          "lines": [
+            18,
+            125
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Rename/McpAssetFolderMove.cpp",
+          "lines": [
+            20,
+            98
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Rename/McpAssetFolderMove.cpp",
+          "lines": [
+            102,
+            139
+          ]
         }
       ]
     },
@@ -1935,7 +2007,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "asset.rename",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -1947,6 +2019,42 @@
           "tool": "manage_asset",
           "action": "rename_asset",
           "folded": {}
+        }
+      ],
+      "blockReason": "The handler resolves source names and accepts either an asset or a folder. Folder moves fix redirectors before enumeration, may fix them again and delete an emptied source folder, and can switch away from an open clean level whose reload can fail. Asset moves can update project settings that reference the asset. The destination existence check is separate from the rename and the folder receipt reports aggregate counts.",
+      "reopeningCondition": "Require distinct explicit asset and folder contracts, exact source and destination identity, registry readiness and checked prior state; authorize and correlate settings, redirector, folder deletion and editor-level effects, preserve partial outcomes, and obtain native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/McpAssetHandlers.cpp",
+          "lines": [
+            98,
+            102
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp",
+          "lines": [
+            18,
+            125
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Rename/McpAssetFolderMove.cpp",
+          "lines": [
+            20,
+            98
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Rename/McpAssetFolderMove.cpp",
+          "lines": [
+            102,
+            139
+          ]
         }
       ]
     },
@@ -16464,18 +16572,42 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "delete_actor",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The handler resolves a label or path in the implicit editor world; a non-ambiguous unresolved selector is reported as already deleted. It ignores the boolean returned by World->DestroyActor before reporting deleted, and its proposed inverse explicitly loses actor state and identity.",
+      "reopeningCondition": "Require explicit world and epoch binding, exact resolved actor identity, authorized deletion, checked native destruction outcome and truthful refusal or partial-result semantics; do not treat inverse creation as rollback. Qualify the native behavior.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1268,
+            1350
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
       "sourceEntry": "delete_actors",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The handler enumerates editor-world actors against filters with dryRun defaulting to false, then attempts each destruction. Its receipt reports aggregate counts and labels/classes, not exact successful actor paths, and does not bind a prior preview to the actual set. It explicitly reports rollback impossible.",
+      "reopeningCondition": "Require an explicitly authorized, bounded exact target set and world/epoch precondition, verified per-actor outcomes and partial-result semantics; review preview separately and qualify native behavior.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            4701,
+            4814
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -21889,10 +22021,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "set_actor_tags",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "level"
+      "category": "level",
+      "blockReason": "The handler resolves an actor in the implicit editor world and replaces its entire tag array. Empty or non-string entries are silently omitted and repeated FName values deduplicated. It returns prior and resulting tags and the actor path but has no expected prior-state or world/epoch precondition; a later inverse is another write that can race independent changes.",
+      "reopeningCondition": "Require explicit target/world identity, strict input and canonical tag semantics, a checked prior-state precondition, correlated outcome and native evidence; do not treat an inverse as unconditional rollback.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp",
+          "lines": [
+            98,
+            167
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
