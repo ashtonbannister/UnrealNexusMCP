@@ -26835,9 +26835,21 @@
       "sourceEntry": "blueprint-create",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 192,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler accepts an object-path form but truncates at the first dot and creates the package-derived object name without checking that the supplied object suffix matches it. It creates and dirties an in-session asset without saving, and checks for an existing object separately before creation.",
+      "reopeningCondition": "Require exact normalized package and object identity, an explicit unsaved-versus-persisted result, a reviewed creation-collision boundary and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            192,
+            264
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26865,9 +26877,29 @@
       "sourceEntry": "blueprint-add-component",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 388,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler resolves the Blueprint and optional parent by supplied names, mutates the SCS and reports component and short class names. Its receipt does not identify the resolved Blueprint path or resulting attachment, and no checked Blueprint state precondition is supplied.",
+      "reopeningCondition": "Require exact Blueprint, class and parent identities, a checked asset-state precondition, correlated resulting component and attachment receipt, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            55,
+            65
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            388,
+            459
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26895,18 +26927,58 @@
       "sourceEntry": "blueprint-add-variable",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 491,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler adds a member variable with caller-supplied type and default text, but returns only the variable name and converted type; it does not return the resolved Blueprint identity, default value or checked prior asset state.",
+      "reopeningCondition": "Require exact Blueprint identity, typed and bounded default semantics, a checked asset-state precondition, correlated postcondition and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            55,
+            65
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            491,
+            535
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "blueprint-modify-variable",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 538,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler can retype and rename the named member in sequence, then returns a textual name summary without the resolved Blueprint identity, resulting type or a checked asset-state precondition.",
+      "reopeningCondition": "Require exact Blueprint and variable identity, checked prior state, explicit multi-step effect and partial-outcome semantics, correlated resulting type and name, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            55,
+            65
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            538,
+            595
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
@@ -26934,18 +27006,58 @@
       "sourceEntry": "blueprint-add-function",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 656,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler creates and registers a user function graph stub but returns only a name summary, not an exact resolved Blueprint or graph identity, checked prior asset state, or saved artifact.",
+      "reopeningCondition": "Require exact Blueprint and created graph identity, a checked state precondition, explicit stub and persistence semantics, correlated receipt and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            55,
+            65
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            656,
+            693
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
       "sourceEntry": "blueprint-add-event",
       "sourcePath": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
       "line": 696,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "canonicalRouteReferences": [],
+      "blockReason": "The handler either creates an event node or enables an existing disabled ghost, marks the Blueprint structurally modified, and returns only a name summary without an exact node identity, prior-state precondition or persistence receipt.",
+      "reopeningCondition": "Require exact Blueprint, event and node identity, a checked prior-state precondition, explicit create-versus-enable and persistence semantics, correlated receipt and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            55,
+            65
+          ]
+        },
+        {
+          "commit": "1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07",
+          "path": "UnrealMCP/Source/UnrealMcpEditor/Private/Tools/UnrealMcpBlueprintTools.cpp",
+          "lines": [
+            696,
+            748
+          ]
+        }
+      ]
     },
     {
       "provider": "ivan-unreal-mcp",
