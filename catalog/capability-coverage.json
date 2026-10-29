@@ -2847,7 +2847,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "blueprint.delete_node",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -2861,6 +2861,34 @@
           "folded": {
             "deleteScope": "pin_links"
           }
+        }
+      ],
+      "blockReason": "The node selector filters malformed or empty array items, resolves the remaining nodes and checks they can be deleted before removing them and calling save. The folded pin-links selector instead breaks all links of one resolved pin and reports disconnected endpoints. The shared response may compile after mutation and return success with a compile warning; no checked prior graph revision binds either mutation to an observed state.",
+      "reopeningCondition": "Require explicit node-versus-pin scope, exact asset, graph, node and pin identities, a checked prior revision, authorization for connected effects, truthful compile and persistence outcomes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/McpBPGraphDeleteNodes.cpp",
+          "lines": [
+            22,
+            118
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/McpBPGraphPinMutations.cpp",
+          "lines": [
+            203,
+            265
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/Context/McpBPGraphContextShared.cpp",
+          "lines": [
+            69,
+            112
+          ]
         }
       ]
     },
@@ -3333,7 +3361,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "blueprint.remove_function",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -3347,6 +3375,34 @@
           "folded": {
             "kind": "event"
           }
+        }
+      ],
+      "blockReason": "The function selector finds a case-insensitive matching user function, checks local callers, removes its graph, recompiles and reports the save result. The folded event selector instead removes matching event nodes, compiles and calls save without reporting that save result. Neither establishes a checked prior asset revision.",
+      "reopeningCondition": "Require distinct explicit function and event scopes, exact resolved graph or node identities and prior revision, authorized destructive effects, correlated compile and save outcomes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Blueprint/Functions/McpBPRemoveFunction.cpp",
+          "lines": [
+            19,
+            110
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Blueprint/Functions/McpBPRemoveFunction.cpp",
+          "lines": [
+            112,
+            138
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Blueprint/Events/McpBPRemoveEvent.cpp",
+          "lines": [
+            88,
+            195
+          ]
         }
       ]
     },
@@ -3366,13 +3422,25 @@
     {
       "provider": "enginewire",
       "sourceEntry": "blueprint.remove_variable",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
         {
           "tool": "manage_blueprint",
           "action": "remove_variable"
+        }
+      ],
+      "blockReason": "The handler validates the requested member names before removal, then removes each variable and its get/set nodes, marks the Blueprint structurally modified, compiles and calls the throttled save. The success receipt lists names and removed nodes but does not report the logged save result or require a checked prior asset revision.",
+      "reopeningCondition": "Require exact asset and member identity, a checked prior revision, explicit authorization for affected nodes and links, truthful compilation and persistence results, partial-outcome semantics and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Blueprint/Variables/McpBPVariableRemovalRename.cpp",
+          "lines": [
+            17,
+            95
+          ]
         }
       ]
     },
@@ -3495,13 +3563,41 @@
     {
       "provider": "enginewire",
       "sourceEntry": "blueprint.write_graph_from_code",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
         {
           "tool": "manage_blueprint",
           "action": "write_graph_from_code"
+        }
+      ],
+      "blockReason": "The handler routes forms into named functions or an event graph, snapshots state, builds replacement nodes and temporarily removes old nodes for compilation. It removes old nodes and saves on success; an already-broken Blueprint retains the write even when compilation fails. Its rollback helper discards UndoBatch results, so the refusal message alone does not independently verify restoration.",
+      "reopeningCondition": "Require exact asset and graph identities, a checked prior revision, explicit multi-graph replacement and save scope, independently verified recovery and partial outcomes, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/Code/McpGraphCodeWriteHandler.cpp",
+          "lines": [
+            66,
+            107
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/Code/McpGraphCodeWriteHandler.cpp",
+          "lines": [
+            114,
+            160
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/Code/McpGraphCodeWriteHandler.cpp",
+          "lines": [
+            173,
+            228
+          ]
         }
       ]
     },
@@ -17296,10 +17392,38 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "epic_call_tool",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "epic"
+      "category": "epic",
+      "blockReason": "The raw handler dispatches a caller-selected toolset, tool and JSON input through the engine ToolsetRegistry, making it an arbitrary backend escape rather than a fixed reviewed operation. It calls ExecuteTool before checking completion and reports an incomplete asynchronous result as an error, which does not establish that the dispatched work stopped or had no effect.",
+      "reopeningCondition": "Keep the generic dispatcher unavailable to canonical callers. Review any fixed tool separately against exact engine and plugin implementation, target and effect contracts, bounded completion and uncertainty semantics, source/build identity and native evidence; do not infer tool behavior from the recorded schema.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Epic/EpicHandlers.cpp",
+          "lines": [
+            14,
+            28
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Epic/EpicHandlers.cpp",
+          "lines": [
+            348,
+            411
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Epic/EpicHandlers.cpp",
+          "lines": [
+            499,
+            507
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
