@@ -68,13 +68,13 @@ test('blocked source records require owner, reason, reopening condition and pinn
   const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
   for(const name of ['bridge_status','perf_stat','pie_pause','pie_resume','screenshot_viewport','log_tail','log_since','helper_list','actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_list','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
   const blockedUe=new Set(blocked.filter(e=>e.provider==='ue-mcp').map(e=>e.sourceEntry));
-  for(const name of ['delete_asset','delete_asset_batch','rename_asset','move_asset']) assert.ok(blockedUe.has(name));
+  for(const name of ['delete_asset','delete_asset_batch','rename_asset','move_asset','list_assets','read_pcg_graph']) assert.ok(blockedUe.has(name));
   const blockedHayba=new Set(blocked.filter(e=>e.provider==='hayba').map(e=>e.sourceEntry));
   for(const name of ['actor_call_function','actor_batch_spawn','actor_tag','actor_snap_to_socket','actor_duplicate','object_set_property','editor_run_console_command','editor_save_all_and_quit','asset_search','build_project','build_cook','build_generate_project_files']) assert.ok(blockedHayba.has(name));
   const blockedIvan=new Set(blocked.filter(e=>e.provider==='ivan-unreal-mcp').map(e=>e.sourceEntry));
   for(const name of ['console-run-command','python-execute','source-read','source-update','source-delete','source-create-class','source-list','source-compile','blueprint-get','screenshot-viewport','screenshot-game-view','screenshot-camera','screenshot-isolated','blueprint-set-default','blueprint-spawn','blueprint-remove-component','blueprint-compile','blueprint-create','blueprint-add-component','blueprint-add-variable','blueprint-modify-variable','blueprint-add-function','blueprint-add-event']) assert.ok(blockedIvan.has(name));
   const blockedEngineWire=new Set(blocked.filter(e=>e.provider==='enginewire').map(e=>e.sourceEntry));
-  for(const name of ['system_control.package_project','system_control.package_status','system_control.launch_build']) assert.ok(blockedEngineWire.has(name));
+  for(const name of ['system_control.package_project','system_control.package_status','system_control.launch_build','asset.delete','asset.bulk_delete']) assert.ok(blockedEngineWire.has(name));
   const blockedClaireon=new Set(blocked.filter(e=>e.provider==='claireon').map(e=>e.sourceEntry));
   for(const name of ['trace_get_threads','trace_get_session_info','trace_get_scope_details','python_execute','test_poll','tool_search']) assert.ok(blockedClaireon.has(name));
   assert.equal(validateCapabilityCoverage().status,'partial-unreviewed');

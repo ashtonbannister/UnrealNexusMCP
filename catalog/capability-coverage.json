@@ -1409,13 +1409,41 @@
     {
       "provider": "enginewire",
       "sourceEntry": "asset.bulk_delete",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
         {
           "tool": "manage_asset",
           "action": "bulk_delete"
+        }
+      ],
+      "blockReason": "The handler accepts explicit asset paths or recursively enumerates currently indexed assets below a folder, filters outside-referenced assets and deletes the remainder. Invalid or unloadable paths are omitted from the valid set, and default redirector fixup examines folders derived from valid attempted paths and can affect referencers outside those folders; attempts do not establish that deletion succeeded. The receipt reports actual remaining and referenced paths but does not establish a complete registry snapshot or checked target state.",
+      "reopeningCondition": "Require an explicitly authorized target set, complete bounded discovery and checked state, reviewed redirector side-effect scope, per-input partial-result correlation and native evidence before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetBulkSelection.h",
+          "lines": [
+            11,
+            50
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetBulkDelete.cpp",
+          "lines": [
+            32,
+            58
+          ]
+        },
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetBulkDelete.cpp",
+          "lines": [
+            61,
+            152
+          ]
         }
       ]
     },
@@ -1448,7 +1476,7 @@
     {
       "provider": "enginewire",
       "sourceEntry": "asset.delete",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
       "legacySelectors": [
@@ -1465,6 +1493,18 @@
           "tool": "manage_asset",
           "action": "delete_assets",
           "folded": {}
+        }
+      ],
+      "blockReason": "The native handler accepts individual asset paths or whole folders; a folder triggers recursive enumeration and deletion, while force can bypass outside-referencer protection for individual assets. It executes each path in sequence and returns separate deleted, referenced, failed and not-found results; it has no checked snapshot binding the requested set and asset state to those effects.",
+      "reopeningCondition": "Require host-authorized explicit deletion scope, exact target and checked state, folder and force semantics, bounded work, partial-result reconciliation and native evidence before admission.",
+      "sourceEvidence": [
+        {
+          "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp",
+          "lines": [
+            138,
+            270
+          ]
         }
       ]
     },
@@ -18397,10 +18437,30 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "list_assets",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "asset"
+      "category": "asset",
+      "blockReason": "The handler materializes and sorts all matching registry assets, builds filtered rows including optional metadata, and only then applies the page limit. Its returned path is a package name while its cursor anchor is an object path; the pagination helper can miss changes when the anchor remains at the same index and falls back to an offset with a warning when it disappears. The raw response does not establish bounded native work or an exact consistent cross-page snapshot.",
+      "reopeningCondition": "Require exact object identity, registry-readiness and snapshot or explicit change semantics, bounded native enumeration and serialized bytes, and source plus native evidence. A separately reviewed weaker continuation read remains a distinct candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            1323,
+            1450
+          ]
+        },
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h",
+          "lines": [
+            306,
+            415
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -20457,10 +20517,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "read_pcg_graph",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "pcg"
+      "category": "pcg",
+      "blockReason": "The handler loads a requested graph and traverses ordinary nodes and outgoing edges from the graph input and ordinary nodes without pagination or work bounds; null nodes and incomplete edges are skipped. Ordinary node records expose names and titles, while only implicit graph input/output nodes expose standalone pin lists; connected ordinary pin labels appear in edge rows. Unconnected ordinary pins, stable node identities and a graph revision are absent. The returned path repeats the caller-supplied path rather than independently reporting the resolved graph identity.",
+      "reopeningCondition": "Require exact resolved graph, node and pin identities, complete pin discovery, bounded native traversal and output, state or revision correlation, and source plus native evidence. A narrower, explicitly partial graph observation remains a distinct candidate.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            940,
+            1038
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
