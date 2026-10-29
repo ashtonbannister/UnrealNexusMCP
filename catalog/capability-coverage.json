@@ -25011,9 +25011,21 @@
     {
       "provider": "hayba",
       "sourceEntry": "object_set_property",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "This generic handler loads a caller-selected object and applies caller-selected reflected properties, marking its package dirty even when individual property writes fail. Its outer successful result may contain failed properties.",
+      "reopeningCondition": "Keep unrestricted reflection unavailable. A distinct fixed property operation needs an exact object identity, scoped typed properties, partial-result handling and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPAssetHandler.cpp",
+          "lines": [
+            305,
+            342
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
@@ -25783,9 +25795,21 @@
     {
       "provider": "hayba",
       "sourceEntry": "asset_search",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler materializes recursive registry results before the 200-row output cap, optionally generates thumbnails, and returns no snapshot or indexing-readiness identity. Its output cap does not bound native enumeration or prove a complete consistent discovery snapshot.",
+      "reopeningCondition": "A distinct discovery contract needs bounded native work, exact result identity and explicit completeness or snapshot semantics, backed by source and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPAssetHandler.cpp",
+          "lines": [
+            344,
+            404
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": true,
       "aliases": []
@@ -25843,9 +25867,21 @@
     {
       "provider": "hayba",
       "sourceEntry": "editor_save_all_and_quit",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler saves all dirty map and content packages and by default schedules editor exit; a deferred callback can cancel the exit after the initial response. This is broader than an exact authorized save target and does not establish completed shutdown.",
+      "reopeningCondition": "A separate operation needs explicit scope and shutdown authority, precise completion correlation, and source and native evidence; never infer authority from this record.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPEditorHandler.cpp",
+          "lines": [
+            348,
+            418
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": true,
       "aliases": []
@@ -25853,9 +25889,21 @@
     {
       "provider": "hayba",
       "sourceEntry": "editor_run_console_command",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler forwards caller-supplied console text to GEngine Exec in the editor world and reports executed without checking its return value. Nexus forbids arbitrary console calls.",
+      "reopeningCondition": "Do not admit this unrestricted record. A distinct fixed operation requires its own source-backed decision, target identity, authority and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPEditorHandler.cpp",
+          "lines": [
+            610,
+            626
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []

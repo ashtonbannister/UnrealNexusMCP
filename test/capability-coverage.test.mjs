@@ -70,7 +70,7 @@ test('blocked source records require owner, reason, reopening condition and pinn
   const blockedUe=new Set(blocked.filter(e=>e.provider==='ue-mcp').map(e=>e.sourceEntry));
   for(const name of ['delete_asset','delete_asset_batch','rename_asset','move_asset']) assert.ok(blockedUe.has(name));
   const blockedHayba=new Set(blocked.filter(e=>e.provider==='hayba').map(e=>e.sourceEntry));
-  for(const name of ['actor_call_function','actor_batch_spawn','actor_tag','actor_snap_to_socket','actor_duplicate']) assert.ok(blockedHayba.has(name));
+  for(const name of ['actor_call_function','actor_batch_spawn','actor_tag','actor_snap_to_socket','actor_duplicate','object_set_property','editor_run_console_command','editor_save_all_and_quit','asset_search']) assert.ok(blockedHayba.has(name));
   const blockedIvan=new Set(blocked.filter(e=>e.provider==='ivan-unreal-mcp').map(e=>e.sourceEntry));
   for(const name of ['console-run-command','python-execute','source-read','source-update','source-delete']) assert.ok(blockedIvan.has(name));
   const blockedEngineWire=new Set(blocked.filter(e=>e.provider==='enginewire').map(e=>e.sourceEntry));
