@@ -25073,9 +25073,29 @@
     {
       "provider": "hayba",
       "sourceEntry": "build_project",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler interpolates caller-supplied platform and configuration into an UnrealBuildTool command line and launches a background subprocess. Its initial running receipt does not establish completed output, bounded execution or process cleanup.",
+      "reopeningCondition": "A separately reviewed build contract needs fixed validated arguments, authorized target and output scope, bounded owned job lifecycle, correlated completion and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPBuildHandler.cpp",
+          "lines": [
+            367,
+            408
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPBuildHandler.cpp",
+          "lines": [
+            227,
+            275
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
@@ -25083,9 +25103,29 @@
     {
       "provider": "hayba",
       "sourceEntry": "build_cook",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler interpolates a caller-supplied platform into an editor cook command line and launches a background subprocess. Its initial running receipt does not establish completed output, bounded execution or process cleanup.",
+      "reopeningCondition": "A separately reviewed cook contract needs fixed validated arguments, authorized project and output scope, bounded owned job lifecycle, correlated completion and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPBuildHandler.cpp",
+          "lines": [
+            411,
+            450
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPBuildHandler.cpp",
+          "lines": [
+            227,
+            275
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []
@@ -25093,9 +25133,29 @@
     {
       "provider": "hayba",
       "sourceEntry": "build_generate_project_files",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
+      "blockReason": "The handler starts project-file generation through a background subprocess and returns a running receipt before completion; the shared job launcher supplies no timeout to process capture. The record does not establish authorized output scope or owned cleanup.",
+      "reopeningCondition": "A separately reviewed generation contract needs explicit project and output authority, bounded owned job lifecycle, correlated completion and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPBuildHandler.cpp",
+          "lines": [
+            453,
+            475
+          ]
+        },
+        {
+          "commit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPBuildHandler.cpp",
+          "lines": [
+            227,
+            275
+          ]
+        }
+      ],
       "agentCallable": true,
       "hasTsWrapper": false,
       "aliases": []

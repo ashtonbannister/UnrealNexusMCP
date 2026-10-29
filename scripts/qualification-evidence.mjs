@@ -1,4 +1,5 @@
 // Offline structural review only. This does not inspect an editor or establish truth.
+import {constants} from 'node:fs';
 import {open} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
@@ -113,7 +114,7 @@ export function validateQualificationManifest(manifest, {catalog = loadCatalog()
 async function main() {
   if(process.argv.length!==3) {console.error('Usage: node scripts/qualification-evidence.mjs <manifest.json>');process.exitCode=2;return;}
   try {
-    const file=await open(process.argv[2],'r');
+    const file=await open(process.argv[2],constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
     let manifest;
     try {
       if (!(await file.stat()).isFile()) throw new Error('Manifest must be a file');

@@ -1,5 +1,6 @@
 // Offline review aid. The caller supplies a bounded, public change-path manifest;
 // it is not a diff verifier, semantic comparison, source attestation or promotion.
+import {constants} from 'node:fs';
 import {open} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -58,7 +59,7 @@ export function candidateReport(manifest, {lock=upstreams, ledger=decisions, cat
 async function main() {
   if (process.argv.length !== 3) throw new Error('Expected one manifest path');
   const path=resolve(process.argv[2]);
-  const file=await open(path,'r');
+  const file=await open(path,constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
   let input;
   try {
     if (!(await file.stat()).isFile()) throw new Error('Manifest must be a file');
