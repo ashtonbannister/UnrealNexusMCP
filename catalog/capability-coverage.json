@@ -23769,9 +23769,29 @@
     {
       "provider": "unrealagentplayer",
       "sourceEntry": "bridge_status",
-      "disposition": "unreviewed",
-      "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": []
+      "disposition": "blocked",
+      "reviewOwnerTask": "OPS-01",
+      "canonicalRouteReferences": [],
+      "blockReason": "The stock raw status response always returns ok:true, can mark Remote Control reachable even when the version value is absent, and infers remote-exec reachability from endpoint discovery without establishing editor process or project identity. Missing phase values are not an authoritative PIE state. Nexus uses a bounded internal preflight slice only with additional binding and marker checks; it is not a public canonical status operation.",
+      "reopeningCondition": "Review a fixed diagnostic contract that distinguishes unavailable and malformed channels, validates authoritative status and binds the exact editor, project, endpoints and epoch; require source, loaded-artifact and live evidence. Do not treat channel reachability or a marker alone as identity or qualification.",
+      "sourceEvidence": [
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/tools/status.py",
+          "lines": [
+            9,
+            40
+          ]
+        },
+        {
+          "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            83,
+            89
+          ]
+        }
+      ]
     },
     {
       "provider": "unrealagentplayer",
@@ -27123,9 +27143,38 @@
       "surface": "mcp-visible-name-filter",
       "sourceEntry": "python_execute",
       "sourcePath": "Source/Claireon/Private/ClaireonServer.cpp",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
-      "limitations": "A visible-name filter is not proof of live registration or permission. Nexus does not expose arbitrary Python or raw provider calls."
+      "limitations": "A visible-name filter is not proof of live registration or permission. Nexus does not expose arbitrary Python or raw provider calls.",
+      "canonicalRouteReferences": [],
+      "blockReason": "The visible tool accepts caller-supplied Python code with access to Unreal and Claireon bridge functions; generic execution is outside the fixed canonical-operation boundary and deferred actions can autosave packages.",
+      "reopeningCondition": "Review a separate fixed, narrowly scoped canonical operation and its source, effects, ownership and live evidence; do not expose generic Python execution.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/ClaireonServer.cpp",
+          "lines": [
+            72,
+            76
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp",
+          "lines": [
+            447,
+            457
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp",
+          "lines": [
+            741,
+            752
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",
@@ -38030,10 +38079,46 @@
       "className": "ClaireonTool_TestPoll",
       "categoryLine": 357,
       "operationLine": 358,
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted."
+      "limitations": "Static internal declaration only; no direct MCP registration, route selection, runtime availability, ownership or qualification is asserted.",
+      "blockReason": "The poll accepts an omitted run ID, advances global test setup and may start tests, stops tests on timeout or cancellation, then reports once and releases the run state; a caller-owned run is not established.",
+      "reopeningCondition": "Review a separate owner- and editor-epoch-bound test lifecycle with explicit polling, cancellation, timeout and result retention semantics, plus live evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+          "lines": [
+            391,
+            415
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+          "lines": [
+            427,
+            452
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+          "lines": [
+            492,
+            535
+          ]
+        },
+        {
+          "commit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+          "lines": [
+            705,
+            714
+          ]
+        }
+      ]
     },
     {
       "provider": "claireon",
