@@ -26,12 +26,12 @@ Current implementation evidence:
 | Selection | 23 decision groups: 13 selected, 4 conditional, 4 preserved, 2 held; 25 competing-default exclusions |
 | Execution | Lazy selected-provider startup; exact schemas and fixed routes; shared process-local queue; no raw provider/Python/console/reset escape |
 | Guidance | Draft served through instructions, resources and workflow prompt; no personal skill installed |
-| Validation | 154 passing tests, zero failures/cancellations/skips at baseline, reproduced during [PR #1](https://github.com/ashtonbannister/UnrealNexusMCP/pull/1) review on Linux Node 24.22.1 |
+| Validation | 163 passing tests with the pinned UnrealAgentPlayer source, zero failures/cancellations/skips, on Linux Node 24.22.2 (162 passing with 1 skip without that source) |
 | Native state | No native Unreal build or real-editor qualification established |
-| Open reliability findings | [FIX-01](#fix-01) and [FIX-02](#fix-02), both P2 findings in PR #1 |
+| Reliability findings | [FIX-01](#fix-01) and [FIX-02](#fix-02), both P2 findings in PR #1, are resolved with regressions; none are open |
 | Review evidence qualification | Full-PR whitespace checks flag unified-diff context in the content-addressed patch files; do not generalize the historical local diff-check claim |
 
-The 154-test result belongs to the implementation baseline. It is not a fresh test run of this documentation commit, a permanent expected test count, or native qualification. See [VALIDATION.md](docs/VALIDATION.md) for its environment and limits. Historical audit reports describe their source-review snapshot; current adapter availability comes from the executable catalog and current implementation documents.
+The 163-test result is a fixture-level run of the implementation branch on the date above. It is not a permanent expected test count or native qualification. See [VALIDATION.md](docs/VALIDATION.md) for its environment and limits. Historical audit reports describe their source-review snapshot; current adapter availability comes from the executable catalog and current implementation documents.
 
 ### Source pins retained by this plan
 
@@ -104,11 +104,13 @@ Logical owners below are roles, not current assignments. When starting, replace 
 
 ## 5. Immediate reliability work
 
-Both findings are reproduced in [PR #1](https://github.com/ashtonbannister/UnrealNexusMCP/pull/1). Use source and regressions to resolve them; do not weaken a guarantee merely to make the test pass.
+Both findings were reproduced in [PR #1](https://github.com/ashtonbannister/UnrealNexusMCP/pull/1) and are now resolved as recorded below. They were fixed from source and regressions, without weakening a guarantee.
 
 ### FIX-01
 
-**Fence uninterpretable UE completion receipts** — Priority: **Now**; state: **ready**; owner role: **Gateway maintainer**; assignee: **unassigned**.
+**Fence uninterpretable UE completion receipts** — Priority: **Now**; state: **done**; owner role: **Gateway maintainer**; assignee: **unassigned**.
+
+Resolved on `codex/implementation-curation` (2026-11-10). `normalizeResult` fences missing, unparseable, duplicate or empty UE completion JSON; regressions in `test/gateway.test.mjs` ("UE malformed completion fences…") and `test/mcp-server.test.mjs` (HTTP cross-client fence).
 
 **Dependencies:** None.
 
@@ -120,7 +122,9 @@ Resolve review finding R1 (review severity P2) in src/results.mjs and the gatewa
 
 ### FIX-02
 
-**Report unresolved cleanup after rejected startup** — Priority: **Now**; state: **ready**; owner role: **Runtime lifecycle maintainer**; assignee: **unassigned**.
+**Report unresolved cleanup after rejected startup** — Priority: **Now**; state: **done**; owner role: **Runtime lifecycle maintainer**; assignee: **unassigned**.
+
+Resolved on `codex/implementation-curation` (2026-11-10). Refusals keep their original code and carry `cleanup: unconfirmed` when close fails. `BackendPool.close()` now bounds every startup and close wait (`closeTimeoutMs`, default 5000 ms) and memoizes the result; regressions in `test/backends.test.mjs` and `test/config-runtime.test.mjs`.
 
 **Dependencies:** None.
 
@@ -244,3 +248,4 @@ No task is assigned or implemented merely by appearing here. Status changes requ
 ## 10. Change record
 
 - **2026-10-27:** Established the master roadmap, 20-family capability backlog and per-operation native qualification plan against c543959. Documented the two open review findings and the previously missing discovery/session/image prerequisites. Kept source pins, executable routes and draft guidance classification unchanged.
+- **2026-11-10:** Resolved FIX-01 and FIX-02 with regressions. Bounded `BackendPool` shutdown waits (`closeTimeoutMs`). Full check with the pinned UnrealAgentPlayer source: 163 passed, 0 failed, 0 skipped. Source pins and executable routes unchanged.

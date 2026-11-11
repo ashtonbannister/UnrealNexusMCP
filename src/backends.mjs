@@ -11,11 +11,16 @@ export class BackendPool {
   #closed = false;
   #closePromise;
   #cleanupFailures = new Set();
+  #closeTimeoutMs;
 
-  constructor(factories, sources, target) {
+  constructor(factories, sources, target, closeTimeoutMs = 5000) {
+    if (!Number.isInteger(closeTimeoutMs) || closeTimeoutMs < 1 || closeTimeoutMs > 60000) {
+      throw new NexusError('INVALID_CONFIGURATION', 'Backend close timeout must be 1–60000 ms.');
+    }
     this.#factories = new Map(factories);
     this.#sources = sources;
     this.#target = target;
+    this.#closeTimeoutMs = closeTimeoutMs;
   }
 
   async get(provider) {
@@ -56,17 +61,43 @@ export class BackendPool {
     return [...this.#states].map(([provider,state]) => ({provider,state,...(this.#cleanupFailures.has(provider) ? {cleanup:'unconfirmed'} : {})}));
   }
 
+  // Every wait during shutdown is bounded. A startup or close that does not settle
+  // in time is reported as unconfirmed cleanup rather than hanging the host.
+  // The result is memoized, so repeated shutdown reports the same outcome.
   close() {
     if (!this.#closePromise) {
       this.#closed = true;
       this.#closePromise = (async () => {
-        const results = await Promise.allSettled([...this.#promises.values()]);
-        const closed = await Promise.allSettled(results.filter((r) => r.status === 'fulfilled').map((r) => r.value.close?.()));
-        if (this.#cleanupFailures.size || closed.some(r => r.status === 'rejected')) {
+        let incomplete = false;
+        await Promise.all([...this.#promises].map(async ([provider, promise]) => {
+          const started = await settle(promise, this.#closeTimeoutMs);
+          if (started.state === 'timeout') {
+            this.#cleanupFailures.add(provider);
+            incomplete = true;
+            return;
+          }
+          if (started.state === 'rejected') return; // Already reported through status/state.
+          const closed = await settle(Promise.resolve().then(() => started.value.close?.()), this.#closeTimeoutMs);
+          if (closed.state !== 'fulfilled') {
+            this.#cleanupFailures.add(provider);
+            incomplete = true;
+          }
+        }));
+        if (incomplete || this.#cleanupFailures.size) {
           throw new NexusError('BACKEND_CLEANUP_INCOMPLETE', 'One or more backend connections did not confirm shutdown. Inspect the host before restarting.');
         }
       })();
     }
     return this.#closePromise;
   }
+}
+
+function settle(promise, ms) {
+  let timer;
+  const deadline = new Promise((resolve) => { timer = setTimeout(() => resolve({ state: 'timeout' }), ms); });
+  const outcome = promise.then(
+    (value) => ({ state: 'fulfilled', value }),
+    (reason) => ({ state: 'rejected', reason }),
+  );
+  return Promise.race([outcome, deadline]).finally(() => clearTimeout(timer));
 }

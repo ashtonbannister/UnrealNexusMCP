@@ -19,8 +19,8 @@ The [master roadmap](MASTER_ROADMAP.md) defines priorities, dependencies, owner
 roles and completion evidence. Its [capability backlog](docs/CAPABILITY_BACKLOG.md)
 covers authoring beyond the current 29 operations, and the
 [native qualification plan](docs/QUALIFICATION_PLAN.md) maps every current
-operation to required live evidence. The two open gateway reliability findings
-from PR #1 are tracked as FIX-01 and FIX-02; they are not resolved by the roadmap.
+operation to required live evidence. The two gateway reliability findings from
+PR #1 (FIX-01 and FIX-02) are resolved with regression tests.
 
 ## Start the gateway
 
