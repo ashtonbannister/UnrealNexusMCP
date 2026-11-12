@@ -137,6 +137,8 @@ pause through this restricted lifecycle route.
 
 ## 4. Exact actor inspection — UE-MCP
 
+`actor.place.editor` creates one actor in the current editor world without saving. Supply a unique label, class and finite location; optional mesh assignment is not verified by the native placement receipt. The receipt does not report the resolved world, actor path or transform: inspect the created actor and world separately. An uncertain dispatch requires reconciliation, not retry.
+
 **Trigger:** read a level actor before editing or verify a gameplay actor.
 
 **Use:** `actor.inspect.editor` or `actor.inspect.pie`.

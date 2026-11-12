@@ -265,6 +265,17 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
       if (!exactPinRefusal && !knownSaveFailure) outcomeUnknown = true;
     }
   }
+  if (operation.id === 'actor.place.editor') {
+    policy = 'require-correlated-actor-placement-receipt';
+    // Native placement returns the requested class and label but not the resolved
+    // world, actor path, transform or mesh; do not claim those were verified.
+    const knownRefusal = ueRefusalPrefix && !ueEnvelopes.length && !result.structuredContent;
+    if (!knownRefusal && (payload?.success !== true || result.isError === true || payload.created !== true
+      || payload.existed !== false || payload.actorLabel !== expectedArgs.label
+      || payload.actorClass !== expectedArgs.actorClass)) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
   if (['actor.inspect.editor','actor.inspect.pie'].includes(operation.id) && payload?.success === true) {
     policy = 'require-matching-actor-path';
     // UE trims paths and has a case-insensitive fallback. Conservatively fence

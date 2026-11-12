@@ -3,7 +3,7 @@
 **One canonical tool set. One reviewed winning implementation per function.
 Only the backends needed by enabled capabilities. Optional specialists.**
 
-Nexus is an MCP gateway with a curated catalogue of **29 canonical operations**. The three PIE lifecycle/status operations, `screenshot.pie`, the three input-hold operations, current-level save, the material parameter pack,
+Nexus is an MCP gateway with a curated catalogue of **30 canonical operations**. The three PIE lifecycle/status operations, `screenshot.pie`, the three input-hold operations, current-level save, the material parameter pack,
 automation start, both Blueprint compile forms, trace capture and trace-reader
 open are held before dispatch
 until their native target or ownership boundaries are established.
@@ -13,14 +13,14 @@ connections on first execution, and applies the
 instructions, resources and a workflow prompt.
 
 The protocol integration is tested with real MCP clients and fixture backends.
-**Native Unreal compilation and live editor qualification remain pending.** This
+**Full native Unreal qualification remains pending.** A project editor build and limited live viewport and actor-placement observations have been recorded. This
 repository does not merge or install the upstream Unreal plugins.
 
 ## Roadmap and current work
 
 The [master roadmap](MASTER_ROADMAP.md) defines priorities, dependencies, owner
 roles and completion evidence. Its [capability backlog](docs/CAPABILITY_BACKLOG.md)
-covers authoring beyond the current 29 operations, and the
+covers authoring beyond the current 30 operations, and the
 [native qualification plan](docs/QUALIFICATION_PLAN.md) maps every current
 operation to required live evidence. FIX-01 and FIX-02 have source and fixture evidence; live Unreal qualification remains pending.
 
@@ -90,7 +90,7 @@ console command, configuration mutation or uncertainty-reset tool.
 
 | Pack | Canonical operations | Selected backend(s) | Additional condition |
 |---|---:|---|---|
-| `authoring-core` | 7 | UE-MCP | Live micro-mode handler/schema parity |
+| `authoring-core` | 8 | UE-MCP | Live micro-mode handler/schema parity |
 | `editor-observation` | 1 | EngineWire | Direct editor-owned HTTP endpoint |
 | `playtesting` | 8 | UnrealAgentPlayer + UE-MCP | Reviewed UAP no-replay/target-binding patch |
 | `blueprint-compile` | 2 | Claireon | Reviewed no-autosave patch; direct editor endpoint |
@@ -150,7 +150,7 @@ catalogue, while the MCP manifest shows only host-enabled operations.
 
 ## Selection policy and evidence
 
-The catalogue contains 23 decision groups, 13 selected groups, six immutable
+The catalogue contains 24 decision groups, 14 selected groups, six immutable
 upstream source pins and 25 competing-default exclusions. A winner is selected
 for its exact target, validation, completion, persistence and failure semantics.
 New upstream releases are review candidates; routing does not follow floating
@@ -158,7 +158,7 @@ New upstream releases are review candidates; routing does not follow floating
 
 The original repository contained only `LICENSE`. Duplicate defaults are
 excluded from Nexus's public allowlist; native function bodies were not deleted
-from external repositories. Ivan's backend is not required by these 29 routes,
+from external repositories. Ivan's backend is not required by these 30 routes,
 but its distinct capabilities are not declared universally redundant.
 
 - [Runtime setup and supported transports](docs/RUNTIME_SETUP.md)

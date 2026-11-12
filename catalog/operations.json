@@ -188,6 +188,95 @@
       }
     },
     {
+      "id": "actor.place.editor",
+      "description": "Create one actor in the current editor world without saving the level.",
+      "provider": "ue-mcp",
+      "decision": "actor-placement",
+      "effect": "write",
+      "contract": "actor.place.editor",
+      "guidanceSections": [
+        4
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Unreal actor class name or class path."
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_ -]*$",
+            "description": "Requested unique editor label; existing labels refuse."
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "y": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "z": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          },
+          "staticMesh": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Optional static mesh object path; native receipt does not verify assignment."
+          }
+        },
+        "required": [
+          "actorClass",
+          "label",
+          "location"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "place_actor",
+        "fixed": {
+          "world": "editor",
+          "onConflict": "error"
+        }
+      },
+      "postconditions": [
+        "Require created=true, existed=false and matching label and class in the native receipt. The native receipt does not establish resolved world, actor path, position or optional mesh assignment; inspect separately. The current editor world may change between checks. The level is not saved. Do not retry an uncertain dispatch."
+      ],
+      "example": {
+        "actorClass": "/Script/Engine.StaticMeshActor",
+        "label": "NexusExample",
+        "location": {
+          "x": 0,
+          "y": 0,
+          "z": 100
+        },
+        "staticMesh": "/Engine/BasicShapes/Cube.Cube"
+      }
+    },
+    {
       "id": "actor.inspect.editor",
       "description": "Read one exact actor in the editor world with explicit ambiguity-resistant identity.",
       "provider": "ue-mcp",

@@ -586,6 +586,22 @@ test('unrecognized or contradictory save failures fence subsequent editor work',
 });
 
 
+test('actor placement fixes editor scope and fences an uncorrelated receipt',async()=>{
+  const args={actorClass:'/Script/Engine.StaticMeshActor',label:'NexusTest',location:{x:1,y:2,z:3},staticMesh:'/Engine/BasicShapes/Cube.Cube'};
+  const good={success:true,created:true,existed:false,actorLabel:args.label,actorClass:args.actorClass};
+  const refusal=fixture({config:{enabledCapabilities:['actor.place.editor']},reply:()=>({isError:true,content:[{type:'text',text:'Error [INVALID_PARAMS]: refused before dispatch'}]})});
+  const refused=await refusal.gateway.execute('actor.place.editor',args);assert.equal(refused.isError,true);assert.equal(refused._meta['unreal-nexus/result-policy'].outcomeUnknown,false);await refusal.gateway.close();
+  const success=fixture({config:{enabledCapabilities:['actor.place.editor']},reply:()=>json(good)});
+  const out=await success.gateway.execute('actor.place.editor',args);assert.notEqual(out.isError,true);
+  assert.equal(success.calls.length,1);assert.deepEqual(success.calls[0].call.arguments.args,{...args,world:'editor',onConflict:'error'});await success.gateway.close();
+  for(const body of [{...good,actorLabel:'Wrong'},{...good,created:false},{success:false,error:'failed'}]){
+    const f=fixture({config:{enabledCapabilities:['actor.place.editor']},reply:()=>json(body)});
+    const result=await f.gateway.execute('actor.place.editor',args);assert.equal(result.isError,true);
+    assert.equal(result._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+    await assert.rejects(f.gateway.execute('actor.place.editor',args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(f.calls.length,1);await f.gateway.close();
+  }
+});
+
 test('actor inspection fences a missing or different native actor identity',async()=>{
   for(const id of ['actor.inspect.editor','actor.inspect.pie']) {
     const args={actorPath:'/Game/Expected',...(id==='actor.inspect.pie'?{pieInstance:1}:{})};

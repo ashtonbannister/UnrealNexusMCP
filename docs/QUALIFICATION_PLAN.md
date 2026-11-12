@@ -50,9 +50,9 @@ Inventory enabled native and Nexus listeners: owning process, bind address, endp
 
 **Dependencies:** [ENV-01](#env-01).
 
-Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [29-operation harness design](qualification/HARNESS_DESIGN.md) and an offline structural evidence validator with fixture tests are available; executable native fixture verification still needs ENV-01.
+Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [30-operation harness design](qualification/HARNESS_DESIGN.md) and an offline structural evidence validator with fixture tests are available; executable native fixture verification still needs ENV-01.
 
-**Done when:** Each of the 29 rows below has setup, exact inputs, expected effects/state, applicable failure cases, cleanup and artifact requirements. Known setup dependencies are explicit. Tests can establish native fixture state outside Nexus, but that setup is not counted as a gateway capability. Secret-free evidence templates and a repeatable project revision exist.
+**Done when:** Each of the 30 rows below has setup, exact inputs, expected effects/state, applicable failure cases, cleanup and artifact requirements. Known setup dependencies are explicit. Tests can establish native fixture state outside Nexus, but that setup is not counted as a gateway capability. Secret-free evidence templates and a repeatable project revision exist.
 
 
 ## Evidence contract
@@ -170,6 +170,7 @@ This is the exact current allowlist, not proposed capability names. Every row al
 | `pie.status` | unrealagentplayer | Actual current phase and reflected/native identity | Missing/malformed RC fields, wrong process | not-run |
 | `screenshot.viewport.current` | enginewire | Real MCP image, dimensions, view and shaderWait | Missing image, view mismatch, unsupported headless intent | not-run |
 | `screenshot.pie` | ue-mcp | Exact client, dimensions and fresh successful PNG write | Existing/stale file, wrong instance, failed write; path is not viewed pixels | not-run |
+| `actor.place.editor` | ue-mcp | Created actor in current editor world; requested label/class and independent position/mesh inspection | Duplicate label, invalid class or mesh, world change, partial/unknown dispatch | not-run |
 | `actor.inspect.editor` | ue-mcp | Exact editor actor identity/properties; disclosed truncation | Repeated labels, wrong path and stale epoch | not-run |
 | `actor.inspect.pie` | ue-mcp | Requested PIE world/instance actor identity | Editor duplicate, unavailable/ambiguous instance | not-run |
 | `level.save.current` | ue-mcp | Intended current map/external packages and per-package disk receipts | PIE refusal, wrong current map preflight, partial/read-only save | not-run |
