@@ -14,7 +14,7 @@ const fixturePath=fileURLToPath(new URL('./fixtures/nexus-server-stdio.mjs',impo
 const productionPath=fileURLToPath(new URL('../src/main.mjs',import.meta.url));
 const productionConfig=fileURLToPath(new URL('../examples/config.example.json',import.meta.url));
 const token='fixture-bearer-token-not-a-real-secret-123456789';
-const controls=['nexus.status','nexus.search','nexus.describe','nexus.plan'];
+const controls=['nexus.status','nexus.search','nexus.describe_source','nexus.describe','nexus.plan'];
 const options={timeout:2500,maxTotalTimeout:2500,resetTimeoutOnProgress:false};
 const call=(client,name,args={},extra={})=>client.request({method:'tools/call',
   params:{name,arguments:args}},{...options,...extra});
@@ -76,6 +76,10 @@ test('command search separates canonical operations from static source records w
   const semantic=(await call(client,'nexus.search',{query:'foot sliding',limit:50})).structuredContent.results;
   const upstream=semantic.find(row=>row.kind==='source-record' && row.provider==='enginewire' && row.sourceEntry==='animation_physics.analyze_animation');
   assert.ok(upstream?.summary);assert.equal(upstream.enabled,undefined);
+  const sourceDetails=(await call(client,'nexus.describe_source',{provider:'ue-mcp',surface:'legacy-default',sourceEntry:'place_actor'})).structuredContent;
+  assert.equal(sourceDetails.record.sourceEntry,'place_actor');assert.equal(sourceDetails.source.commit,'62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d');
+  assert.ok(sourceDetails.currentBindings.some(item=>item.id==='actor.place.editor' && item.enabled===false));
+  toolError(await call(client,'nexus.describe_source',{provider:'ue-mcp',surface:'legacy-default',sourceEntry:'not_a_real_source'}),'SOURCE_RECORD_NOT_FOUND');
   assert.equal((await call(client,'nexus.status')).structuredContent.backends.length,0);
   toolError(await call(client,'nexus.search',{query:'actor',limit:51}),'INVALID_ARGUMENTS');
 });

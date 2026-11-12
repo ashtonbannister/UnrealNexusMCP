@@ -74,6 +74,7 @@ does not publish a public service.
 | Enabled canonical tools | The exact reviewed operations in `catalog/operations.json` |
 | `nexus.status` | Enablement, loaded backends, identity evidence and queue state |
 | `nexus.search` | Bounded search of canonical operations and static upstream inventory; source records are not callable |
+| `nexus.describe_source` | Inspect one pinned source record and its exact current Nexus route bindings |
 | `nexus.describe` | Selected route, source pin, schema, effects and postconditions |
 | `nexus.plan` | Validate and preview a call, with `dispatched: false` |
 | `unreal-nexus://guidance/master` | The complete master guidance draft |

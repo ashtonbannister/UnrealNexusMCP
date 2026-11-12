@@ -1,6 +1,6 @@
 import { Server, ProtocolError, ProtocolErrorCode, ResourceNotFoundError } from '@modelcontextprotocol/server';
 import { MASTER_URI, ENABLED_GUIDANCE_URI, CATALOG_URI, STATUS_URI } from './guidance.mjs';
-import {searchCommands} from './command-search.mjs';
+import {searchCommands,describeSource} from './command-search.mjs';
 
 const jsonContent = value => ({content:[{type:'text',text:JSON.stringify(value)}],structuredContent:value});
 const objectSchema = properties => ({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
@@ -9,6 +9,7 @@ const invalidParams = message => new ProtocolError(ProtocolErrorCode.InvalidPara
 const controlTools = [
   {name:'nexus.status',description:'Read enablement, loaded backends and execution state without starting a backend.',inputSchema:objectSchema({})},
   {name:'nexus.search',description:'Search canonical commands and static upstream inventory without starting a backend.',inputSchema:{type:'object',properties:{query:{type:'string',maxLength:256},limit:{type:'integer',minimum:1,maximum:50},offset:{type:'integer',minimum:0,maximum:100000}},required:['query'],additionalProperties:false}},
+  {name:'nexus.describe_source',description:'Describe one static upstream source record and any exact current route bindings without starting a backend.',inputSchema:objectSchema({provider:idSchema,surface:idSchema,sourceEntry:idSchema})},
   {name:'nexus.describe',description:'Read the selected route, scope, source pin and postconditions of one enabled operation.',inputSchema:objectSchema({id:idSchema})},
   {name:'nexus.plan',description:'Validate and preview one enabled canonical call. Never dispatches or starts a backend.',
     inputSchema:{type:'object',properties:{id:idSchema,arguments:{type:'object'}},required:['id','arguments'],additionalProperties:false}},
@@ -45,6 +46,7 @@ export function createNexusServer(runtime) {
     try {
       if (name === 'nexus.status') { controlArgs(args,[]); return jsonContent(runtime.status()); }
       if (name === 'nexus.search') return jsonContent(await searchCommands(gateway,args));
+      if (name === 'nexus.describe_source') { controlArgs(args,['provider','surface','sourceEntry']); return jsonContent(await describeSource(gateway,args)); }
       if (name === 'nexus.describe') { controlArgs(args,['id']); return jsonContent(gateway.describe(args.id)); }
       if (name === 'nexus.plan') { controlArgs(args,['id','arguments']); return jsonContent(gateway.plan(args.id,args.arguments)); }
       return await gateway.execute(name,args,{signal:context.mcpReq.signal});

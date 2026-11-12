@@ -48,7 +48,7 @@ through prompt `nexus_workflow`. Source evidence and scope boundaries are in
 
 **Trigger:** choose a tool for a new task or an unfamiliar project.
 
-**Use:** MCP `tools/list`, `nexus.status`, `nexus.search`, `nexus.describe`, `nexus.plan`, the four
+**Use:** MCP `tools/list`, `nexus.status`, `nexus.search`, `nexus.describe_source`, `nexus.describe`, `nexus.plan`, the four
 read-only resources and `nexus_workflow`. The library also exports `Gateway`;
 offline `npm run catalog -- list`, `describe` and `plan` inspect the complete
 catalogue without contacting a backend.
