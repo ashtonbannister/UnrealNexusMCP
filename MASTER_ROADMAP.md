@@ -16,6 +16,8 @@ A winner is selected per semantic contract, not per whole MCP repository. Exact 
 
 The owner clarified on 2026-11-11 that the product target is comprehensive function coverage through one master MCP, selecting the strongest implementation across the upstream MCPs for each function and retaining distinct meaningful variants. The current catalogue is an incomplete implementation, not a scope ceiling. Continue expanding actor creation, discovery and the other source surfaces until their functions have been mapped and made usable with accurate target, effect and outcome semantics. A source review, hold, or inventory entry alone does not fulfill a function.
 
+The owner also clarified that agents may use individual upstream MCPs directly, including functions not yet routed through Nexus. Nexus remains the unified coordinator when used; it is not a mandatory intermediary or a replacement for direct provider connections. Direct clients do not share Nexus queue or ownership state, and a direct-provider result is not evidence that Nexus routed or qualified the operation.
+
 ## 2. Authority and current baseline
 
 [AGENTS.md](AGENTS.md) requirements remain in force. This roadmap governs future work and status; [operations.json](catalog/operations.json) remains the executable allowlist, [decisions.json](catalog/decisions.json) records source-backed selections, [upstreams.lock.json](catalog/upstreams.lock.json) owns revisions, and the [master guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md) owns task workflows. A planned task or proposed name is not a callable capability.
