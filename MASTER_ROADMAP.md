@@ -8,7 +8,7 @@ This is the authoritative work plan for the unified gateway. It defines sequenci
 
 Give an agent one coherent Unreal tool set with the strongest reviewed implementation for each precise function. The agent works with canonical operations; Nexus handles the selected provider, validation, target identity, transport and native receipt. Enable only the capabilities the project needs, start only their required backend connections, and keep specialist domains optional.
 
-The intended result is an agent that can discover and inspect a project, create/import and edit content, build gameplay/graphs/UI, persist exact changes, run and observe gameplay, test and profile it, and explain the observed result. The current catalogue contains 36 operations; automation start, both Blueprint compile forms, trace capture and trace-reader open are held before dispatch until their native output or ownership boundaries are established. Broader authoring and specialized coverage remains explicit work below.
+The intended result is an agent that can discover and inspect a project, create/import and edit content, build gameplay/graphs/UI, persist exact changes, run and observe gameplay, test and profile it, and explain the observed result. The current catalogue contains 38 operations; automation start, the asset and session Blueprint compile routes, trace capture and trace-reader open are held before dispatch until their native output or ownership boundaries are established. Broader authoring and specialized coverage remains explicit work below.
 
 A winner is selected per semantic contract, not per whole MCP repository. Exact world/client, persistence, completion, algorithm and failure semantics define whether two implementations are duplicates. Retain distinct useful variants. A backend becomes unnecessary for a profile only when no enabled operation or required internal dependency uses it.
 
@@ -26,7 +26,7 @@ Current implementation evidence:
 
 | Item | Recorded state |
 | --- | --- |
-| Gateway | 36 canonical operations in 7 capability packs; all capabilities and writes off by default |
+| Gateway | 38 canonical operations in 7 capability packs; all capabilities and writes off by default |
 | Selection | 29 decision groups: 19 selected, 4 conditional, 4 preserved, 2 held; 25 competing-default exclusions |
 | Execution | Lazy selected-provider startup; exact schemas and fixed routes; shared process-local queue; no raw provider/Python/console/reset escape |
 | Guidance | Draft served through instructions, resources and workflow prompt; no personal skill installed |
@@ -66,8 +66,8 @@ Milestones express outcomes, not dates. Source review, fixture work and independ
 
 A core configuration does not wait for every optional specialist. Qualify these profiles independently:
 
-- **Core profile:** authoring-core and editor-observation (13 existing operations); LIVE-01, LIVE-02 and LIVE-08 for that combination.
-- **Playtesting profile:** core plus playtesting (22 catalogued operations, including owned PIE start/stop, direct PIE capture and owned input-hold operations); additionally LIVE-03 and another LIVE-08 run for that combination.
+- **Core profile:** authoring-core and editor-observation (15 existing operations); LIVE-01, LIVE-02 and LIVE-08 for that combination.
+- **Playtesting profile:** core plus playtesting (24 catalogued operations, including owned PIE start/stop, direct PIE capture and owned input-hold operations); additionally LIVE-03 and another LIVE-08 run for that combination.
 - **Specialist profiles:** add only the desired compile (3), material (3), automation (2) or Insights (6) operations, with that pack's native record and combined-profile check.
 - **Expanded authoring profiles:** add individual CAP contracts only after their source/fixture/native evidence; no whole-family blanket enablement.
 

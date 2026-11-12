@@ -397,6 +397,13 @@ acceptance protocol.
 
 **Trigger:** edit topology, variables, components or UI structure.
 
+Use `blueprint.create` to create one Blueprint at a package path, and
+`blueprint.variable.add` to add and save a variable on an exact object path.
+Both refuse an existing name. Creation compiles and may save according to the
+editor's Save on Compile setting; its receipt does not say whether it saved.
+Variable addition compiles and saves, and a failed save can leave an in-memory
+change. Read back the Blueprint or disk state when it matters.
+
 Do not select one universal connect-pins implementation: K2 session semantics,
 actual graph-schema persisted edits and automatic conversion nodes differ.
 Require stable node/pin identity and account for pin direction and ambiguity.

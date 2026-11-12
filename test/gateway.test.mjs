@@ -1078,3 +1078,30 @@ test('a backend that echoes a hold token is redacted and fenced',async()=>{
   assert.ok(!JSON.stringify(out).includes(token));assert.match(JSON.stringify(out),/redacted/);
   await g.close();
 });
+
+
+test('Blueprint create and saved variable routes enforce fixed conflict policy and receipts',async()=>{
+  const create={assetPath:'/Game/NexusDemo/BP_Example',parentClass:'/Script/Engine.Actor'};
+  const variable={assetPath:'/Game/NexusDemo/BP_Example.BP_Example',name:'Speed',varType:'float'};
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:['blueprint.create','blueprint.variable.add']},reply:(_p,call)=>{
+    const a=call.arguments.args;
+    if(call.arguments.method==='create') return json({success:true,path:a.assetPath,objectPath:a.assetPath+'.BP_Example',
+      parentClass:'/Script/Engine.Actor',created:true,existed:false});
+    return json({success:true,path:a.assetPath,variableName:a.name,variableType:a.varType,resolvedType:'double',
+      saved:true,created:true,existed:false});
+  }});
+  assert.notEqual((await g.execute('blueprint.create',create)).isError,true);
+  assert.notEqual((await g.execute('blueprint.variable.add',variable)).isError,true);
+  assert.ok(calls.every(c=>c.call.arguments.args.onConflict==='error'));await g.close();
+});
+test('Blueprint variable save failure preserves a known partial result',async()=>{
+  const args={assetPath:'/Game/NexusDemo/BP_Example.BP_Example',name:'Speed',varType:'float'};
+  const {gateway:g}=fixture({config:{enabledCapabilities:['blueprint.variable.add']},reply:()=>json({
+    success:false,path:args.assetPath,variableName:args.name,variableType:args.varType,resolvedType:'double',
+    saved:false,created:true,existed:false,saveError:'read-only',
+    error:`The change was applied in memory but '${args.assetPath}' was not written: read-only`,
+  })});
+  const out=await g.execute('blueprint.variable.add',args);
+  assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
+  assert.equal(g.status().queue.blocked,false);await g.close();
+});

@@ -1992,6 +1992,125 @@
       "example": {
         "asset_path": "/Game/Blueprints/BP_Vehicle"
       }
+    },
+    {
+      "id": "blueprint.create",
+      "description": "Create one Blueprint at an explicit package path; Unreal may save it according to editor settings.",
+      "provider": "ue-mcp",
+      "decision": "blueprint-basic-authoring",
+      "effect": "write",
+      "contract": "blueprint.create",
+      "guidanceSections": [
+        13
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "assetPath": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512,
+            "pattern": "^/[A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+$"
+          },
+          "parentClass": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[^\\u0000-\\u001F]+$"
+          }
+        },
+        "required": [
+          "assetPath",
+          "parentClass"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "blueprint",
+        "method": "create",
+        "fixed": {
+          "onConflict": "error"
+        }
+      },
+      "postconditions": [
+        "The native call creates and compiles the Blueprint. It does not report whether Save on Compile wrote a package; inspect disk state when it matters.",
+        "The parent class in the receipt is the resolved class. Compilation success is not established by the creation receipt."
+      ],
+      "example": {
+        "assetPath": "/Game/NexusDemo/BP_Example",
+        "parentClass": "/Script/Engine.Actor"
+      }
+    },
+    {
+      "id": "blueprint.variable.add",
+      "description": "Add and save one variable on an explicit Blueprint asset.",
+      "provider": "ue-mcp",
+      "decision": "blueprint-basic-authoring",
+      "effect": "write",
+      "contract": "blueprint.variable.add",
+      "guidanceSections": [
+        13
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "assetPath": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1024,
+            "pattern": "^/[A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+\\.[A-Za-z0-9_]+$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "varType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[^\\u0000-\\u001F]+$"
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "tooltip": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "instanceEditable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "assetPath",
+          "name",
+          "varType"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "blueprint",
+        "method": "add_variable",
+        "fixed": {
+          "onConflict": "error"
+        }
+      },
+      "postconditions": [
+        "The native call compiles and saves the Blueprint. A save failure can leave the variable applied in memory.",
+        "The reported path and requested type are request echoes; resolvedType is the native type representation. Read back the asset when exact state matters."
+      ],
+      "example": {
+        "assetPath": "/Game/NexusDemo/BP_Example.BP_Example",
+        "name": "Speed",
+        "varType": "float"
+      }
     }
   ]
 }

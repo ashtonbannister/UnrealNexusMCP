@@ -15151,9 +15151,11 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "add_variable",
-      "disposition": "unreviewed",
+      "disposition": "selected-route-slice-other-semantics-unreviewed",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": [],
+      "canonicalRouteReferences": [
+        "blueprint.variable.add"
+      ],
       "category": "blueprint"
     },
     {
@@ -16294,9 +16296,11 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "create_blueprint",
-      "disposition": "unreviewed",
+      "disposition": "selected-route-slice-other-semantics-unreviewed",
       "reviewOwnerTask": "CAP-20",
-      "canonicalRouteReferences": [],
+      "canonicalRouteReferences": [
+        "blueprint.create"
+      ],
       "category": "blueprint"
     },
     {

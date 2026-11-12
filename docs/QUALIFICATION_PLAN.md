@@ -186,6 +186,8 @@ This is the exact current allowlist, not proposed capability names. Every row al
 | `input.action.hold.start` | ue-mcp | Exact owned local input and gameplay effect | Disposable coordinator start and native coexistence observed; gameplay effect pending | partial |
 | `input.action.hold.update` | ue-mcp | Same owned hold and changed gameplay effect | Disposable coordinator update and foreign-token refusal observed; gameplay effect pending | partial |
 | `input.action.hold.stop` | ue-mcp | Explicit owned stop and no continuing owned injector | Disposable coordinator stop observed; one queued frame may remain | partial |
+| `blueprint.create` | ue-mcp | Exact new Blueprint and resolved parent | Native disposable fixture observed; coordinator route fixture-tested | partial |
+| `blueprint.variable.add` | ue-mcp | Exact variable and explicit save outcome | Native disposable fixture observed; coordinator route fixture-tested | partial |
 | `blueprint.compile.memory.loaded` | claireon | Exact loaded asset, bounded compiler receipt and unchanged disk | Disposable clean fixture passed; dirty state and session contention remain unqualified | partial |
 | `blueprint.compile.memory.asset` | claireon | Actual compiler status/diagnostics and unchanged disk | Broken/warning/truncated diagnostics; both autosave sites | not-run |
 | `blueprint.compile.memory.session` | claireon | Exact session compile and no unintended save | Foreign/stale session; explicit setup and close semantics | not-run |

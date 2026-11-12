@@ -18,7 +18,9 @@
         "pcg.generation.execute",
         "pcg.generation.wait",
         "pcg.graph.inspect",
-        "level.current.inspect"
+        "level.current.inspect",
+        "blueprint.create",
+        "blueprint.variable.add"
       ],
       "requiredCompatibility": {
         "ue-mcp": "ue-mcp-nexus-guarded-save-v2"

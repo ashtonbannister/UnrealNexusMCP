@@ -40,6 +40,8 @@ Each row specifies minimum distinct setup and positive/negative evidence in addi
 | `input.action.hold.start` | Disposable coordinator start and coexistence observed. | Gameplay effect and lease expiry remain to qualify. | P |
 | `input.action.hold.update` | Owned coordinator update and foreign-token refusal observed. | Gameplay response remains to qualify. | P |
 | `input.action.hold.stop` | Owned coordinator stop observed; one queued frame may remain. | Loss/timeout is not release proof. | P |
+| `blueprint.create` | Disposable native creation observed; coordinator route fixture-tested. | Save-on-compile state is not reported. | P |
+| `blueprint.variable.add` | Disposable native variable addition and save observed. | Readback and partial-save handling remain important. | P |
 | `blueprint.compile.memory.loaded` | Disposable loaded Blueprint compiled with unchanged disk hash. | Dirty asset, session contention, warning and failure diagnostics remain separately qualified. | P |
 | `blueprint.compile.memory.asset` | Valid/broken/warning assets and unrelated dirty package; capture diagnostics and disk hashes. | Truncation, both autosave sites, Save-on-Compile. | P |
 | `blueprint.compile.memory.session` | Explicit session and known asset; compile with no unintended save. | Foreign/stale session, close persistence semantics. | S, P |

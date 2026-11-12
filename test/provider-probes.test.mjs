@@ -21,6 +21,8 @@ const actor = [str('actorLabel'), str('actorPath')];
 const inputValues = [num('value_x'), num('value_y'), num('value_z')];
 const inputTargets = [int('client_id', 0), int('pie_instance', 0), int('client', 0)];
 const ueFacts = {
+  'blueprint.create': ['create_blueprint',[str('assetPath'),str('name'),str('packagePath'),str('parentClass'),str('onConflict')]],
+  'blueprint.add_variable': ['add_variable',[str('assetPath',true),str('name',true),str('varType'),str('onConflict'),str('category'),str('tooltip'),bool('instanceEditable')]],
   'editor.list_pie_instances': ['list_pie_instances', []],
   'editor.capture_screenshot': ['capture_screenshot', [str('filename', true), str('target'), num('pieInstance'), str('worldPath')]],
   'editor.nexus_capture_pie_png_v1': ['nexus_capture_pie_png_v1', [num('pieInstance',true), str('worldPath',true), str('nonce',true)]],

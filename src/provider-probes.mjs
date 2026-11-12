@@ -14,6 +14,7 @@ const fail = (message) => { throw new NexusError('IDENTITY_UNPROVEN', message); 
 const validPid = (pid) => Number.isSafeInteger(pid) && pid > 0 && pid <= 0x7fffffff;
 const IO_LIMIT = 1024 * 1024;
 const UE_BRIDGES = new Map([
+  ['blueprint.create', 'create_blueprint'], ['blueprint.add_variable', 'add_variable'],
   ['editor.capture_screenshot', 'capture_screenshot'], ['editor.nexus_capture_pie_png_v1', 'nexus_capture_pie_png_v1'], ['level.get_actor_details', 'get_actor_details'],
   ['level.place_actor', 'place_actor'], ['level.move_actor', 'move_actor'],
   ['pcg.read_graph', 'read_pcg_graph'], ['editor.list_pie_instances', 'list_pie_instances'],

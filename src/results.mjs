@@ -270,6 +270,32 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
       if (!expired) outcomeUnknown = true;
     }
   }
+  if (operation.id === 'blueprint.create' || operation.id === 'blueprint.variable.add') {
+    policy = operation.id === 'blueprint.create' ? 'require-blueprint-create-receipt' : 'require-blueprint-variable-save-receipt';
+    const unread = payload?.paramsNotRead;
+    const critical = operation.id === 'blueprint.create'
+      ? ['assetPath','parentClass','onConflict'] : ['assetPath','name','varType','onConflict','category','tooltip','instanceEditable'];
+    const unreadUnsafe = unread !== undefined && (!record(unread) || !Array.isArray(unread.params)
+      || unread.params.some(name => critical.includes(name)));
+    let valid = false, partial = false;
+    if (operation.id === 'blueprint.create') {
+      const name = expectedArgs.assetPath?.slice(expectedArgs.assetPath.lastIndexOf('/') + 1);
+      valid = payload?.success === true && payload.path === expectedArgs.assetPath
+        && payload.objectPath === expectedArgs.assetPath + '.' + name && nonempty(payload.parentClass)
+        && payload.created === true && payload.existed === false;
+    } else {
+      const identity = payload?.path === expectedArgs.assetPath && payload.variableName === expectedArgs.name
+        && payload.variableType === expectedArgs.varType && nonempty(payload.resolvedType)
+        && payload.created === true && payload.existed === false
+        && ['category','tooltip','instanceEditable'].every(key => !Object.hasOwn(expectedArgs,key) || payload[key] === expectedArgs[key]);
+      valid = identity && payload?.success === true && payload.saved === true;
+      partial = identity && payload?.success === false && payload.saved === false && nonempty(payload.saveError)
+        && payload.error === `The change was applied in memory but '${expectedArgs.assetPath}' was not written: ${payload.saveError}`;
+    }
+    if (result.isError === true || unreadUnsafe || (!valid && !partial)) {
+      failed = true; outcomeUnknown = true;
+    } else if (partial) failed = true;
+  }
   if (operation.id === 'screenshot.pie') {
     policy = 'require-correlated-direct-pie-image';
     if (!pieImageReceipt(result,payload,expectedArgs)) {

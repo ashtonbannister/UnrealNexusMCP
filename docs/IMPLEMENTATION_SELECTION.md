@@ -16,7 +16,7 @@ capabilities individually or in packs. A backend factory starts only when an
 enabled capability assigned to it is executed. Listing, describing and planning
 do not start anything. Unused specialists impose no startup dependency.
 
-The catalogue now has 36 executable routing contracts in 19 selected groups.
+The catalogue now has 38 executable routing contracts in 20 selected groups.
 Fourteen optional specialist routes extend the original 16 core routes, with
 explicit reviewed compatibility requirements. Other choices remain conditional,
 preserved variants or holds. The 25 excluded
@@ -32,6 +32,7 @@ family or a behavior that must not be imported as Nexus's default.
 | Current-editor actor discovery | UE-MCP | Selected; pages are not a frozen snapshot |
 | Current-editor actor transform | UE-MCP | Selected; read back after native callbacks |
 | Current-editor actor placement | UE-MCP | Selected; native receipt requires independent inspection |
+| Blueprint creation and saved variable addition | UE-MCP | Selected fixed conflict-refusing forms; inspect save state and read back |
 | Current level and exact package saves | UE-MCP | Selected; no broad-save selector |
 | PCG graph node, pin and edge inspection | UE-MCP | Selected in upgrade candidate; no revision or pagination |
 | Persisted PCG connection and run-aware generation | UE-MCP | Selected |
