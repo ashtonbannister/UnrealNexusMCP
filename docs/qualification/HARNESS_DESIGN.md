@@ -24,6 +24,7 @@ Each row specifies minimum distinct setup and positive/negative evidence in addi
 | `pie.status` | Known editor/PIE phases; compare RC/native identity. | Wrong editor, malformed RC, restart epoch. | R |
 | `screenshot.viewport.current` | Visible marker; inspect actual MCP pixels, dimensions, view and shader wait. | Missing image, view mismatch, headless intent. | R |
 | `screenshot.pie` | Known client and fresh output path; verify PNG, dimensions, exact client. | Wrong instance, stale output, failed write; path alone is not pixels. | F |
+| `actor.list.editor` | Discover known actor labels and paths in the editor world. | Pagination, streaming exclusion and changing-world limitations. | R |
 | `actor.place.editor` | User-authorized unique label and class; independently observe actual actor and mesh without implicit save. | Duplicate label, wrong world, failed class/mesh and uncertain dispatch. | S |
 | `actor.inspect.editor` | Duplicate labels with exact paths/properties in editor world; verify identity/truncation. | Ambiguous label, wrong path, stale epoch. | R |
 | `actor.inspect.pie` | Matching actor in explicit PIE instance; compare world and identity. | Missing/wrong instance, editor-world substitution. | R |

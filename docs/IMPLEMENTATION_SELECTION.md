@@ -16,7 +16,7 @@ capabilities individually or in packs. A backend factory starts only when an
 enabled capability assigned to it is executed. Listing, describing and planning
 do not start anything. Unused specialists impose no startup dependency.
 
-The catalogue now has 30 executable routing contracts in 14 selected groups.
+The catalogue now has 31 executable routing contracts in 15 selected groups.
 Thirteen optional specialist routes extend the original 16 core routes, with
 explicit reviewed compatibility requirements. Other choices remain conditional,
 preserved variants or holds. The 25 excluded
@@ -29,6 +29,7 @@ family or a behavior that must not be imported as Nexus's default.
 | Current viewport image (editor or PIE) | EngineWire | Selected |
 | Exact PIE client capture with UMG | UE-MCP | Selected; host file output |
 | Exact actor/world inspection | UE-MCP | Selected |
+| Current-editor actor discovery | UE-MCP | Selected; pages are not a frozen snapshot |
 | Current-editor actor placement | UE-MCP | Selected; native receipt requires independent inspection |
 | Current level and exact package saves | UE-MCP | Selected; no broad-save selector |
 | Persisted PCG connection and run-aware generation | UE-MCP | Selected |
@@ -80,7 +81,7 @@ gameplay observations/input. Specialist packs for compile, strict materials,
 automation and Insights are implemented and opt-in. Source patches and live
 markers are required before the affected routes can execute.
 
-Ivan's backend is not required by the 30 selected routes. This is not a finding
+Ivan's backend is not required by the 31 selected routes. This is not a finding
 that every Ivan capability is redundant: isolated/camera rendering and queries
 are distinct. Component licensing must be assessed before incorporating its
 PolyForm Shield RQL/Code-Exec components. No such source is copied here.

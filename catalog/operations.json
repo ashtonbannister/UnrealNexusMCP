@@ -277,6 +277,84 @@
       }
     },
     {
+      "id": "actor.list.editor",
+      "description": "List matching actors in the current editor world with paths and pagination.",
+      "provider": "ue-mcp",
+      "decision": "actor-discovery",
+      "effect": "read",
+      "contract": "actor.list.editor",
+      "guidanceSections": [
+        4
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "nameFilter": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Case-sensitive substring of actor name or label."
+          },
+          "classFilter": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Actor class name or case-sensitive substring."
+          },
+          "exactClass": {
+            "type": "boolean"
+          },
+          "folderPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Exact World Outliner folder."
+          },
+          "folderPathPrefix": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "World Outliner folder and descendants."
+          },
+          "editorHidden": {
+            "type": "boolean"
+          },
+          "includeStreaming": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "description": "Maximum returned rows; native enumeration is not bounded by this value."
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192,
+            "description": "Continuation returned by a prior matching request; not a frozen snapshot."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "get_outliner",
+        "fixed": {
+          "world": "editor"
+        }
+      },
+      "postconditions": [
+        "Preserve native actor paths, world name, pagination, streaming exclusions and warnings. A page does not bound native enumeration or represent an immutable world snapshot; revalidate targets before later work."
+      ],
+      "example": {
+        "nameFilter": "NexusTest_",
+        "limit": 10
+      }
+    },
+    {
       "id": "actor.inspect.editor",
       "description": "Read one exact actor in the editor world with explicit ambiguity-resistant identity.",
       "provider": "ue-mcp",

@@ -16,6 +16,7 @@ const IO_LIMIT = 1024 * 1024;
 const UE_BRIDGES = new Map([
   ['editor.capture_screenshot', 'capture_screenshot'], ['level.get_actor_details', 'get_actor_details'],
   ['level.place_actor', 'place_actor'],
+  ['level.get_outliner', 'get_world_outliner'],
   ['level.save', 'save_level'], ['asset.save', 'save_asset'], ['pcg.connect_nodes', 'connect_pcg_nodes'],
   ['pcg.execute', 'execute_pcg_graph'], ['pcg.get_generation_state', 'get_pcg_generation_state'],
   ['pie.inject_input', 'pie_inject_input'], ['pie.inject_input_start', 'pie_inject_input_start'],

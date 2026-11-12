@@ -586,6 +586,15 @@ test('unrecognized or contradictory save failures fence subsequent editor work',
 });
 
 
+test('actor discovery preserves native page and fixes editor world',async()=>{
+  const args={nameFilter:'NexusTest_',limit:10};
+  const page={success:true,worldName:'Untitled_1',actors:[{label:'NexusTest_Cone',path:'/Temp/Untitled_1.Actor'}],count:1,returnedActors:1,total:1,totalKnown:true,hasMore:false,streamingSkipped:128};
+  const f=fixture({config:{enabledCapabilities:['actor.list.editor']},reply:()=>json(page)});
+  const out=await f.gateway.execute('actor.list.editor',args);assert.notEqual(out.isError,true);
+  assert.deepEqual(out.content,json(page).content);assert.equal(f.calls.length,1);
+  assert.deepEqual(f.calls[0].call.arguments.args,{...args,world:'editor'});await f.gateway.close();
+});
+
 test('actor placement fixes editor scope and fences an uncorrelated receipt',async()=>{
   const args={actorClass:'/Script/Engine.StaticMeshActor',label:'NexusTest',location:{x:1,y:2,z:3},staticMesh:'/Engine/BasicShapes/Cube.Cube'};
   const good={success:true,created:true,existed:false,actorLabel:args.label,actorClass:args.actorClass};
