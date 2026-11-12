@@ -14,7 +14,7 @@ const fixturePath=fileURLToPath(new URL('./fixtures/nexus-server-stdio.mjs',impo
 const productionPath=fileURLToPath(new URL('../src/main.mjs',import.meta.url));
 const productionConfig=fileURLToPath(new URL('../examples/config.example.json',import.meta.url));
 const token='fixture-bearer-token-not-a-real-secret-123456789';
-const controls=['nexus.status','nexus.describe','nexus.plan'];
+const controls=['nexus.status','nexus.search','nexus.describe','nexus.plan'];
 const options={timeout:2500,maxTotalTimeout:2500,resetTimeoutOnProgress:false};
 const call=(client,name,args={},extra={})=>client.request({method:'tools/call',
   params:{name,arguments:args}},{...options,...extra});
@@ -65,6 +65,17 @@ async function raw(url,{method='POST',headers={},body=''}={}) {
     req.once('error',reject);req.end(body);
   });
 }
+
+test('command search separates canonical operations from static source records without starting a backend',async(t)=>{
+  const client=await stdioClient(t);
+  const found=(await call(client,'nexus.search',{query:'actor',limit:5})).structuredContent;
+  assert.ok(found.results.length<=5);assert.ok(found.total>=found.results.length);assert.equal(typeof found.note,'string');
+  const canonical=found.results.find(row=>row.kind==='canonical');assert.ok(canonical);assert.equal(typeof canonical.enabled,'boolean');assert.equal(canonical.availability,'not-checked');
+  const source=(await call(client,'nexus.search',{query:'actor',limit:50,offset:found.total-1})).structuredContent.results[0];
+  assert.equal(source.kind,'source-record');assert.ok(source.provider && source.sourceEntry && source.disposition);assert.equal(source.enabled,undefined);
+  assert.equal((await call(client,'nexus.status')).structuredContent.backends.length,0);
+  toolError(await call(client,'nexus.search',{query:'actor',limit:51}),'INVALID_ARGUMENTS');
+});
 
 test('production CLI loads the all-off example, serves guidance and shuts down without starting providers',async(t)=>{
   const transport=new StdioClientTransport({command:process.execPath,
