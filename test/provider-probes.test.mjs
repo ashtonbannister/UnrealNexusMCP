@@ -30,6 +30,7 @@ const ueFacts = {
   'level.move_actor': ['move_actor', [str('actorPath'),str('actorLabel'),{name:'location',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}},{name:'rotation',type:'object',required:false,properties:{pitch:{type:'number',required:true},yaw:{type:'number',required:true},roll:{type:'number',required:true}}},{name:'scale',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}},str('world')]],
   'level.place_actor': ['place_actor', [str('actorClass', true), str('label'), str('onConflict'), {name:'location',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}}, {name:'rotation',type:'object',required:false,properties:{pitch:{type:'number',required:true},yaw:{type:'number',required:true},roll:{type:'number',required:true}}}, {name:'scale',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}}, str('staticMesh'), str('material'), str('world')]],
   'level.get_actor_details': ['get_actor_details', [...actor, bool('includeProperties'), str('propertyName'), str('world'), int('pieInstance')]],
+  'level.get_actor_bounds': ['get_actor_bounds', [...actor, bool('onlyColliding'), str('world'), int('pieInstance')]],
   'level.save': ['save_level', [bool('force'), bool('includeExternalActors'), bool('commitDeletes'), str('expectedLevelPackage'), bool('nexusNoExternalDelete')]],
   'level.get_current_edit_level': ['get_current_edit_level', []],
   'asset.save': ['save_asset', [str('assetPath'), { name: 'assetPaths', type: 'string[]', required: false,
@@ -172,7 +173,7 @@ test('listener attestation refuses remote URLs, DNS hosts, credentials and inval
   await assert.rejects(inspectListenerOwner('http://127.0.0.1:3', -1), /PID/u);
 });
 
-test('all 12 selected UE routes fit source-derived action parameter facts', async (t) => {
+test('selected UE routes fit source-derived action parameter facts', async (t) => {
   const f = await fixture(t, 'ue-mcp');
   for (const operation of operations.filter((item) => item.provider === 'ue-mcp')) {
     assert.equal(await f.probe.supports(operation), true, operation.id);

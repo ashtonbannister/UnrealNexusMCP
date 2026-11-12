@@ -3,7 +3,7 @@
 **One canonical tool set. One reviewed winning implementation per function.
 Only the backends needed by enabled capabilities. Optional specialists.**
 
-Nexus is an MCP gateway with a curated catalogue of **38 canonical operations**. Automation start, the asset and session Blueprint compile routes, trace capture and trace-reader
+Nexus is an MCP gateway with a curated catalogue of **39 canonical operations**. Automation start, the asset and session Blueprint compile routes, trace capture and trace-reader
 open are held before dispatch
 until their native target or ownership boundaries are established.
 It serves local stdio or authenticated loopback HTTP, starts selected backend
@@ -19,7 +19,7 @@ repository does not merge or install the upstream Unreal plugins.
 
 The [master roadmap](MASTER_ROADMAP.md) defines priorities, dependencies, owner
 roles and completion evidence. Its [capability backlog](docs/CAPABILITY_BACKLOG.md)
-covers authoring beyond the current 38 operations, and the
+covers authoring beyond the current 39 operations, and the
 [native qualification plan](docs/QUALIFICATION_PLAN.md) maps every current
 operation to required live evidence. FIX-01 and FIX-02 have source and fixture evidence; live Unreal qualification remains pending.
 

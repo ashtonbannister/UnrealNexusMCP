@@ -408,6 +408,15 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     }
     // The native receipt does not report the resolved world or PIE instance.
   }
+  if (operation.id === 'actor.bounds.editor' && payload?.success === true) {
+    policy = 'require-matching-actor-bounds';
+    const vector = v => record(v) && ['x','y','z'].every(k => typeof v[k] === 'number' && Number.isFinite(v[k]));
+    if (result.isError === true || payload.actorPath !== expectedArgs.actorPath
+      || !vector(payload.origin) || !vector(payload.extent)
+      || ['x','y','z'].some(k => payload.extent[k] < 0)) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
   if (operation.id === 'pcg.generation.execute') {
     policy = 'require-correlated-pcg-generation-acknowledgement';
     // The pinned handler selects the first component, starts a run and may

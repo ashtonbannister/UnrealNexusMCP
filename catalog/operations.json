@@ -2111,6 +2111,52 @@
         "name": "Speed",
         "varType": "float"
       }
+    },
+    {
+      "id": "actor.bounds.editor",
+      "description": "Read the world-space axis-aligned bounds of one exact editor-world actor.",
+      "provider": "ue-mcp",
+      "decision": "actor-bounds",
+      "effect": "read",
+      "contract": "actor.bounds.editor",
+      "guidanceSections": [
+        4
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Full actor object path.",
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
+          },
+          "onlyColliding": {
+            "type": "boolean",
+            "description": "Only include colliding components; defaults to false."
+          }
+        },
+        "required": [
+          "actorPath"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "get_actor_bounds",
+        "fixed": {
+          "world": "editor"
+        }
+      },
+      "postconditions": [
+        "Require the returned actor path to match exactly and origin/extent to contain finite coordinates with non-negative extents. The receipt does not independently identify the world.",
+        "Bounds include child actors; native code falls back to Unreal actor bounds when the component box is invalid."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube"
+      }
     }
   ]
 }

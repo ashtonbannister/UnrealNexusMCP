@@ -1105,3 +1105,16 @@ test('Blueprint variable save failure preserves a known partial result',async()=
   assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
   assert.equal(g.status().queue.blocked,false);await g.close();
 });
+
+
+test('editor actor bounds preserve the fixed world and validate correlated finite bounds',async()=>{
+  const args={actorPath:'/Game/Map.Map:PersistentLevel.Actor'};
+  const reply={success:true,actorPath:args.actorPath,origin:{x:1,y:2,z:3},extent:{x:4,y:5,z:6}};
+  const {gateway,calls}=fixture({reply:()=>json(reply),config:{enabledCapabilities:['actor.bounds.editor']}});
+  assert.equal((await gateway.execute('actor.bounds.editor',args)).isError,undefined);
+  assert.equal(calls[0].call.arguments.method,'get_actor_bounds');
+  assert.equal(calls[0].call.arguments.args.world,'editor');
+  const bad=normalizeResult(catalog.get('actor.bounds.editor'),json({...reply,extent:{x:-1,y:5,z:6}}),args);
+  assert.equal(bad.isError,true);
+  await gateway.close();
+});

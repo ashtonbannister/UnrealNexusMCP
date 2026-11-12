@@ -8,7 +8,7 @@ This is the authoritative work plan for the unified gateway. It defines sequenci
 
 Give an agent one coherent Unreal tool set with the strongest reviewed implementation for each precise function. The agent works with canonical operations; Nexus handles the selected provider, validation, target identity, transport and native receipt. Enable only the capabilities the project needs, start only their required backend connections, and keep specialist domains optional.
 
-The intended result is an agent that can discover and inspect a project, create/import and edit content, build gameplay/graphs/UI, persist exact changes, run and observe gameplay, test and profile it, and explain the observed result. The current catalogue contains 38 operations; automation start, the asset and session Blueprint compile routes, trace capture and trace-reader open are held before dispatch until their native output or ownership boundaries are established. Broader authoring and specialized coverage remains explicit work below.
+The intended result is an agent that can discover and inspect a project, create/import and edit content, build gameplay/graphs/UI, persist exact changes, run and observe gameplay, test and profile it, and explain the observed result. The current catalogue contains 39 operations; automation start, the asset and session Blueprint compile routes, trace capture and trace-reader open are held before dispatch until their native output or ownership boundaries are established. Broader authoring and specialized coverage remains explicit work below.
 
 A winner is selected per semantic contract, not per whole MCP repository. Exact world/client, persistence, completion, algorithm and failure semantics define whether two implementations are duplicates. Retain distinct useful variants. A backend becomes unnecessary for a profile only when no enabled operation or required internal dependency uses it.
 
@@ -26,12 +26,12 @@ Current implementation evidence:
 
 | Item | Recorded state |
 | --- | --- |
-| Gateway | 38 canonical operations in 7 capability packs; all capabilities and writes off by default |
-| Selection | 29 decision groups: 19 selected, 4 conditional, 4 preserved, 2 held; 25 competing-default exclusions |
+| Gateway | 39 canonical operations in 7 capability packs; all capabilities and writes off by default |
+| Selection | 31 decision groups: 21 selected, 4 conditional, 4 preserved, 2 held; 25 competing-default exclusions |
 | Execution | Lazy selected-provider startup; exact schemas and fixed routes; shared process-local queue; no raw provider/Python/console/reset escape |
 | Guidance | Draft served through instructions, resources and workflow prompt; no personal skill installed |
 | Validation | 154 passing tests, zero failures/cancellations/skips at baseline, reproduced during [PR #1](https://github.com/ashtonbannister/UnrealNexusMCP/pull/1) review on Linux Node 24.22.1 |
-| Native state | No native Unreal build or real-editor qualification established |
+| Native state | Native builds and limited disposable-project live observations are recorded in docs/qualification; full profile qualification remains pending |
 | Reliability findings | [FIX-01](#fix-01) and [FIX-02](#fix-02) closed with source and fixture evidence; native qualification remains pending |
 | Review evidence qualification | Full-PR whitespace checks flag unified-diff context in the content-addressed patch files; do not generalize the historical local diff-check claim |
 
@@ -41,14 +41,14 @@ The 154-test result belongs to the implementation baseline. It is not a fresh te
 
 | Provider | Immutable revision |
 | --- | --- |
-| ue-mcp | `62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d` |
+| ue-mcp | `da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8` |
 | enginewire | `5a17d6d343ef9b40a509068cff73f1bfb4509815` |
 | claireon | `89bee2f4c62d1df625cca71ae66e7c81a415a009` |
 | unrealagentplayer | `4ab7a62eb78612c2ec110f683b6e11f5dea62e95` |
 | hayba | `b69ed11011f89aed3c444a50bd2331b99551c777` |
 | ivan-unreal-mcp | `1fb60e84bf8bea8f3e5bf6c27737e79fd7940d07` |
 
-The first five providers serve selected routes. Ivan is not required by the current 34; its unique capabilities and component licensing remain review inputs, not a claim of universal redundancy. Preserve the [third-party notices](THIRD_PARTY_NOTICES.md).
+The first five providers serve selected routes. Ivan is not required by the current catalogue; its unique capabilities and component licensing remain review inputs, not a claim of universal redundancy. Preserve the [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## 3. Milestones and usable profiles
 

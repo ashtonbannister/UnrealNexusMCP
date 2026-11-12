@@ -149,7 +149,7 @@ pause through this restricted lifecycle route.
 
 **Trigger:** read a level actor before editing or verify a gameplay actor.
 
-**Use:** `actor.inspect.editor` or `actor.inspect.pie`.
+**Use:** `actor.inspect.editor` or `actor.inspect.pie`. For the editor-world axis-aligned bounding box, use `actor.bounds.editor` with the exact actor path. Its receipt gives world-space origin and extent but does not independently report the resolved world.
 
 Require a full object path; the PIE route also requires a world instance.
 Compare the returned actor path with the requested path and independently
