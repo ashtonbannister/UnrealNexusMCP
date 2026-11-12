@@ -408,6 +408,17 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     }
     // The native receipt does not report the resolved world or PIE instance.
   }
+  if (['actor.tags.list.editor','actor.tag.add.editor'].includes(operation.id) && payload?.success === true) {
+    policy = 'require-matching-actor-tags';
+    const tags = Array.isArray(payload.tags) && payload.tags.every(tag => typeof tag === 'string');
+    const added = operation.id !== 'actor.tag.add.editor' || (payload.tag === expectedArgs.tag
+      && ((payload.updated === true && payload.existed !== true) || (payload.existed === true && payload.created === false && payload.updated !== true)));
+    const page = operation.id !== 'actor.tags.list.editor' || (Number.isSafeInteger(payload.count) && payload.count === payload.tags?.length
+      && typeof payload.hasMore === 'boolean' && (!payload.hasMore || nonempty(payload.nextCursor)));
+    if (result.isError === true || payload.actorPath !== expectedArgs.actorPath || !tags || !added || !page) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
   if (operation.id === 'actor.bounds.editor' && payload?.success === true) {
     policy = 'require-matching-actor-bounds';
     const vector = v => record(v) && ['x','y','z'].every(k => typeof v[k] === 'number' && Number.isFinite(v[k]));

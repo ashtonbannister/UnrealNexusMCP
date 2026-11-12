@@ -2157,6 +2157,104 @@
       "example": {
         "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube"
       }
+    },
+    {
+      "id": "actor.tags.list.editor",
+      "description": "List one editor-world actor's authored tags in pages.",
+      "provider": "ue-mcp",
+      "decision": "actor-tags",
+      "effect": "read",
+      "contract": "actor.tags.list.editor",
+      "guidanceSections": [
+        4
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$",
+            "description": "Full actor object path."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          }
+        },
+        "required": [
+          "actorPath"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "list_actor_tags",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Require the returned actor path to match and preserve tag order and pagination. Pages are not a frozen snapshot."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube",
+        "limit": 10
+      }
+    },
+    {
+      "id": "actor.tag.add.editor",
+      "description": "Add one tag to an exact editor-world actor without saving its package.",
+      "provider": "ue-mcp",
+      "decision": "actor-tags",
+      "effect": "write",
+      "contract": "actor.tag.add.editor",
+      "guidanceSections": [
+        4
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$",
+            "description": "Full actor object path."
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Tag value to add; Unreal FName comparison is case-insensitive."
+          }
+        },
+        "required": [
+          "actorPath",
+          "tag"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "add_actor_tag",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Require the returned actor path and requested tag to match, preserve the returned tag array and whether the tag existed or was added.",
+        "The actor package is dirtied only when a tag is added; this call does not save. FName comparison may preserve an existing spelling."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube",
+        "tag": "NexusExample"
+      }
     }
   ]
 }

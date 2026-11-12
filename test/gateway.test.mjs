@@ -1118,3 +1118,21 @@ test('editor actor bounds preserve the fixed world and validate correlated finit
   assert.equal(bad.isError,true);
   await gateway.close();
 });
+
+
+test('actor tag operations use exact paths and preserve tag results',async()=>{
+  const actorPath='/Game/Map.Map:PersistentLevel.Actor',tag='Example';
+  const calls=[];
+  const {gateway}=fixture({config:{enabledCapabilities:['actor.tags.list.editor','actor.tag.add.editor']},reply:(_provider,call)=>{
+    calls.push(call);
+    return json(call.arguments.method==='list_actor_tags'
+      ? {success:true,actorPath,tags:['Example'],count:1,hasMore:false}
+      : {success:true,actorPath,tag,tags:['Example'],updated:true});
+  }});
+  assert.notEqual((await gateway.execute('actor.tags.list.editor',{actorPath})).isError,true);
+  assert.notEqual((await gateway.execute('actor.tag.add.editor',{actorPath,tag})).isError,true);
+  assert.deepEqual(calls.map(c=>c.arguments.method),['list_actor_tags','add_actor_tag']);
+  const bad=normalizeResult(catalog.get('actor.tag.add.editor'),json({success:true,actorPath:'/Game/Other',tag,tags:[tag],updated:true}),{actorPath,tag});
+  assert.equal(bad.isError,true);
+  await gateway.close();
+});

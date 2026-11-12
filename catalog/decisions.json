@@ -1956,6 +1956,48 @@
       "qualification": [
         "Source-reviewed at the pinned revision; live qualification is scoped to the observed build."
       ]
+    },
+    {
+      "id": "actor-tags",
+      "status": "selected",
+      "scope": "Read authored tags or add one tag on an exact editor-world actor.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.list_actor_tags / level.add_actor_tag"
+      },
+      "operations": [
+        "actor.tags.list.editor",
+        "actor.tag.add.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp",
+          "lines": [
+            9,
+            52
+          ],
+          "note": "Adds an actor tag with exact path, existing/update receipt and package dirtying without save.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp#L9-L52"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp",
+          "lines": [
+            170,
+            211
+          ],
+          "note": "Lists authored actor tags in stable cursor pages with the resolved actor path.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp#L170-L211"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Tag removal, replacement and querying other worlds have distinct side effects and are not implied by these routes."
+      ],
+      "qualification": [
+        "Source reviewed at the pinned revision; live qualification is scoped to the observed build."
+      ]
     }
   ]
 }

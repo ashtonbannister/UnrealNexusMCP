@@ -147,6 +147,8 @@ pause through this restricted lifecycle route.
 
 `actor.place.editor` creates one actor in the current editor world without saving. Supply a unique label, class and finite location; optional mesh and material assignments are not verified by the native placement receipt. The receipt does not report the resolved world, actor path or transform: inspect the created actor and world separately. An uncertain dispatch requires reconciliation, not retry.
 
+Use `actor.tags.list.editor` to page authored tags and `actor.tag.add.editor` to add one without saving. Tag names use Unreal FName comparison; inspect the returned spelling and status.
+
 **Trigger:** read a level actor before editing or verify a gameplay actor.
 
 **Use:** `actor.inspect.editor` or `actor.inspect.pie`. For the editor-world axis-aligned bounding box, use `actor.bounds.editor` with the exact actor path. Its receipt gives world-space origin and extent but does not independently report the resolved world.

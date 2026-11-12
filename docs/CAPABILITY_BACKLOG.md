@@ -124,7 +124,7 @@ Implement the ordinary rename contract first; separately inventory move, duplica
 
 **Dependencies:** [CAP-01](#cap-01). Additional scope-specific prerequisites are stated below.
 
-**Candidate state:** asset-deletion is held; no universal winner. Actor deletion and reference-aware asset deletion are separate. Existing candidates have targeting, return-value or aggregate-result gaps.
+**Candidate state:** asset-deletion is held; no universal winner. Actor deletion and reference-aware asset deletion are separate. Existing candidates have targeting, return-value or aggregate-result gaps. At UE-MCP pin `da2c0fb5`, [delete_actor](https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1355-L1410) ignores the return value from `World->DestroyActor` and reports `deleted: true` without the resolved actor path. Do not represent that receipt alone as proof of exact deletion.
 
 Reopen after exact discovery and relevant persistence/recovery fixtures exist. Compare actor deletion, referenced assets, registry-orphan files, redirectors and cleanup independently. Broad/force deletion is not an ordinary substitute.
 

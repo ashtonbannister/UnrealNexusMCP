@@ -31,6 +31,8 @@ const ueFacts = {
   'level.place_actor': ['place_actor', [str('actorClass', true), str('label'), str('onConflict'), {name:'location',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}}, {name:'rotation',type:'object',required:false,properties:{pitch:{type:'number',required:true},yaw:{type:'number',required:true},roll:{type:'number',required:true}}}, {name:'scale',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}}, str('staticMesh'), str('material'), str('world')]],
   'level.get_actor_details': ['get_actor_details', [...actor, bool('includeProperties'), str('propertyName'), str('world'), int('pieInstance')]],
   'level.get_actor_bounds': ['get_actor_bounds', [...actor, bool('onlyColliding'), str('world'), int('pieInstance')]],
+  'level.list_actor_tags': ['list_actor_tags', [...actor, str('cursor'), int('limit')]],
+  'level.add_actor_tag': ['add_actor_tag', [...actor, str('tag',true)]],
   'level.save': ['save_level', [bool('force'), bool('includeExternalActors'), bool('commitDeletes'), str('expectedLevelPackage'), bool('nexusNoExternalDelete')]],
   'level.get_current_edit_level': ['get_current_edit_level', []],
   'asset.save': ['save_asset', [str('assetPath'), { name: 'assetPaths', type: 'string[]', required: false,

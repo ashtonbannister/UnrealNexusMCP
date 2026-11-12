@@ -12,6 +12,8 @@
         "actor.place.editor",
         "actor.inspect.editor",
         "actor.bounds.editor",
+        "actor.tags.list.editor",
+        "actor.tag.add.editor",
         "actor.inspect.pie",
         "level.save.current",
         "asset.save.exact",
