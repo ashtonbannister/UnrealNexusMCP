@@ -1,51 +1,55 @@
 # Unreal Nexus MCP
 
-**One canonical tool set. One reviewed winning implementation per function.
-Only the backends needed by enabled capabilities. Optional specialists.**
+**One MCP entrypoint for the complete UE-MCP and EngineWire toolsets, with the
+existing Nexus canonical operations preserved.**
 
-Nexus is an MCP gateway with a curated catalogue of **42 canonical operations**. Automation start, the asset and session Blueprint compile routes, trace capture and trace-reader
-open are held before dispatch
-until their native target or ownership boundaries are established.
-It serves local stdio or authenticated loopback HTTP, starts selected backend
-connections on first execution, and applies the
-[master skill guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md) through MCP
-instructions, resources and a workflow prompt.
+Nexus publishes every tool advertised by each configured provider. Tool names
+are namespaced as `<provider>__<original-name>`; provider input/output schemas,
+descriptions, annotations and call results retain their original contracts.
+Calls use the existing provider implementations and connections. Clients register
+only Nexus, and do not need separate UE-MCP, EngineWire or specialist entries.
 
-The protocol integration is tested with real MCP clients and fixture backends.
-**Full native Unreal qualification remains pending.** A project editor build and limited live viewport and actor-placement observations have been recorded. This
-repository does not merge or install the upstream Unreal plugins.
+The namespaced surface is enabled by default with `providerTools: true`. The
+42-operation canonical catalogue remains available through its existing packs
+and IDs, but does not limit the provider toolset. Configured Claireon, Hayba and
+UnrealAgentPlayer tools are exposed by the same mechanism.
 
-## Roadmap and current work
+The combined base uses the pinned upstream revisions in
+`catalog/upstreams.lock.json`:
 
-The [master roadmap](MASTER_ROADMAP.md) defines priorities, dependencies, owner
-roles and completion evidence. Its [capability backlog](docs/CAPABILITY_BACKLOG.md)
-covers authoring beyond the current 42 operations, and the
-[native qualification plan](docs/QUALIFICATION_PLAN.md) maps every current
-operation to required live evidence. FIX-01 and FIX-02 have source and fixture evidence; live Unreal qualification remains pending.
+| Provider | Source revision |
+|---|---|
+| UE-MCP | `da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8` |
+| EngineWire | `2792ba198403bf0842a6cd91f87113d9d86db8e3` |
 
-## Start the gateway
+## Run the unified server
 
 Use Node.js 22 or newer and Git. SDK dependencies are locked in `package-lock.json`.
 
 ```sh
 npm ci --ignore-scripts
-npm run check
-node src/main.mjs --config examples/config.example.json
+npm run build
+node src/main.mjs --config C:/Tools/NexusConfig/nexus.config.json
 ```
 
-The example starts a stdio MCP server with every editor capability off. It waits
-for an MCP client on stdin; it is not an interactive terminal prompt. You can
-already discover the master guidance and use the read-only Nexus controls.
+Create the configuration from
+[config.unified.example.json](examples/config.unified.example.json), replacing
+the project file, provider checkout paths, executable paths and endpoint with
+your installed values. The example enables the complete toolsets of both
+UE-MCP and EngineWire, and the compatible canonical authoring/observation packs.
+It explicitly enables writes. For read-only access, set `allowWrites: false`:
+all tools remain discoverable, but only tools advertising
+`annotations.readOnlyHint: true` may execute through the provider surface.
+Multipurpose gateway tools and tools without that annotation require writes to
+be enabled.
 
-To execute Unreal operations, copy and edit
-[the authoring configuration](examples/config.authoring.example.json), install
-the pinned upstream backends, and set the exact project file, live editor PID,
-source checkout paths, endpoints and credentials. Follow the
-[runtime setup guide](docs/RUNTIME_SETUP.md). Writes remain off until the host
-configuration explicitly enables them. No backend starts during discovery,
-resource reads, prompts or planning.
+Install the pinned provider servers and native plugins using the
+[runtime setup guide](docs/RUNTIME_SETUP.md). Nexus reuses them; it does not
+replace their native implementations or install them into an Unreal project.
+With the editor running, export its EngineWire capability token as
+`NEXUS_ENGINEWIRE_TOKEN` before launching Nexus. Keep tokens out of config files.
 
-For an MCP client that launches commands, use an absolute executable and paths:
+Register this **one** entry in the MCP client:
 
 ```json
 {
@@ -55,119 +59,145 @@ For an MCP client that launches commands, use an absolute executable and paths:
       "args": [
         "C:/Tools/UnrealNexusMCP/src/main.mjs",
         "--config",
-        "C:/Tools/UnrealNexusMCP/nexus.config.json"
+        "C:/Tools/NexusConfig/nexus.config.json"
       ]
     }
   }
 }
 ```
 
-This is a local host configuration example. Connecting a remote hosted client
-requires a separately designed deployment/authentication boundary; this change
-does not publish a public service.
+[unified.claude.example.json](examples/unified.claude.example.json) contains this
+client configuration. The old `direct-providers.claude.example.json` path now
+contains the same single entry for migration. Remove separately registered
+provider entries when adopting Nexus to avoid duplicate tool surfaces and
+independent connections.
 
-## Public MCP surface
+The command serves MCP over stdio and waits for a client; it is not an
+interactive terminal prompt. [config.example.json](examples/config.example.json)
+is a provider-free starter for inspecting Nexus controls and guidance. Local
+authenticated HTTP is also supported by the same entrypoint; see the setup guide.
+
+Full provider mode negotiates the supported 2025 MCP protocols so native
+interactive approvals resume the original call. Automatic-negotiation clients
+fall back to that protocol; modern-only clients receive an explicit version
+refusal. Nexus does not replay a mutation to emulate a modern continuation.
+Unified HTTP mode retains initialized client sessions and capabilities for
+provider callbacks such as elicitation. All sessions share one configured
+runtime and queue; canonical-only mode retains its legacy stateless handling.
+
+## Complete provider tools and compatible canonical tools
+
+| Provider tool | Name exposed by Nexus | Contract |
+|---|---|---|
+| UE-MCP `tools` | `ue-mcp__tools` | Original discovery, category, method and argument interface |
+| EngineWire `unreal` | `enginewire__unreal` | Original operation, tool, action and params interface |
+| Any additional advertised tool | `<provider>__<original-name>` | Original input/output schemas and result |
+| Enabled Nexus canonical operation | Existing canonical ID | Existing selected route, validation and postconditions |
+
+The prefix applies only to the public MCP tool name. Arguments identifying an
+inner category, method, action or tool remain in the provider's original format.
+Provider meta-tools retain their full functionality; Nexus does not filter their
+inner actions to the canonical catalogue. Identically named tools from different
+providers remain independently callable under their respective namespaces.
+
+Provider prompts use the same `<provider>__<original-name>` namespace. Provider
+resources and resource templates use
+`unreal-nexus-provider://<provider>/<original-uri>`; for example, EngineWire's
+`ue://health` is read through
+`unreal-nexus-provider://enginewire/ue://health`. Nexus forwards prompt/resource
+requests to the original provider and preserves their returned contents. The
+resource `unreal-nexus://guidance/providers` includes upstream initialization
+instructions and the namespace mapping.
+
+`tools/list` obtains the complete live manifests from configured providers,
+including paginated manifests. This can start a provider process or connect to
+the editor. The editor and configured endpoints must be available to discover
+the full live toolset. `nexus.status` and the existing planning/guidance controls
+remain available independently of a successful provider discovery.
+
+Set `providerTools: false` only to request the legacy canonical-only surface.
+Canonical pack selection does not remove provider tools while full mode is on;
+configure only the backends you intend to expose.
+
+## Nexus controls
 
 | Surface | Purpose |
 |---|---|
-| Enabled canonical tools | The exact reviewed operations in `catalog/operations.json` |
-| `nexus.status` | Enablement, loaded backends, identity evidence and queue state |
-| `nexus.search` | Bounded search of canonical operations and static upstream inventory; source records are not callable |
-| `nexus.describe_source` | Inspect one pinned source record and its exact current Nexus route bindings |
-| `nexus.describe` | Selected route, source pin, schema, effects and postconditions |
-| `nexus.plan` | Validate and preview a call, with `dispatched: false` |
-| `unreal-nexus://guidance/master` | The complete master guidance draft |
-| `unreal-nexus://guidance/enabled` | Governing rules and workflows for enabled capabilities |
-| `unreal-nexus://catalog/enabled` | The enabled canonical catalogue |
-| `unreal-nexus://runtime/status` | Read-only runtime status |
-| Prompt `nexus_workflow` | The appropriate workflow for one enabled capability |
+| `nexus.status` | Enabled operations, provider connections, identity evidence and queue state |
+| `nexus.search` | Search canonical operations and the static source inventory |
+| `nexus.describe_source` | Inspect a pinned source record and its canonical bindings |
+| `nexus.describe` | Read one canonical route, schema, effects and postconditions |
+| `nexus.plan` | Validate a canonical call without dispatching it |
+| `unreal-nexus://guidance/master` | Master guidance draft for canonical workflows |
+| `unreal-nexus://guidance/enabled` | Guidance for enabled canonical capabilities |
+| `unreal-nexus://guidance/providers` | Original provider instructions and namespace translation |
+| `unreal-nexus://catalog/enabled` | Enabled canonical catalogue |
+| `unreal-nexus://runtime/status` | Runtime status |
+| Prompt `nexus_workflow` | Workflow for one enabled canonical capability |
 
-The master document is loaded and its section mapping checked when the runtime
-starts. Its SHA-256 is reported in status. It remains a draft, not an installed
-personal skill. Nexus exposes no raw provider multiplexer, arbitrary Python,
-console command, configuration mutation or uncertainty-reset tool.
+The historical selection documents describe the canonical layer. Their
+canonical-only allowlist does not restrict the complete namespaced provider
+surface. Provider-native tools use their own schemas and semantics; canonical
+holds and specialized postconditions remain properties of the corresponding
+canonical routes.
 
-## Capability packs
+## Canonical capability packs
 
-| Pack | Canonical operations | Selected backend(s) | Additional condition |
+| Pack | Canonical operations | Provider(s) | Canonical requirement |
 |---|---:|---|---|
-| `authoring-core` | 14 | UE-MCP | Guarded-save compatibility patch and live handler/schema parity |
+| `authoring-core` | 14 | UE-MCP | Reviewed compatibility patch and live schema parity |
 | `editor-observation` | 1 | EngineWire | Direct editor-owned HTTP endpoint |
-| `playtesting` | 9 | UnrealAgentPlayer + UE-MCP | Owned PIE and owned-input compatibility patches |
-| `blueprint-compile` | 3 | Claireon | Loaded-compile compatibility patch; direct editor endpoint |
-| `material-strict` | 3 | Hayba | Versioned native receipt and no-retry patch; fixed native port; typed tools |
-| `automation-tests` | 2 | Claireon | Same compatibility patch; owned run and terminal receipt |
-| `insights-analysis` | 6 | Claireon | Same compatibility patch; owned capture/readers |
+| `playtesting` | 9 | UnrealAgentPlayer + UE-MCP | Owned PIE and input patches |
+| `blueprint-compile` | 3 | Claireon | Loaded-compile patch and direct endpoint |
+| `material-strict` | 3 | Hayba | Native receipt and no-retry patch |
+| `automation-tests` | 2 | Claireon | Owned run and terminal receipt |
+| `insights-analysis` | 6 | Claireon | Owned capture/readers |
 
-Every pack is off by default. Individual capability IDs can be enabled instead
-of packs. Enabling a capability registers its backend factory; only executing
-that capability connects or starts the backend. Failed startup is cached instead
-of being silently retried. Specialists that are never enabled or used do not
-start their backend servers.
+All canonical packs are off unless explicitly configured. Enable individual
+canonical IDs with `enabledCapabilities`. Their compatibility requirements and
+existing held operations are unchanged. See [compatibility patches](patches/README.md).
 
-The first 16 operations remain the core set. Thirteen fixed specialist adapters
-implement the compile, material, test and trace workflows. They verify source
-patches and live capability markers before using those paths. The stock upstream
-versions do not satisfy all of these contracts; merely setting a config flag is
-insufficient. See [compatibility patches](patches/README.md).
+## Targeting, contracts and execution
 
-## Targeting and execution
+Nexus pins the configured source revisions and exact `.uproject`/editor process
+identity, corroborating the target through provider-native evidence or an
+editor-owned listener. Local Windows and Linux inspection are supported, subject
+to provider platform requirements. Source hashes do not independently prove
+which compiled native plugin the editor loaded.
 
-The host pins an exact `.uproject` file and an OS process start identity, then
-corroborates that target with native PID/project evidence or a direct
-editor-owned listener. The runtime currently supports local Windows and Linux
-identity inspection. Backend-specific platform restrictions still apply.
+Provider calls preserve returned content blocks, images, structured output,
+warnings and `isError` results. Existing canonical calls continue to use their
+specialized adapters. Calls share the runtime's serialized queue; Nexus does not
+automatically retry mutations, switch providers or replay a call after an
+uncertain transport failure. Cancellation after dispatch is not a rollback.
+Reconcile uncertain native work before deliberately restarting the runtime.
 
-Source verification checks the pinned Git revision, tracked changes, unignored
-new files and exact reviewed compatibility deltas. **It does not independently
-prove which compiled DLL or ignored build output the editor loaded.** Live schema
-markers and handler parity add checks; final native build provenance and engine
-compatibility still need acceptance in the intended project.
+The integration checks use real MCP clients with fixture provider processes and
+HTTP endpoints. Full native Unreal qualification remains pending; a successful
+host build or fixture round trip is not a claim that every native operation was
+executed in Unreal. This repository retains prior live editor observations in
+the qualification records.
 
-All calls in one runtime share one serialized editor queue, including separate
-HTTP requests. Preparation, native capability checks and dispatch have bounded
-deadlines. Cancellation before dispatch prevents the operation; timeout,
-disconnect or cancellation after dispatch leaves its outcome unknown and fences
-further execution. Native queued lifecycle or contained-fault receipts can also
-fence the queue. Received images, diagnostics, warnings and partial results are
-preserved. There is no automatic mutation retry, provider failover or reset.
-
-Reconcile uncertain work externally before deliberately restarting Nexus. A
-request cancellation is not an Unreal rollback. The queue is local to one
-gateway process and cannot coordinate other gateways, direct clients, game-thread
-events or editor restarts atomically. Endpoint/identity checks reduce wrong-target
-risk but are not an editor-native epoch lock.
-
-## Offline catalogue
+## Focused verification and offline catalogue
 
 ```sh
+npm run build
+npm run test:integration
 npm run catalog -- list
-npm run catalog -- describe asset.save.exact
-npm run catalog -- plan asset.save.exact '{"assetPaths":["/Game/Blueprints/BP_Demo"],"force":true}'
 ```
 
-The offline CLI never connects to Unreal. It shows the complete reviewed
-catalogue, while the MCP manifest shows only host-enabled operations.
-
-## Selection policy and evidence
-
-The catalogue contains 29 decision groups, 19 selected groups, six immutable
-upstream source pins and 25 competing-default exclusions. A winner is selected
-for its exact target, validation, completion, persistence and failure semantics.
-New upstream releases are review candidates; routing does not follow floating
-`latest` releases or fall back to a different implementation after a failure.
-
-The original repository contained only `LICENSE`. Duplicate defaults are
-excluded from Nexus's public allowlist; native function bodies were not deleted
-from external repositories. Ivan's backend is not required by these 34 routes,
-but its distinct capabilities are not declared universally redundant.
+The `.mjs` host needs no transpilation; the build validates production JavaScript and
+the pinned catalogue. It does not compile native Unreal plugins. The targeted integration
+checks exercise the unified manifest and call
+contracts. The offline catalogue CLI covers canonical operations only; the full
+provider manifest comes from the running providers.
 
 - [Runtime setup and supported transports](docs/RUNTIME_SETUP.md)
-- [Master skill guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md)
-- [Implementation decisions](docs/IMPLEMENTATION_SELECTION.md)
+- [Windows installation guide](docs/INSTALL_AGENTS.md)
+- [Pinned upstream revisions](catalog/upstreams.lock.json)
+- [Canonical implementation decisions](docs/IMPLEMENTATION_SELECTION.md)
 - [Canonical operations](catalog/operations.json) and [source evidence](catalog/decisions.json)
-- [Compatibility patch manifest](catalog/compatibility-patches.json)
-- [Source audit inventory](docs/audit/inventory.md)
+- [Master skill guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md)
 - [Validation record](docs/VALIDATION.md)
-- [Live acceptance checklist](docs/INTEGRATION_ACCEPTANCE.md)
+- [Native qualification plan](docs/QUALIFICATION_PLAN.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)

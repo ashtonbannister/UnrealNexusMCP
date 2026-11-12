@@ -30,7 +30,8 @@ export async function createRuntime(config, {
   resolvePath = realpath, editorSelector = selectEditorForProject, endpointResolver = resolveProjectEndpoint,
 } = {}) {
   const enabled = selectCapabilities(catalog,config);
-  const providers = new Set(enabled.map(id => catalog.get(id).provider));
+  const providerTools = config.providerTools === false ? [] : Object.keys(config.backends);
+  const providers = new Set([...enabled.map(id => catalog.get(id).provider),...providerTools]);
   for (const provider of providers) {
     if (!config.backends[provider]) throw new NexusError('INVALID_CONFIGURATION','Missing backend configuration for enabled provider ' + provider + '.');
     const required = new Set(enabled.map(id=>catalog.get(id)).filter(op=>op.provider===provider)
@@ -76,11 +77,11 @@ export async function createRuntime(config, {
     if (config.target && config.target.processId !== 'auto') await resolveTarget();
     const evidence = new Map();
     const factories = new Map();
-    // Register factories for enabled providers only. None of these bodies runs
-    // during server startup, manifest/resource/prompt discovery or dry-run planning.
+    // Canonical routes and full provider surfaces share one connection per
+    // provider. Full live discovery starts these factories; construction does not.
     for (const provider of providers) {
       const backendConfig = structuredClone(config.backends[provider]);
-      factories.set(provider, async ({source}) => {
+      factories.set(provider, async ({source,clientContext}) => {
         const sourceEvidence = await sourceVerifier(provider,backendConfig,source);
         const endpointOptions = ownedInspector?.inspectListener ? {listenerInspector:ownedInspector.inspectListener} : {};
         if (provider === 'claireon' && backendConfig.transport.url === 'editor-auto')
@@ -98,7 +99,7 @@ export async function createRuntime(config, {
         }
         let connection;
         try {
-          connection = await connect(backendConfig.transport, {timeoutMs:config.timeoutMs,
+          connection = await connect(backendConfig.transport, {timeoutMs:config.timeoutMs,clientContext,
             startupTimeoutMs:Math.min(Math.floor(config.timeoutMs / 2),30000),
             closeTimeoutMs:Math.min(Math.floor(config.timeoutMs / 4),5000)});
           const tools = await connection.listTools({timeoutMs:Math.min(config.timeoutMs,10000)});
@@ -107,17 +108,32 @@ export async function createRuntime(config, {
             nativeEndpoint:provider==='hayba'?'http://127.0.0.1:'+backendConfig.transport.env.UE_TCP_PORT:undefined,
             timeoutMs:Math.min(config.timeoutMs,provider==='unrealagentplayer'?30000:10000),processInspector,
           ...(ownedInspector?.inspectListener ? {listenerInspector:ownedInspector.inspectListener} : {})});
-          const identity = await probe.attestIdentity();
+          const identity = await probe.attestIdentity({clientContext});
           if (identity.identityVerified !== true || identity.target.projectRoot !== target.projectRoot
             || identity.target.editorInstanceId !== target.editorInstanceId) {
             throw new NexusError('BACKEND_ATTESTATION_FAILED','Live target attestation did not match the selected editor.');
           }
           const specialist = ['claireon','hayba'].includes(provider)
+            && enabled.some(id => catalog.get(id).provider === provider)
             ? createSpecialistAdapter({provider,tools,callTool:connection.callTool.bind(connection)}) : null;
           evidence.set(provider,{source:sourceEvidence,identity:identity.evidence});
+          const toolNames = new Set(tools.map(t=>t.name));
+          let initialTools = tools;
           return {
-            tools:new Set(tools.map(t=>t.name)),sourceCommit:sourceEvidence.commit,
+            tools:toolNames,sourceCommit:sourceEvidence.commit,
             identityVerified:true,target,
+            capabilities:connection.capabilities, instructions:connection.instructions,
+            listTools:async options => {
+              const current = initialTools ?? await connection.listTools(options);
+              initialTools = null;
+              toolNames.clear();
+              for (const tool of current) toolNames.add(tool.name);
+              return current;
+            },
+            callTool:connection.callTool.bind(connection),
+            request:connection.request?.bind(connection),
+            onNotification:connection.onNotification?.bind(connection),
+            attestIdentity:options => probe.attestIdentity(options),
             supports:async (operation,options = {}) => {
               if (operation.requiredCompatibility && !compatibilitySatisfied(provider,operation.requiredCompatibility,sourceEvidence.compatibilityPatch)) return false;
               if (specialist) {
@@ -128,9 +144,9 @@ export async function createRuntime(config, {
               return probe.supports(operation,options);
             },
             preflight:call => specialist?.validateCall(call),
-            call:async (call,timeoutMs,{signal} = {}) => specialist
-              ? specialist.call(call,timeoutMs,{signal})
-              : connection.callTool(call.name,call.arguments,{timeoutMs,signal}),
+            call:async (call,timeoutMs,options = {}) => specialist
+              ? specialist.call(call,timeoutMs,options)
+              : connection.callTool(call.name,call.arguments,{...options,timeoutMs}),
             close:async () => {await specialist?.close();await connection.close();},
           };
         } catch (error) {
@@ -144,6 +160,7 @@ export async function createRuntime(config, {
       });
     }
     const gateway = new Gateway(catalog,{enabledCapabilities:enabled,backendFactories:factories,
+      providerTools,
       allowWrites:config.allowWrites,allowLevelExternalPackageDeletion:config.allowLevelExternalPackageDeletion,timeoutMs:config.timeoutMs,target,
       targetResolver:config.target?.processId === 'auto' ? resolveTarget : null});
     const guidance = await guidanceLoader();

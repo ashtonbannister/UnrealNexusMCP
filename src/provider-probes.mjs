@@ -404,7 +404,7 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60000) fail('Invalid probe timeout');
   const descriptors = tools instanceof Map ? tools : new Map((tools ?? []).map((tool) => [tool.name, tool]));
   const tool = (name) => descriptors.get(name);
-  function requestScope({ signal, timeoutMs: budget = timeoutMs } = {}) {
+  function requestScope({ signal, timeoutMs: budget = timeoutMs, clientContext } = {}) {
     if (signal !== undefined && !(signal instanceof AbortSignal)) fail('Probe signal must be an AbortSignal');
     if (!Number.isInteger(budget) || budget < 1 || budget > 3600000) fail('Invalid probe request budget');
     const started = performance.now();
@@ -416,7 +416,7 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
     };
     const read = async (work) => { remaining(); const value = await work(); remaining(); return value; };
     return { remaining, read, signal,
-      call: (name, args) => read(() => connection.callTool(name, args, { signal, timeoutMs: Math.min(timeoutMs, remaining()) })),
+      call: (name, args) => read(() => connection.callTool(name, args, { signal, clientContext, timeoutMs: Math.min(timeoutMs, remaining()) })),
       listener: (endpoint) => read(() => listenerInspector(endpoint, target.processId)),
       observed: () => read(async () => { const info = await processInspector(target.processId); requireEditor(info, target); return info; }),
     };

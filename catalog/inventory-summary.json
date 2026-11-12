@@ -6,18 +6,18 @@
   "countsComparableAsPublicToolTotals": false,
   "providers": {
     "enginewire": {
-      "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+      "commit": "2792ba198403bf0842a6cd91f87113d9d86db8e3",
       "repository": "https://github.com/ChiR24/Unreal_mcp",
-      "catalogRevision": "0b875b14b2156784",
+      "catalogRevision": "2919cbfec344eba1",
       "counts": {
-        "canonicalRecords": 427,
-        "distinctLegacyToolActionPairs": 1582,
-        "recordsWithDispatchBy": 219,
+        "canonicalRecords": 489,
+        "distinctLegacyToolActionPairs": 1658,
+        "recordsWithDispatchBy": 220,
         "internalParentGroups": 23,
         "nativePublicMcpToolNames": 1
       },
       "source": "src/tools/catalog/capabilities/generated/canonical-registry.generated.json",
-      "sha256": "5f01e136e9dc85745c7f811ec6fdb4ddf9ea16d4c4a435fc7fe35aab1615091b",
+      "sha256": "650b3b51bc3e7e449b551c9f3ec355bea058b3fd7bb0b5265a9d51233001f579",
       "caveat": "Canonical records and folded aliases are not comparable public tool counts; preserve selectors and native availability/policy gates."
     },
     "ue-mcp": {

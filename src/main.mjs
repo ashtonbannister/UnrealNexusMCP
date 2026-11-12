@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { serveStdio } from '@modelcontextprotocol/server/stdio';
+import { serveStdio, StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { loadConfig } from './config.mjs';
 import { createRuntime } from './runtime.mjs';
 import { createNexusServer } from './mcp-server.mjs';
@@ -18,6 +18,18 @@ export async function closeServices(endpoint, runtime, timeoutMs = 5000) {
     failure = failure ? markCleanupIncomplete(failure) : markCleanupIncomplete(error);
   }
   if (failure) throw failure;
+}
+
+export async function startStdioServer(runtime) {
+  if (runtime.gateway.providerSurface.providers.length) {
+    const server = createNexusServer(runtime);
+    server.onerror = () => process.stderr.write('Unreal Nexus MCP protocol error.\n');
+    await server.connect(new StdioServerTransport());
+    return server;
+  }
+  return serveStdio(() => createNexusServer(runtime), {
+    onerror:() => process.stderr.write('Unreal Nexus MCP protocol error.\n'), maxSubscriptions:8,
+  });
 }
 
 export async function main(args = process.argv.slice(2)) {
@@ -42,10 +54,7 @@ export async function main(args = process.argv.slice(2)) {
       endpoint = await startHttpServer(runtime,config.server);
       process.stderr.write(JSON.stringify({event:'listening',transport:'http',address:endpoint.address,path:'/mcp'}) + '\n');
     } else {
-      endpoint = serveStdio(() => createNexusServer(runtime), {
-        onerror:() => process.stderr.write('Unreal Nexus MCP protocol error.\n'),
-        maxSubscriptions:8,
-      });
+      endpoint = await startStdioServer(runtime);
       process.stdin.once('end',() => {void close().catch(()=>{
         process.stderr.write('Unreal Nexus backend cleanup was not confirmed.\n');process.exitCode=1;
       });});

@@ -27,7 +27,7 @@ export class BackendPool {
     this.#target = target;
   }
 
-  async get(provider) {
+  async get(provider, {clientContext} = {}) {
     if (this.#closed) throw new NexusError('GATEWAY_CLOSED', 'Backend pool is closed.');
     if (!this.#promises.has(provider)) {
       const factory = this.#factories.get(provider);
@@ -36,7 +36,7 @@ export class BackendPool {
       }
       this.#states.set(provider, 'starting');
       const promise = Promise.resolve().then(() => factory({
-        provider, source: this.#sources[provider], target: this.#target,
+        provider, source: this.#sources[provider], target: this.#target, clientContext,
       })).then(async (backend) => {
         const invalid = !backend || typeof backend.call !== 'function' || typeof backend.supports !== 'function'
           || typeof backend.close !== 'function' || !(backend.tools instanceof Set)

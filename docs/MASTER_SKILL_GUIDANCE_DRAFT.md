@@ -1,12 +1,16 @@
 # Master skill guidance — draft
 
-Status: workflow-authoring draft, not an installed skill. Review date: 2026-10-26.
+Status: workflow-authoring draft, not an installed skill. Canonical review date:
+2026-10-26; unified-provider guidance updated 2026-11-12.
 The implementation comparisons are source-backed; live Unreal qualification is
 pending. “Selected” is a scoped winning candidate, not a universal guarantee.
 
 Development priorities and planned capabilities are tracked in the
-[master roadmap](../MASTER_ROADMAP.md). A planned operation is not callable unless
-it is present in the canonical catalogue and enabled by host configuration.
+[master roadmap](../MASTER_ROADMAP.md). Its planned canonical operations become
+callable when implemented and enabled. The complete namespaced provider surface
+is available independently of that canonical backlog. Sections 2–16 describe
+canonical workflow contracts and their historical selection evidence; they do
+not limit the provider-native toolset.
 
 ## 0. Governing contract
 
@@ -17,10 +21,13 @@ project through Nexus.
 
 1. Resolve the intended project/worktree and exact editor process instance.
    PID alone is not an epoch; include start identity and invalidate stale handles.
-2. Select enabled canonical capabilities. Only their selected backends may load.
-   Merely searching, describing or planning must not start plugins/servers.
-3. Inspect the capability's parameter schema, target scope, source pin, save
-   behavior, side effects, postconditions and live availability.
+2. Discover the complete tools of configured providers through Nexus. Public
+   names are `<provider>__<original-name>`; their arguments and results retain
+   provider-native contracts. Canonical routes are also available when enabled.
+   Full MCP discovery can start/connect providers; Nexus planning controls do not.
+3. Inspect the chosen tool's original schema, target scope, source pin, save
+   behavior, side effects and live availability. For canonical routes, also apply
+   their selected workflow and additional postconditions.
 4. Acquire required native session, asset lease, machine/display ownership or
    input ownership. These are different lock classes, not interchangeable.
 5. Obtain task-appropriate authority for writes, deletions, saves and session
@@ -28,18 +35,25 @@ project through Nexus.
 
 **Always:** distinguish requested, accepted, completed, verified and persisted.
 Preserve images, warnings, diagnostics, per-item failures and partial changes.
-For UE-MCP, an absent, contradictory or uninterpretable completion envelope
-fences subsequent work; retain the receipt and reconcile externally before restart.
+Canonical UE-MCP routes add completion-envelope checks; an absent, contradictory
+or uninterpretable canonical receipt can fence subsequent work. Provider-native
+results remain intact. Reconcile uncertain outcomes externally before retrying.
 Failed backend cleanup is separately reported as unconfirmed; do not infer that
 a process or connection has stopped.
 Use stable full paths/GUIDs and explicit world/player selectors.
 
-**Never:** bypass a refusal with another provider/Python/console; turn a scoped
-save into save-all; retry an uncertain mutation; infer rollback from timeout,
+**Never:** use another tool to retry an uncertain mutation; turn a scoped
+save into save-all; infer rollback from timeout,
 cancellation, Transaction.Cancel or an inverse-operation descriptor.
 
-The canonical catalogue is `catalog/operations.json`. Only enabled entries are
-callable. The master document is served at `unreal-nexus://guidance/master`, its
+The canonical catalogue is `catalog/operations.json`; only its enabled entries
+are exposed as canonical IDs. Provider-native tools come from each configured
+provider's complete live manifest and remain independently callable. Keep inner
+category, method, action and tool names in their original format; only the public
+MCP name receives a namespace. Read `unreal-nexus://guidance/providers` for upstream
+initialization instructions and namespace translation.
+
+The master document is served at `unreal-nexus://guidance/master`, its
 enabled subset at `unreal-nexus://guidance/enabled`, and the applicable workflow
 through prompt `nexus_workflow`. Source evidence and scope boundaries are in
 `catalog/decisions.json` and the six audit reports.
@@ -48,26 +62,39 @@ through prompt `nexus_workflow`. Source evidence and scope boundaries are in
 
 **Trigger:** choose a tool for a new task or an unfamiliar project.
 
-**Use:** MCP `tools/list`, `nexus.status`, `nexus.search`, `nexus.describe_source`, `nexus.describe`, `nexus.plan`, the four
-read-only resources and `nexus_workflow`. The library also exports `Gateway`;
+**Use:** MCP `tools/list` for the full combined manifest; namespaced provider
+discovery tools for their complete inner interfaces; and `nexus.status`,
+`nexus.search`, `nexus.describe_source`, `nexus.describe`, `nexus.plan`, the
+guidance resources and `nexus_workflow` for canonical workflows.
+The library also exports `Gateway`;
 offline `npm run catalog -- list`, `describe` and `plan` inspect the complete
 catalogue without contacting a backend.
 
-- Enable a small set of capabilities or packs in trusted host configuration.
-- Default enablement is empty. Suggested base: authoring-core and editor-observation.
+- `providerTools` defaults to `true`: every configured provider exposes its full
+  live toolset through this one MCP registration. Preserve all input/output
+  schemas and result content; reuse provider implementations.
+- Provider prompts use the same name namespace. Resource/template URIs use
+  `unreal-nexus-provider://<provider>/<original-uri>`, with returned content intact.
+- Canonical packs are optional and default to empty. Suggested canonical base:
+  authoring-core and editor-observation. They do not restrict provider tools.
+- `providerTools: false` explicitly selects the legacy canonical-only surface.
+- With `allowWrites: false`, provider tools remain listed but only those declaring
+  `annotations.readOnlyHint: true` may execute. Multipurpose gateway tools need
+  writes enabled; task-specific user authority still governs their use.
 - Playtesting and compile/material/test/trace packs are optional. Their fixed
   adapters exist, but affected routes refuse stock backends without the exact
   reviewed compatibility patches and corresponding live markers.
-- Before execution, the factory verifies the configured source revision, exact editor target
-  and live inner capability availability. Do not treat a meta-tool's existence
-  or a multi-editor discovery union as sufficient.
+- Provider discovery verifies source and editor identity. Canonical routes also
+  check their selected inner capability before execution. A provider meta-tool's
+  inner availability and semantics come from its live discovery/description
+  interface, not from the canonical catalogue.
 - Source verification covers the checkout and reviewed patch; ignored build
   products and the loaded native binary still require deployment acceptance.
 - Pin the chosen winner. New upstream code is a review candidate, not automatic
   replacement or a backup to try after failure.
 
-**Output:** canonical ID, exact target, fixed provider route, effects, required
-postconditions and whether dispatch actually happened.
+**Output:** namespaced provider tool or canonical ID, exact target, original
+arguments/results, effects, applicable postconditions and whether dispatch happened.
 
 ## 2. Confirmed PIE lifecycle — UnrealAgentPlayer
 

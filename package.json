@@ -1,15 +1,17 @@
 {
   "name": "unreal-nexus-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Canonical Unreal MCP gateway with lazy verified backends and optional specialists; live Unreal qualification pending.",
+  "description": "Unified Unreal MCP exposing complete namespaced provider interfaces and compatible canonical workflows through one entrypoint.",
   "license": "MIT",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "start": "node src/main.mjs",
+    "build": "node scripts/build.mjs",
+    "test:integration": "node --test test/unified-providers.test.mjs",
     "test": "node --test test/*.test.mjs",
     "check": "node scripts/validate-catalog.mjs && npm test",
     "catalog": "node src/cli.mjs",

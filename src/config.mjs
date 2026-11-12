@@ -48,8 +48,10 @@ const absolute = (value, base, label) => path.resolve(base, text(value, label));
 const providers = new Set(['ue-mcp', 'enginewire', 'unrealagentplayer', 'claireon', 'hayba']);
 
 export function parseConfig(raw, { baseDir = process.cwd(), env = process.env } = {}) {
-  keys(raw, ['version','enabledPacks','enabledCapabilities','allowWrites','allowLevelExternalPackageDeletion','timeoutMs','target','server','backends'], 'config');
+  keys(raw, ['version','providerTools','enabledPacks','enabledCapabilities','allowWrites','allowLevelExternalPackageDeletion','timeoutMs','target','server','backends'], 'config');
   if (raw.version !== 1) fail('Configuration version must be 1.');
+  const providerTools = raw.providerTools ?? true;
+  if (typeof providerTools !== 'boolean') fail('providerTools must be boolean.');
   const enabledPacks = strings(raw.enabledPacks ?? [], 'enabledPacks');
   const enabledCapabilities = strings(raw.enabledCapabilities ?? [], 'enabledCapabilities');
   const allowWrites = raw.allowWrites ?? false;
@@ -130,7 +132,7 @@ export function parseConfig(raw, { baseDir = process.cwd(), env = process.env } 
       backends[provider].rcEndpoint = text(input.rcEndpoint, 'rcEndpoint');
     }
   }
-  return { version:1, enabledPacks, enabledCapabilities, allowWrites, allowLevelExternalPackageDeletion, timeoutMs, target, server, backends };
+  return { version:1, providerTools, enabledPacks, enabledCapabilities, allowWrites, allowLevelExternalPackageDeletion, timeoutMs, target, server, backends };
 }
 
 export async function loadConfig(filename, options = {}) {

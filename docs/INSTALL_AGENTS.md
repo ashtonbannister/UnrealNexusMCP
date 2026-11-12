@@ -10,13 +10,13 @@ Placeholders: `<NEXUS_ROOT>` (where the gateway lives), `<UPSTREAMS>` (pinned up
 - **Never put secrets in config files or in committed files.** The EngineWire capability token is read from the editor's `Saved\MCP\capability-token` by a launcher script.
 - **Do not run any upstream `build` script that targets an engine tree or a test project.** Compile the target project itself with the engine's `Build.bat`.
 - **Do not write into `<ENGINE>`.** Only project files and `<NEXUS_ROOT>` should change.
-- **Editor state changes the config.** Set `target.processId` to `auto` on Windows to select the one running editor for the exact project when an operation first executes. Nexus remains discoverable before the editor starts; it pins the process after selection and refuses zero or ambiguous matches. EngineWire ports can change. On Windows, Claireon's `transport.url` and UAP's `rcEndpoint` can be set to `editor-auto`; each is resolved when its backend starts and must be owned by the selected editor.
+- **Editor state changes the config.** Set `target.processId` to `auto` on Windows to select the one running editor for the exact project when a provider is first needed. Nexus controls remain available before the editor starts; complete provider discovery needs the editor. Nexus pins the process after selection and refuses zero or ambiguous matches. EngineWire ports can change. On Windows, Claireon's `transport.url` and UAP's `rcEndpoint` can be set to `editor-auto`; each is resolved when its backend starts and must be owned by the selected editor.
 - **Restart the agent client after any config change.** The gateway's config and PID are cached per session.
 
 ## 1. Prerequisites  **USER** if missing
 
 - Windows 10/11, Unreal Engine 5.8 installed, Visual Studio 2022 or 2026 with the C++ workload (required for `Build.bat`).
-- Node.js 24 for Windows (the test script needs Node 24; runtime needs 22+).
+- Node.js 22 or newer for Windows.
 - Python 3.10+ for Windows (for UnrealAgentPlayer's venv).
 - Git.
 
@@ -33,14 +33,18 @@ Install and verify, from `<NEXUS_ROOT>`:
 
 ```
 npm ci --ignore-scripts
-npm run check
+npm run build
+npm run test:integration
 ```
 
-Expected result: all required tests pass. Supply the pristine pinned UAP checkout for complete patch fixtures; report any skips and failures explicitly.
+Expected result: production JavaScript and pinned catalogue validation, followed by the targeted unified integration checks
+pass. These checks use fixture providers and do not build or qualify Unreal.
 
 ## 3. Clone and patch the upstreams at pinned commits
 
-Read `catalog/upstreams.lock.json`. For each provider required by the selected profile (`ue-mcp`, `enginewire`, `claireon`, `unrealagentplayer`, `hayba`):
+Read `catalog/upstreams.lock.json`. Install `ue-mcp` and `enginewire` for the
+combined base configuration. Also install any configured optional provider
+(`claireon`, `unrealagentplayer`, `hayba`):
 
 ```
 git -c core.autocrlf=false clone <repository> <UPSTREAMS>\<name>
@@ -129,7 +133,21 @@ Read the ports the editor actually bound (`Get-NetTCPConnection -OwningProcess <
 
 ## 8. Write the gateway config
 
-Create `<NEXUS_ROOT>`-adjacent `nexus.config.json` (keep it outside the repo). Fields that change per machine: `target.projectRoot` (the `.uproject` path), each backend's `sourceRoot`, transport command and args, and ports. Use `examples/config.authoring.example.json` as the template; it does not enable UAP or playtesting. Select only the required profile and explicitly configure its backends. Start with `"allowWrites": false` and `enabledPacks` limited to the packs you need; enable writes only after read-only checks pass.
+Create `<NEXUS_ROOT>`-adjacent `nexus.config.json` (keep it outside the repo).
+Use `examples/config.unified.example.json` as the template. Replace
+`target.projectRoot` (the `.uproject` path), each backend's `sourceRoot`, transport
+command/args, and ports with installed values. It exposes the complete UE-MCP
+and EngineWire toolsets through Nexus and also enables canonical authoring and
+observation. Add optional providers under `backends` to expose their complete
+toolsets through the same entrypoint.
+
+Keep `providerTools: true` (the default). `enabledPacks` and
+`enabledCapabilities` choose canonical convenience routes; they do not restrict
+provider tools. The unified example enables writes to permit multipurpose
+provider gateways. For a read-only host set `allowWrites: false`: all provider
+tools remain discoverable, but only those advertising
+`annotations.readOnlyHint: true` may execute. This setting does not replace
+task-specific authorization.
 
 Secrets: pass the EngineWire token through a launcher script that reads the file (see section 9), not through the config file.
 
@@ -143,19 +161,33 @@ set /p NEXUS_ENGINEWIRE_TOKEN=<"<PROJECT>\Saved\MCP\capability-token"
 "C:\Program Files\nodejs\node.exe" "<NEXUS_ROOT>\src\main.mjs" --config "<config path>"
 ```
 
-Register it with the agent client as a stdio server whose command is `cmd.exe` with args `/c <launcher path>`.
+Register it with the agent client as one stdio server whose command is `cmd.exe`
+with args `/c <launcher path>`. Name it `unreal-nexus`.
 
-For optional direct provider connections, see the [draft skill direct-provider table](skills/unreal-nexus/SKILL.md#direct-provider-access) and [Claude Code configuration example](../examples/direct-providers.claude.example.json). These are separate MCP servers, so direct calls do not pass through Nexus. Replace example paths, ports and PID and keep the EngineWire token in the client environment.
+The [single-entry client example](../examples/unified.claude.example.json)
+launches Node directly when the environment already contains the token. The old
+`direct-providers.claude.example.json` now contains the same unified entry for
+migration. Remove separately registered provider entries. All provider calls
+go through Nexus; neither UE-MCP nor EngineWire needs its own client entry.
 
 ## 10. Verify, in order
 
-1. **Status (read-only, no backends started):** `nexus.status` should list the enabled providers and no error.
-2. **UE-MCP:** a read-only `actor.inspect.editor` on a path that does not exist should return "No actor at …" from the editor. That response proves the round trip.
-3. **EngineWire:** `POST` to its `/mcp` with the header `X-MCP-Capability-Token` returns `initialize`; without it, 401.
-4. **UAP:** for an enabled UAP profile, use the gateway identity checks and inspect their diagnostics; do not bypass a refusal with direct Python or arbitrary provider calls.
-5. **Nexus `pie.status`:** requires the queued-aware patch and live native method. Owned start/stop require v4, an available unique machine grant and the same running backend; a status observation alone does not establish ownership.
+1. **Combined manifest:** connect the client to Nexus and request `tools/list`.
+   Confirm `ue-mcp__tools` and `enginewire__unreal` are both present, along with
+   every additional tool their live manifests advertise. Discovery connects
+   providers; no separate client registrations are involved.
+2. **One call per provider:** use each namespaced gateway's original discovery
+   or read-only command, keeping its original arguments. Confirm the original
+   provider response is returned. A namespace changes only the public MCP name,
+   not an inner category, method, action or tool value.
+3. **Status:** `nexus.status` should report the configured providers, their
+   connection/identity evidence and queue state. Existing canonical calls remain
+   available when their packs and compatibility patches are enabled.
 
-Apply only checks relevant to the selected profile. Enable writes only with task-appropriate authorization and after the applicable identity and qualification checks; held operations remain unavailable.
+If optional providers are configured, include them in the same manifest check.
+Canonical held operations remain held; provider tools retain their native
+contracts. Native qualification beyond these setup round trips is a separate
+claim and must be reported with its actual evidence.
 
 ## 11. Troubleshooting
 

@@ -1,22 +1,38 @@
 # Implementation selection
 
-Review date: 2026-10-26. This is a bounded source comparison, not an exhaustive
+Canonical review date: 2026-10-26. Unified-provider interface updated 2026-11-12.
+The comparisons below describe selected canonical workflows, not an exhaustive
 runtime certification of every function in six large projects.
+
+The current public interface includes the complete live manifests of configured
+providers through one Nexus entrypoint. Every provider tool is namespaced as
+`<provider>__<original-name>` and keeps its original input/output contract.
+Provider prompts and resources are forwarded as well. The canonical catalogue is
+an optional compatible layer; its selection decisions do not filter provider
+tools or their inner gateway actions.
 
 The target repository began with only `LICENSE` at commit
 `d57d7137020e2ef33a2aaf9abdb9f9fe5d9e3ba2`. There were no integrated implementation
-bodies to delete. This change creates an **allowlisted, duplicate-excluding
-canonical catalogue and routing core**. It does not claim that native source
-files were removed from existing integrations.
+bodies to delete. The earlier implementation created an allowlisted,
+duplicate-excluding canonical catalogue and routing core. The unified interface
+reuses the external implementations without deleting their native functions or
+requiring separate client registrations.
 
 ## Architecture decision
 
-One canonical capability has one selected implementation. Configuration enables
-capabilities individually or in packs. A backend factory starts only when an
-enabled capability assigned to it is executed. Listing, describing and planning
-do not start anything. Unused specialists impose no startup dependency.
+With `providerTools: true` (the default), all configured backends contribute their
+complete toolsets. MCP discovery connects the providers and reads their live
+manifests; namespacing resolves collisions without changing either implementation.
+Read `unreal-nexus://guidance/providers` for upstream instructions and namespace
+translation. Provider-native operations follow upstream schemas and semantics.
 
-The catalogue now has 38 executable routing contracts in 20 selected groups.
+One canonical capability still has one selected implementation. Configuration
+enables canonical capabilities individually or in packs. `providerTools: false`
+selects the legacy canonical-only mode, where backend startup remains lazy until
+a canonical call needs it. Local Nexus describing and planning do not dispatch.
+Providers absent from the configuration do not impose a startup dependency.
+
+The catalogue has 42 canonical routing contracts.
 Fourteen optional specialist routes extend the original 16 core routes, with
 explicit reviewed compatibility requirements. Other choices remain conditional,
 preserved variants or holds. The 25 excluded
@@ -66,9 +82,10 @@ their external backends. There is no universal “best backend.”
 ## Latest reviewed, not floating latest
 
 `catalog/upstreams.lock.json` pins six source revisions.
-`catalog/decisions.json` records each winner, exclusion, qualification and
-commit-pinned implementation evidence. `catalog/operations.json` is the sole
-executable allowlist. A decision without an operation entry cannot be executed.
+`catalog/decisions.json` records canonical winners, exclusions, qualifications
+and commit-pinned evidence. `catalog/operations.json` is the executable allowlist
+for canonical IDs only. Namespaced provider tools come from the complete actual
+provider manifests and do not require duplicate canonical operation entries.
 
 An upstream release becomes a **candidate** for the affected functions. Diff
 its schema and implementation; rerun refusal, no-op, partial-write, save-failure,
@@ -84,7 +101,8 @@ gameplay observations/input. Specialist packs for compile, strict materials,
 automation and Insights are implemented and opt-in. Source patches and live
 markers are required before the affected routes can execute.
 
-Ivan's backend is not required by the 33 selected routes. This is not a finding
+Ivan's backend is not selected by the canonical routes or registered as a runtime
+provider. This is not a finding
 that every Ivan capability is redundant: isolated/camera rendering and queries
 are distinct. Component licensing must be assessed before incorporating its
 PolyForm Shield RQL/Code-Exec components. No such source is copied here.
@@ -102,13 +120,15 @@ This is not a merged native plugin or a remotely deployed connector. Source
 checkout hashes do not independently establish loaded native binary provenance,
 and per-call identity checks are not an atomic native editor-epoch lock.
 
-A public meta tool existing does not establish that an inner action is enabled.
-The core requires `supports(operation)` confirmation before dispatch, and keeps
-all native checks. The host adapter must derive it from the actual editor, not
-from a static documentation union across editors.
+A public meta tool's inner availability is determined by its provider's live
+discovery and description interface. Canonical routes additionally require
+`supports(operation)` confirmation for their selected contract. That check must
+derive from the actual editor, not a static documentation union across editors.
 
-Writes are off by default. No generic backend, console or Python escape hatch is
-present. All execution is serialized in this process. A transport failure,
+Writes are off by default; the unified example explicitly enables them. Full
+provider-native gateway interfaces are exposed with their original contracts.
+With writes disabled, only provider tools advertising `readOnlyHint: true` may
+execute; all remain discoverable. All execution is serialized in this process. A transport failure,
 malformed result or deadline fences subsequent execution; there is no automatic
 retry, provider fallback or model-callable reset. The queue cannot police other
 processes, direct clients or native engine events.
@@ -130,7 +150,8 @@ warnings, per-package receipts, task IDs, images and partial-state diagnostics.
 - Actionable workflow draft: [master skill guidance](MASTER_SKILL_GUIDANCE_DRAFT.md).
 - Machine-readable routing: `catalog/operations.json`.
 - Decisions and rejected defaults: `catalog/decisions.json`.
-- Local test command: `npm ci --ignore-scripts` then `npm run check` on Node 22+.
+- Focused host verification: `npm ci --ignore-scripts`, one `npm run build`,
+  then `npm run test:integration` on Node 22+.
 
 Gateway tests include real protocol clients/processes/HTTP listeners backed by
 fixtures, source-derived schemas and isolated patched-method checks. No native

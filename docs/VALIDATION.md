@@ -1,6 +1,36 @@
 # Validation record
 
-Date: 2026-10-26. Current implementation: Nexus 0.2.0, on
+## 2026-11-12 — unified provider interface, Nexus 0.3.0
+
+Executed on Node.js v24.22.1 / Linux, with the locked SDK dependencies.
+
+- One `npm run build` passed: 31 production ES modules parsed, and the pinned
+  catalogue validated (42 canonical operations, 33 decisions, six source pins).
+- The four focused cases in `test/unified-providers.test.mjs` establish complete
+  paginated provider discovery, collision-safe names, unchanged input/output
+  contracts, non-canonical gateway calls, shared canonical/provider connections,
+  dynamic manifest notifications, and read-only host policy.
+- The same checks cover real stdio and authenticated HTTP clients, provider
+  resource/template/prompt/completion/subscription forwarding, multimodal
+  content, structured output, metadata, ordinary tool failures and JSON-RPC
+  errors without replay.
+- The initial HTTP case identified lost legacy client capabilities in the old
+  stateless handler. Full-mode HTTP now retains sessions. A subsequent automatic
+  negotiation check identified SDK serving helpers overriding the supported
+  protocol set. Full-mode entrypoints now negotiate supported 2025 revisions,
+  retaining native results and approval exchanges without mutation replay.
+  Only the affected HTTP/stdio cases were rerun after these fixes; both passed,
+  including unchanged acceptance and decline responses. The other two targeted
+  cases passed in the initial run. No full-suite testing cycle was performed.
+
+Provider fixtures run as actual child processes through production transports,
+configuration, runtime, backend pool, routing and queue. Only source/editor
+attestation is simulated. Native Unreal plugins were not compiled or exercised
+in this workspace; the records below retain earlier source and live evidence.
+
+## Previous implementation baseline
+
+Date: 2026-10-26. Baseline implementation: Nexus 0.2.0, on
 `codex/implementation-curation`.
 
 ## Historical Claude-branch gateway result

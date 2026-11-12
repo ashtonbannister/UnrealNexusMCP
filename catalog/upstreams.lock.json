@@ -12,11 +12,11 @@
     },
     "enginewire": {
       "repository": "https://github.com/ChiR24/Unreal_mcp",
-      "commit": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
+      "commit": "2792ba198403bf0842a6cd91f87113d9d86db8e3",
       "license": "MIT",
-      "surface": "unreal(operation=describe|execute, tool, action, params)",
-      "defaultBranchHeadAtReview": "5a17d6d343ef9b40a509068cff73f1bfb4509815",
-      "commitDate": "2026-10-26T05:55:42Z"
+      "surface": "unreal(operation=search|describe|execute|configure, capability or tool/action, params)",
+      "defaultBranchHeadAtReview": "2792ba198403bf0842a6cd91f87113d9d86db8e3",
+      "commitDate": "2026-11-10T08:37:34Z"
     },
     "claireon": {
       "repository": "https://github.com/believer-oss/Claireon",

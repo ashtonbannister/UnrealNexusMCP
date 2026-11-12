@@ -5,6 +5,7 @@ import { EditorQueue } from './queue.mjs';
 import { BackendPool } from './backends.mjs';
 import { selectCapabilities } from './packs.mjs';
 import { NexusError } from './errors.mjs';
+import { ProviderSurface } from './provider-surface.mjs';
 
 // These reviewed routes remain held where native target or ownership
 // boundaries cannot be established before dispatch.
@@ -29,7 +30,7 @@ export class Gateway {
   #targetPromise = null;
 
   constructor(catalog, {
-    enabledPacks = [], enabledCapabilities = [], backendFactories = new Map(),
+    enabledPacks = [], enabledCapabilities = [], backendFactories = new Map(), providerTools = [],
     allowWrites = false, allowLevelExternalPackageDeletion = false, timeoutMs = 120000, target = null, targetResolver = null,
   } = {}) {
     if (typeof allowWrites !== 'boolean' || typeof allowLevelExternalPackageDeletion !== 'boolean' || !Number.isInteger(timeoutMs)
@@ -51,7 +52,17 @@ export class Gateway {
     this.target = target === null ? null : Object.freeze({...target});
     this.queue = new EditorQueue();
     this.#pool = new BackendPool(backendFactories, catalog.upstreams.sources, this.target);
+    this.providerSurface = new ProviderSurface({providers:providerTools, queue:this.queue,
+      allowWrites, timeoutMs, getBackend:async (provider, options) => {
+        if (this.#closed) throw new NexusError('GATEWAY_CLOSED', 'Gateway is closed.');
+        await this.#ensureTarget();
+        return this.#pool.get(provider, options);
+      }});
   }
+
+  listProviderTools(options) { return this.providerSurface.listTools(options); }
+  isProviderTool(name) { return this.providerSurface.isTool(name); }
+  executeProviderTool(name, args, options) { return this.providerSurface.callTool(name, args, options); }
 
   async #ensureTarget() {
     if (this.target !== null) return this.target;
@@ -112,7 +123,7 @@ export class Gateway {
       call, postconditions: operation.postconditions, dispatched: false };
   }
 
-  async execute(id, args = {}, {signal} = {}) {
+  async execute(id, args = {}, {signal,clientContext,onprogress} = {}) {
     if (this.#closed) throw new NexusError('GATEWAY_CLOSED', 'Gateway is closed.');
     this.#operation(id);
     this.catalog.validate(id, args); // Reject accessors before structuredClone can invoke them.
@@ -145,7 +156,7 @@ export class Gateway {
         expectedArgs.native_id = entry.nativeId;
         if (id === 'input.action.hold.start') expectedArgs.lease_seconds ??= 300;
       }
-      let raw = await backend.call(plan.call, this.timeoutMs, {signal});
+      let raw = await backend.call(plan.call, this.timeoutMs, {signal,clientContext,onprogress});
       let leakedToken = false;
       if (id.startsWith('input.action.hold.')) {
         const token = this.#inputHolds.get(expectedArgs.injection_id).ownerToken;
@@ -195,11 +206,11 @@ export class Gateway {
             throw new NexusError('HOLD_NOT_OWNED','This gateway does not own an active hold with that ID.');
           }
         }
-        const backend = await this.#pool.get(operation.provider);
+        const backend = await this.#pool.get(operation.provider, {clientContext});
         if (!backend.tools.has(nativeToolName(operation))) {
           throw new NexusError('BACKEND_SURFACE_MISMATCH', 'Selected public tool is not advertised; check surface mode.');
         }
-        if (await backend.supports(operation,{signal,timeoutMs:this.timeoutMs}) !== true) {
+        if (await backend.supports(operation,{signal,timeoutMs:this.timeoutMs,clientContext}) !== true) {
           throw new NexusError('CAPABILITY_UNAVAILABLE', 'Selected operation is not confirmed available in the connected editor.');
         }
         await backend.preflight?.(plan.call);
@@ -220,7 +231,8 @@ export class Gateway {
       heldCapabilities:[...this.#enabled].filter(id=>held.has(id)).map(id=>({id,reason:held.get(id).reason})),
       enabledCapabilities:[...this.#enabled],
       ownedInputHolds:[...this.#inputHolds].map(([id,entry])=>({id,state:entry.state})),
-      requiredProviders:[...new Set(this.list().map((op)=>op.provider))].sort(),
+      providerTools:this.providerSurface.providers,
+      requiredProviders:[...new Set([...this.list().map((op)=>op.provider),...this.providerSurface.providers])].sort(),
       backends:this.#pool.status,
       editorIdentity:this.target === null ? (this.#targetResolver ? 'awaiting editor selection' : 'unconfigured') : 'verified by host adapter on load; not independently attested by this core',
       liveUnrealQualification:'not performed', networkTransport:'not included'};
@@ -228,6 +240,7 @@ export class Gateway {
 
   async close() {
     this.#closed = true;
+    this.providerSurface.close();
     await this.#pool.close();
   }
 }

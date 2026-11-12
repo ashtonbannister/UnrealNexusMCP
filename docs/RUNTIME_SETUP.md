@@ -1,8 +1,9 @@
 # Runtime setup
 
-Nexus runs on the editor's machine. It exposes one canonical MCP surface and
-connects only to the backends selected by enabled capabilities. The implementation
-has protocol/fixture tests; complete live Unreal acceptance is still required.
+Nexus runs on the editor's machine. One client registration exposes the complete
+advertised toolsets of every configured provider, plus any enabled canonical
+operations. The namespaced provider surface is enabled by default. Complete live
+Unreal acceptance remains separate from host protocol/fixture verification.
 
 ## 1. Install and inspect without an editor
 
@@ -10,23 +11,23 @@ Use Node 22+ and Git. In this repository:
 
 ```sh
 npm ci --ignore-scripts
-npm run check
+npm run build
+npm run test:integration
 node src/main.mjs --help
 node src/main.mjs --config examples/config.example.json
 ```
 
-The full isolated Python checks also need `python3` and the pristine UAP checkout
-at its pinned revision. Set `NEXUS_UAP_SOURCE_ROOT` to that checkout (or place it
-beside this repo as `upstream-unrealagentplayer`). Without the snapshot, the
-UAP patched-method test explicitly skips; without Python, the standalone wrapper
-syntax check explicitly skips. A source snapshot plus missing Python is a test
-setup error. The recorded full run supplied both and had no skips.
+The build validates production JavaScript and the pinned catalogue; this `.mjs`
+host does not require transpilation. The targeted integration command checks the combined tool
+manifest and original provider contracts through MCP transports. It does not
+build an Unreal project or execute native editor operations.
 
 The final command is a stdio MCP server: stdout belongs to the protocol, and the
-process waits for a client. The supplied example enables no backend operations.
-Only `nexus.status`, `nexus.describe` and `nexus.plan` are advertised; describing or
-planning a disabled capability refuses. The master guidance resources remain
-available. Use the offline catalogue CLI to inspect disabled operations.
+process waits for a client. The supplied example configures no providers and
+enables no canonical operations. It advertises the five read-only Nexus controls
+and the master guidance resources. Use the offline catalogue CLI to inspect
+disabled canonical operations. Full provider discovery requires configured
+backends and their live editor connections.
 
 ## 2. Identify the actual editor
 
@@ -74,23 +75,65 @@ checkout is not proof that the running editor loaded its DLL or that the launche
 Node/Python process uses that build. Live protocol markers/handler parity provide
 additional evidence, and deployment must still verify loaded binary provenance.
 
-## 4. Configure only the capabilities needed
+## 4. Configure the unified toolset
 
-Copy `examples/config.authoring.example.json` to a host-owned file such as
-`nexus.config.json`. All example paths/PID/ports are placeholders. The two base
-packs select UE-MCP and EngineWire; remove either pack and its backend if unused.
-You may instead set `enabledCapabilities` to individual IDs. Writes/lifecycle
-actions require `allowWrites: true`; this host setting does not replace the
-user's task-specific authority. `level.save.current` requires the UE-MCP guarded-save v2 patch and an exact
+Copy `examples/config.unified.example.json` to a host-owned file such as
+`nexus.config.json`. All example paths/PID/ports are placeholders. It configures
+UE-MCP and EngineWire, enables their full provider surfaces, and retains the
+canonical authoring and observation packs. `providerTools` defaults to `true`;
+every backend in `backends` participates even when no canonical pack uses it.
+
+Register only Nexus with the MCP client using
+`examples/unified.claude.example.json`. `tools/list` obtains each provider's
+complete actual manifest, follows its pages, and exposes its tools as
+`<provider>__<original-name>`. UE-MCP's `tools` becomes `ue-mcp__tools` and
+EngineWire's `unreal` becomes `enginewire__unreal`. Keep inner category, method,
+tool and action values unchanged. Provider schemas, content blocks, structured
+results and ordinary tool failures retain their original contracts. You do not
+need separate provider registrations or a new canonical adapter per action.
+
+Provider prompts are exposed as `<provider>__<original-name>`. Resource and
+template URIs use `unreal-nexus-provider://<provider>/<original-uri>`, including
+the original URI's scheme. For example, EngineWire's `ue://health` becomes
+`unreal-nexus-provider://enginewire/ue://health`. Nexus routes these requests to
+the original provider without rewriting their returned content. Read the
+`unreal-nexus://guidance/providers` for upstream initialization instructions and
+namespace translation.
+
+Full discovery can start or connect providers and requires their target editor.
+Canonical controls and guidance remain available before full provider discovery.
+Set `providerTools: false` for the explicit legacy canonical-only mode; only
+that mode retains the old no-provider-start-during-tool-discovery behavior.
+
+The unified example sets `allowWrites: true` so multipurpose provider gateway
+tools can execute their complete interfaces. With `allowWrites: false`, every
+tool is still listed, but only provider tools declaring
+`annotations.readOnlyHint: true` may execute. Unknown and multipurpose tools are
+treated as potentially writing. This host setting does not replace the user's
+task-specific authority.
+
+### Existing canonical routes
+
+Full provider sessions use the supported 2025 MCP protocol revisions on stdio
+and HTTP. Clients with automatic negotiation select that mode. Modern-only
+requests receive an unsupported-version response: the native providers' blocking
+approval exchanges must resume the original call, not replay its mutation.
+Explicit canonical-only mode retains its existing protocol support.
+
+`enabledPacks` and `enabledCapabilities` select additional canonical IDs; they
+do not filter the full provider surface. The following restrictions describe
+those canonical contracts. Provider-native tools retain upstream semantics.
+
+`level.save.current` requires the UE-MCP guarded-save v2 patch and an exact
 expected level package from `level.current.inspect`. It includes loaded
 external packages and refuses dirty empty external packages instead of deleting
 them. The legacy `allowLevelExternalPackageDeletion` setting does not grant
 deletion for this route. `screenshot.pie` requires the UE-MCP direct-PIE compatibility patch and
 a rebuilt matching native plugin and server. It uses a dedicated bounded socket
 and writes no screenshot file. Specify an exact world path and instance from
-`play.worlds.list`; the capture does not own the PIE session. `requiredProviders`
-includes providers for enabled catalog entries, including held entries; a held
-entry never starts its backend. PIE start and stop require the v4 native
+`play.worlds.list`; the capture does not own the PIE session. Canonical held
+entries never dispatch; their configured provider can still be connected for
+its full namespaced manifest. PIE start and stop require the v4 native
 ownership patch and a unique machine grant. `pie.status` is only a point-in-time
 observation. Reconcile pre-existing PIE sessions and uncertain grants
 externally; Nexus performs no implicit stop or grant release. Owned input holds require the UE-MCP owned-hold v1 patch and a rebuilt native
@@ -155,7 +198,8 @@ environment from the pinned checkout. Configure, for example:
 
 Place that object under `backends.unrealagentplayer`. **30010 is an example, not
 a discovered per-editor port**; use the actual selected editor's RC port. On Windows, set `rcEndpoint` to `editor-auto` to read the selected project's Remote Control settings and require that the selected editor owns the listener.
-Enable `playtesting` or the desired UAP canonical IDs. If the editor's
+Its full tools appear under `unrealagentplayer__` when provider tools are enabled.
+Also enable `playtesting` or the desired UAP canonical IDs when needed. If the editor's
 Python Remote Execution is bound to a specific IPv4 interface, set
 `NEXUS_UAP_MULTICAST_INTERFACE` in this transport's trusted `env` to the same
 address (for example `127.0.0.1` for a loopback-only host). If omitted, the
@@ -221,7 +265,9 @@ Use the actual editor-owned native TCP port, not an assumed default. Explicit
 after reconnection. Nexus uses the fixed read-only `material_nexus_identity`
 tool to corroborate the editor and native receipt marker, then the direct
 `material_set_param` tool with the v2 receipt selector and no-retry marker.
-It does not invoke Hayba's generic routing or dynamically load a pack to evade a refusal.
+Those fixed canonical adapters do not invoke generic routing. The complete
+provider surface also exposes Hayba's own routing tools under `hayba__`, with
+their original contracts.
 
 ## 5. Local HTTP instead of stdio
 
@@ -242,18 +288,25 @@ All HTTP clients share one configured project, authority level, queue and fence.
 There is no separate per-client principal or ownership system. The bearer is a
 host access boundary; do not use this host as a multi-tenant service.
 
-Modern HTTP cancellation and an original HTTP request disconnect propagate into
-the gateway. The SDK's stateless legacy serving mode does not correlate a separate
-`notifications/cancelled` POST with a call on another server instance. A legacy
-client's cancellation notification alone therefore does not cancel that call;
-the serialized queue and operation deadline still apply. Cancellation never
-proves that native Unreal work stopped or rolled back.
+In unified mode, legacy Streamable HTTP retains each initialized MCP session and
+its client capabilities. This allows provider callbacks, including elicitation,
+to reach the same connected client; the client must support the requested
+callback. MCP clients manage the session identifier returned during initialization.
+Sessions share the same runtime, provider connections and queue.
+
+Explicit canonical-only mode retains stateless legacy HTTP handling. In that
+mode, a separate `notifications/cancelled` POST cannot cancel a call handled by
+another server instance. Original-request disconnects, modern HTTP cancellation
+and operation deadlines still apply. Cancellation never proves that native
+Unreal work stopped or rolled back.
 
 ## 6. Connection lifecycle and recovery
 
-The first actual call verifies source, starts/connects the selected backend,
-enumerates its real tools and corroborates the target. Later calls reuse that
-connection and repeat live target/capability checks. The transport sends a tool
+In unified mode, tool discovery verifies source, starts/connects all configured
+providers, enumerates their real tools and corroborates the target. In legacy
+canonical-only mode this happens when the first canonical call needs a provider.
+Later calls reuse those connections and repeat live target checks; canonical
+calls retain their additional capability checks. The transport sends a tool
 request once: no auth refresh, redirect following, protocol fallback, reconnect
 or request replay. Reviewed native compatibility patches address additional
 retries inside affected upstreams.

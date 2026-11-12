@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "unreal-nexus": {
+      "command": "node",
+      "args": [
+        "C:/Tools/UnrealNexusMCP/src/main.mjs",
+        "--config",
+        "C:/Tools/NexusConfig/nexus.config.json"
+      ]
+    }
+  }
+}

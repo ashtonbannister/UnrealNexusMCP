@@ -1,4 +1,5 @@
-import {Client, SSEClientTransport, StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
+import {Client, ProtocolError, ProtocolErrorCode, getSupportedElicitationModes,
+  SSEClientTransport, StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
 import {DEFAULT_INHERITED_ENV_VARS, StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 import {NexusError, markCleanupIncomplete} from './errors.mjs';
 
@@ -36,6 +37,18 @@ function safeError(code, message) {
   // Do not attach raw fetch/spawn errors: URLs, child argv, HTTP bodies or headers
   // can contain credentials. Native tool failures still return in CallToolResult.
   return new NexusError(code, message);
+}
+
+function elicitationCapabilities(context) {
+  const capability = context?.capabilities?.elicitation;
+  if (typeof context?.send !== 'function' || !record(capability)) return undefined;
+  const modes = getSupportedElicitationModes(capability);
+  // An empty legacy elicitation declaration means form support. URL support
+  // must be declared explicitly; never advertise a UI the caller cannot serve.
+  return {
+    ...(modes.supportsFormMode ? {form:structuredClone(capability.form ?? {})} : {}),
+    ...(modes.supportsUrlMode ? {url:structuredClone(capability.url)} : {}),
+  };
 }
 
 function childEnvironment(config) {
@@ -147,7 +160,7 @@ function makeTransport(config, lifetime, fail) {
  */
 export async function createMcpConnection(config, {
   timeoutMs = DEFAULT_TIMEOUT_MS, startupTimeoutMs = timeoutMs,
-  closeTimeoutMs = DEFAULT_CLOSE_TIMEOUT_MS, signal,
+  closeTimeoutMs = DEFAULT_CLOSE_TIMEOUT_MS, signal, clientContext,
 } = {}) {
   positiveInteger(timeoutMs,'timeoutMs');
   positiveInteger(startupTimeoutMs,'startupTimeoutMs');
@@ -156,14 +169,47 @@ export async function createMcpConnection(config, {
   if (signal?.aborted) throw safeError('BACKEND_CANCELLED','Backend startup cancelled before dispatch.');
 
   const lifetime = new AbortController();
-  const client = new Client({name:'unreal-nexus-mcp',version:'0.1.0'}, {
-    capabilities:{},versionNegotiation:{mode:'legacy'},
+  const elicitation = elicitationCapabilities(clientContext);
+  // Startup determines the legacy handshake capabilities, not where later
+  // prompts are sent. Do not retain the first client's request callback.
+  clientContext = undefined;
+  const activeRequests = new Set();
+  const client = new Client({name:'unreal-nexus-mcp',version:'0.3.0'}, {
+    capabilities:elicitation ? {elicitation} : {},versionNegotiation:{mode:'legacy'},
     inputRequired:{autoFulfill:false},enforceStrictCapabilities:true,
+  });
+  if (elicitation) client.setRequestHandler('elicitation/create', async (request, context) => {
+    // Legacy server requests do not identify the originating tools/call.
+    // Ambiguity must be refused, never resolved by choosing another client.
+    if (activeRequests.size !== 1) throw new ProtocolError(ProtocolErrorCode.InvalidRequest,
+      'Provider elicitation has no unambiguous active originating request.');
+    const active = activeRequests.values().next().value;
+    const caller = active.clientContext;
+    const supported = elicitationCapabilities(caller);
+    const mode = request.params.mode ?? 'form';
+    if (!supported || !Object.hasOwn(supported, mode)) throw new ProtocolError(ProtocolErrorCode.MethodNotFound,
+      'The originating Nexus client does not support this elicitation mode.');
+    const signal = AbortSignal.any([active.signal, active.finished.signal, context.mcpReq.signal]);
+    if (signal.aborted) throw new ProtocolError(ProtocolErrorCode.InvalidRequest,
+      'The originating Nexus request is no longer active.');
+    // Forward the provider's form/URL and metadata verbatim. Only the real
+    // caller can accept, decline or cancel; Nexus supplies no approval value.
+    const result = await caller.send(request, {signal, timeout:Math.max(1, active.deadline - Date.now())});
+    if (signal.aborted) throw new ProtocolError(ProtocolErrorCode.InvalidRequest,
+      'The originating Nexus request ended before its elicitation response.');
+    return result;
   });
   let closed = false;
   let failure;
   let closePromise;
   let transport;
+  const notificationListeners = new Set();
+  for (const method of ['notifications/tools/list_changed','notifications/resources/list_changed',
+    'notifications/resources/updated','notifications/prompts/list_changed']) {
+    client.setNotificationHandler(method, notification => {
+      for (const listener of notificationListeners) listener(notification);
+    });
+  }
 
   const close = () => {
     if (closePromise) return closePromise;
@@ -202,7 +248,8 @@ export async function createMcpConnection(config, {
     lifetime.abort(failure ?? safeError('BACKEND_CLOSED','Backend connection closed.'));
   };
 
-  const run = async (work, {signal:callSignal,timeoutMs:budget = timeoutMs,onprogress} = {}, startup = false) => {
+  const run = async (work, {signal:callSignal,timeoutMs:budget = timeoutMs,onprogress,
+    clientContext:origin} = {}, startup = false) => {
     positiveInteger(budget,'timeoutMs');
     checkSignal(callSignal);
     if (closed) throw failure ?? safeError('BACKEND_CLOSED','Backend connection is closed; no reconnect attempted.');
@@ -222,6 +269,8 @@ export async function createMcpConnection(config, {
     const timer = setTimeout(()=>deadline.abort(expired),budget);
     const requestOptions = {signal:combined,timeout:budget,maxTotalTimeout:budget,resetTimeoutOnProgress:false,
       ...(onprogress === undefined ? {} : {onprogress})};
+    const active = {clientContext:origin,signal:combined,deadline:Date.now()+budget,finished:new AbortController()};
+    activeRequests.add(active);
     try {
       const pending = Promise.resolve().then(()=>{
         if (combined.aborted) throw combined.reason;
@@ -229,12 +278,15 @@ export async function createMcpConnection(config, {
       });
       return await Promise.race([pending,interrupted]);
     } catch (error) {
+      if (!startup && error instanceof ProtocolError) throw error;
       const safe = error instanceof NexusError ? error : safeError('BACKEND_REQUEST_FAILED',
         startup ? 'Backend initialization failed; no retry attempted.'
           : 'Backend request failed; no retry attempted and completion is not established.');
       fail(safe);
       throw safe;
     } finally {
+      activeRequests.delete(active);
+      active.finished.abort();
       clearTimeout(timer);
       combined.removeEventListener('abort',abort);
     }
@@ -254,10 +306,19 @@ export async function createMcpConnection(config, {
     get closed() { return closed; },
     get serverInfo() { return structuredClone(client.getServerVersion()); },
     get capabilities() { return structuredClone(client.getServerCapabilities()); },
+    get instructions() { return client.getInstructions(); },
     get protocolVersion() { return client.getNegotiatedProtocolVersion(); },
     get pid() { return config.type === 'stdio' ? transport.pid : null; },
     close,
-    async listTools({signal,timeoutMs:budget = timeoutMs,maxPages = DEFAULT_MAX_PAGES,maxTools = DEFAULT_MAX_TOOLS} = {}) {
+    onNotification(listener) {
+      notificationListeners.add(listener);
+      return () => notificationListeners.delete(listener);
+    },
+    async request(method, params = {}, options = {}) {
+      return run(requestOptions => client.request({method, params}, requestOptions), options);
+    },
+    async listTools({signal,timeoutMs:budget = timeoutMs,maxPages = DEFAULT_MAX_PAGES,
+      maxTools = DEFAULT_MAX_TOOLS,clientContext} = {}) {
       positiveInteger(maxPages,'maxPages',256);
       positiveInteger(maxTools,'maxTools',100000);
       return run(async (options)=>{
@@ -281,13 +342,14 @@ export async function createMcpConnection(config, {
           cursor = result.nextCursor;
         }
         throw safeError('BACKEND_PAGE_LIMIT','Backend tool listing exceeds the configured page cap.');
-      },{signal,timeoutMs:budget});
+      },{signal,timeoutMs:budget,clientContext});
     },
     async callTool(name,args = {},options = {}) {
       if (typeof name !== 'string' || !name || !record(args)) {
         throw new NexusError('INVALID_BACKEND_CALL','Tool call needs a nonempty name and object arguments.');
       }
-      const params = {name,arguments:structuredClone(args)};
+      const params = {name,arguments:structuredClone(args),
+        ...(options.meta === undefined ? {} : {_meta:structuredClone(options.meta)})};
       // The convenience callTool() can refresh/retry modern header mismatches.
       // Typed request() still validates CallToolResult but sends only once.
       return run((requestOptions)=>client.request({method:'tools/call',params},requestOptions),options);
