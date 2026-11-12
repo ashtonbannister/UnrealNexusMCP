@@ -50,3 +50,18 @@ The newer UE-MCP graph read reports ordinary node input/output pin labels as wel
 The candidate server advertised the expected `pcg.read_graph` to `read_pcg_graph` mapping and required string `assetPath` in a synthetic, no-editor description check. The full isolated coordinator suite passed 260 tests with zero failures or skips on Node 24.11.1. This route has not yet been exercised against the new native plugin in Unreal.
 
 The recoverable v4 patch is `ue-mcp-upgrade-candidate-a0353f8-v4.patch` in the task artifact folder, based on `a0353f8af2e7067d2ddb0dd3616fd5f6c212c7b8`, SHA-256 `44bc2a5d21335cb73afd42106fc86be294b47a54a708ae2436c71a6653943663`; it was checked against the isolated working candidate. The earlier checkpoints remain historical. Candidate source and fixture evidence is not native deployment or release qualification.
+
+## Isolated native plugin build
+
+The UE-MCP `da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8` plugin was copied into a separate `NexusBuildHost` project and built on Windows against the installed UE 5.8.4 engine with `-plugin=<isolated copy> -WaitMutex -NoEngineChanges -NoHotReload`. UnrealBuildTool reported `Result: Succeeded` after 420 build actions. This compiled the candidate; it did not load it into the running Henday Heat editor or execute its native tests.
+
+Before building, 582 copied source files matched the candidate checkout byte-for-byte; the same source files still matched afterward. The compiler emitted engine/template and deprecated-API warnings and identified Visual Studio toolchain 14.52.37029 as newer than its preferred version. The original build log is preserved locally alongside the isolated build host as `build-output-original.bin`, SHA-256 `32858ef12c458bfc5aae8abb2d1a4eca8aeb849ac7f585d97b36abbe74917c9f`; `build-output.log` is an LF-normalized reading copy.
+
+| Isolated build output | SHA-256 |
+| --- | --- |
+| UnrealEditor-UE_MCP_Bridge.dll | `9e68cb0be61358931fc924d434ed05dfe25f3bcc5ff1fd4d81f5ad4c837d2f22` |
+| UnrealEditor-UE_MCP_BridgeMVVM.dll | `89cc760a174a5d98fb1b2bec451f2300fcb3daa4218be6aa6d4029b8e81c826b` |
+| UnrealEditor-UE_MCP_BridgeRuntime.dll | `91aed3eb376ec7b4caf554c0ee16dd3182ce01ee120593231d461cbaf68e53cf` |
+| UnrealEditor-UE_MCP_BridgeStatus.dll | `d634ff39c56a537c2a30d8c6862af9cbc519e6561b27b66581deee9e069aee30` |
+
+The initial project-target build was refused because the existing editor's Live Coding session held the shared editor-executable mutex. The owner authorized temporarily stopping Live Coding; disabling its preference did not terminate the already-started session. The successful build used UnrealBuildTool's foreign-plugin path, which scoped output to the separate plugin copy, while retaining `-NoEngineChanges`. The prior Live Coding preference was restored and the original editor and unsaved level remained open. Loading the new binary and proving its identity and behavior remain separate steps.
