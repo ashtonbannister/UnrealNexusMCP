@@ -66,8 +66,8 @@ Milestones express outcomes, not dates. Source review, fixture work and independ
 
 A core configuration does not wait for every optional specialist. Qualify these profiles independently:
 
-- **Core profile:** authoring-core and editor-observation (8 existing operations); LIVE-01, LIVE-02 and LIVE-08 for that combination.
-- **Playtesting profile:** core plus playtesting (16 catalogued operations, including owned PIE start/stop, direct PIE capture and owned input-hold operations); additionally LIVE-03 and another LIVE-08 run for that combination.
+- **Core profile:** authoring-core and editor-observation (13 existing operations); LIVE-01, LIVE-02 and LIVE-08 for that combination.
+- **Playtesting profile:** core plus playtesting (22 catalogued operations, including owned PIE start/stop, direct PIE capture and owned input-hold operations); additionally LIVE-03 and another LIVE-08 run for that combination.
 - **Specialist profiles:** add only the desired compile (3), material (3), automation (2) or Insights (6) operations, with that pack's native record and combined-profile check.
 - **Expanded authoring profiles:** add individual CAP contracts only after their source/fixture/native evidence; no whole-family blanket enablement.
 

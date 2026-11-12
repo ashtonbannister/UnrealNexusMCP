@@ -19,7 +19,10 @@
         "pcg.generation.wait",
         "pcg.graph.inspect",
         "level.current.inspect"
-      ]
+      ],
+      "requiredCompatibility": {
+        "ue-mcp": "ue-mcp-nexus-guarded-save-v2"
+      }
     },
     {
       "id": "editor-observation",
@@ -45,7 +48,8 @@
         "play.worlds.list"
       ],
       "requiredCompatibility": {
-        "unrealagentplayer": "uap-nexus-owned-pie-v4"
+        "unrealagentplayer": "uap-nexus-owned-pie-v4",
+        "ue-mcp": "ue-mcp-nexus-owned-hold-v1"
       }
     },
     {

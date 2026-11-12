@@ -91,9 +91,9 @@ console command, configuration mutation or uncertainty-reset tool.
 
 | Pack | Canonical operations | Selected backend(s) | Additional condition |
 |---|---:|---|---|
-| `authoring-core` | 11 | UE-MCP | Live micro-mode handler/schema parity |
+| `authoring-core` | 12 | UE-MCP | Guarded-save compatibility patch and live handler/schema parity |
 | `editor-observation` | 1 | EngineWire | Direct editor-owned HTTP endpoint |
-| `playtesting` | 8 | UnrealAgentPlayer + UE-MCP | Reviewed UAP no-replay/target-binding patch |
+| `playtesting` | 9 | UnrealAgentPlayer + UE-MCP | Owned PIE and owned-input compatibility patches |
 | `blueprint-compile` | 3 | Claireon | Loaded-compile compatibility patch; direct editor endpoint |
 | `material-strict` | 3 | Hayba | Versioned native receipt and no-retry patch; fixed native port; typed tools |
 | `automation-tests` | 2 | Claireon | Same compatibility patch; owned run and terminal receipt |

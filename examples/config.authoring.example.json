@@ -12,6 +12,7 @@
   "backends": {
     "ue-mcp": {
       "sourceRoot": "C:/Tools/upstreams/ue-mcp",
+      "compatibilityPatch": "ue-mcp-nexus-owned-hold-v1",
       "transport": {
         "type": "stdio",
         "command": "node",

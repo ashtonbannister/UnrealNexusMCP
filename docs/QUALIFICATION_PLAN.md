@@ -50,7 +50,7 @@ Inventory enabled native and Nexus listeners: owning process, bind address, endp
 
 **Dependencies:** [ENV-01](#env-01).
 
-Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [34-operation harness design](qualification/HARNESS_DESIGN.md) and an offline structural evidence validator with fixture tests are available; executable native fixture verification still needs ENV-01.
+Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [current-operation harness design](qualification/HARNESS_DESIGN.md) and an offline structural evidence validator with fixture tests are available; executable native fixture verification still needs ENV-01.
 
 **Done when:** The test environment and cleanup are reproducible, with a representative read and write for each applicable provider through Nexus. The user confirmed upstream MCPs are already tested and does not require individual live testing of every command. Add targeted checks for a specific changed contract, observed failure or unresolved integration risk; the rows below remain a tracking aid, not a mandate to exercise every row. Record what was actually checked without inferring that an untested operation was individually verified.
 

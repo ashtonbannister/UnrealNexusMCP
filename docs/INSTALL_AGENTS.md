@@ -50,10 +50,10 @@ git -C <UPSTREAMS>\<name> checkout <commit>
 For providers required by the selected profile, apply their reviewed patches (check first, then apply). Omit commands for unused providers:
 
 ```
-git -C <UPSTREAMS>\ue-mcp apply --check <NEXUS_ROOT>\patches\ue-mcp-nexus-pagination-count.patch
-git -C <UPSTREAMS>\ue-mcp apply <NEXUS_ROOT>\patches\ue-mcp-nexus-pagination-count.patch
-git -C <UPSTREAMS>\claireon apply --check <NEXUS_ROOT>\patches\claireon-nexus-no-autosave.patch
-git -C <UPSTREAMS>\claireon apply <NEXUS_ROOT>\patches\claireon-nexus-no-autosave.patch
+git -C <UPSTREAMS>\ue-mcp apply --check <NEXUS_ROOT>\patches\ue-mcp-nexus-owned-hold-v1.patch
+git -C <UPSTREAMS>\ue-mcp apply <NEXUS_ROOT>\patches\ue-mcp-nexus-owned-hold-v1.patch
+git -C <UPSTREAMS>\claireon apply --check <NEXUS_ROOT>\patches\claireon-nexus-compile-loaded-v2.patch
+git -C <UPSTREAMS>\claireon apply <NEXUS_ROOT>\patches\claireon-nexus-compile-loaded-v2.patch
 git -C <UPSTREAMS>\hayba apply --check <NEXUS_ROOT>\patches\hayba-nexus-material-receipt-v2.patch
 git -C <UPSTREAMS>\hayba apply <NEXUS_ROOT>\patches\hayba-nexus-material-receipt-v2.patch
 git -C <UPSTREAMS>\unrealagentplayer apply --check <NEXUS_ROOT>\patches\uap-nexus-owned-pie-v4.patch

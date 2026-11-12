@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import {readFile} from 'node:fs/promises';
 import {parseConfig} from '../src/config.mjs';
 import {createRuntime, createUapBindingEnv} from '../src/runtime.mjs';
 import {loadCatalog} from '../src/catalog.mjs';
@@ -278,4 +279,14 @@ test('runtime passes its owned listener inspector to provider probes',async()=>{
   const runtime=await createRuntime(coreConfig(),adapters);
   await runtime.gateway.execute('actor.inspect.editor',{actorPath:'/Game/Map.Map:PersistentLevel.Actor'});
   assert.equal(seen,true);await runtime.close();
+});
+
+
+test('authoring example satisfies its enabled compatibility requirements',async()=>{
+  const raw=JSON.parse(await readFile(new URL('../examples/config.authoring.example.json',import.meta.url),'utf8'));
+  const config=parseConfig(raw,{env:{NEXUS_ENGINEWIRE_TOKEN:'x'.repeat(32)}});
+  const {adapters}=fixture();
+  const runtime=await createRuntime(config,adapters);
+  assert.equal(runtime.status().allowWrites,false);
+  await runtime.close();
 });
