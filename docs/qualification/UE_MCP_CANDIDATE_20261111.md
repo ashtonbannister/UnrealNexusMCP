@@ -36,3 +36,9 @@ The isolated candidate now maps all 24 existing UE decision-evidence references 
 In the isolated candidate, a clean `npm ci --ignore-scripts` followed by `npm run check` passed 258 tests with zero failures or skips under Node 24.11.1 and the pristine pinned UAP fixture source. Catalog and inventory consistency checks also passed. These are source/fixture checks; the updated UE plugin has not been built or loaded in Unreal, and provider selection and native qualification are not complete.
 
 The recoverable v2 patch is `ue-mcp-upgrade-candidate-a0353f8-v2.patch` in the task artifact folder, based on `a0353f8af2e7067d2ddb0dd3616fd5f6c212c7b8`, SHA-256 `3639d36db7a03071ebc13cfde5094d7c129fe8af8a7ac72373a9f3226da55ced`. It was checked against the isolated working candidate. The earlier checkpoint above remains historical.
+
+## Coordinator candidate v3
+
+The isolated candidate now also inventories the separately recorded UE 5.9 Epic catalogue: 109 recorded toolsets and 1,914 records on a distinct source surface. These records can overlap the 5.8 snapshot and do not establish that a UE 5.9 editor or those tools are installed. The inventory validator checks both snapshots separately. The existing 34 prior UE blocked-source reviews remain historical and require renewed review at the candidate pin.
+
+The full isolated coordinator check passed 259 tests with zero failures or skips using Node 24.11.1 and the pinned UAP fixture source. The v3 WIP patch is `ue-mcp-upgrade-candidate-a0353f8-v3.patch` in the task artifact folder, based on `a0353f8af2e7067d2ddb0dd3616fd5f6c212c7b8`, SHA-256 `93cdbd5e169358d8ba968d38baf88acd5ab5808167829b166592817c25a22432`; it was checked against the isolated working candidate. This is not a native build, deployment, or release qualification. The earlier v1 and v2 checkpoints remain historical.
