@@ -94,6 +94,9 @@ export class Catalog {
   validate(id, args) {
     const operation = this.get(id);
     this.#validators.get(id)(args);
+    if (id === 'actor.transform.editor' && !['location','rotation','scale'].some((key) => Object.hasOwn(args,key))) {
+      throw new NexusError('INVALID_ARGUMENTS', 'At least one transform field is required.');
+    }
     return operation;
   }
 

@@ -7,6 +7,7 @@
       "optional": false,
       "description": "UE-MCP exact inspection, persistence and PCG authoring.",
       "operations": [
+        "actor.transform.editor",
         "actor.list.editor",
         "actor.place.editor",
         "actor.inspect.editor",

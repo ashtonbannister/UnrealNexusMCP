@@ -7,8 +7,8 @@ import decisions from '../catalog/decisions.json' with {type:'json'};
 import {buildCall} from '../src/routing.mjs';
 
 const catalog=loadCatalog();
-test('all 31 exposed operations have a selected decision, source pin and valid example',()=>{
-  assert.equal(catalog.size,31);
+test('all 32 exposed operations have a selected decision, source pin and valid example',()=>{
+  assert.equal(catalog.size,32);
   for(const op of catalog.list()) {
     assert.equal(catalog.validate(op.id,op.example),op);
     assert.match(catalog.describe(op.id).source.commit,/^[a-f0-9]{40}$/);

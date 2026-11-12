@@ -355,6 +355,130 @@
       }
     },
     {
+      "id": "actor.transform.editor",
+      "description": "Set the location, rotation or scale of an actor in the current editor world without saving.",
+      "provider": "ue-mcp",
+      "decision": "actor-transform-editor-fixed",
+      "effect": "write",
+      "contract": "actor.transform.editor",
+      "guidanceSections": [
+        4
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$",
+            "description": "Full actor object path."
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "y": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "z": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          },
+          "rotation": {
+            "type": "object",
+            "properties": {
+              "pitch": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "yaw": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "roll": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              }
+            },
+            "required": [
+              "pitch",
+              "yaw",
+              "roll"
+            ],
+            "additionalProperties": false
+          },
+          "scale": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "y": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "z": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "actorPath"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "move_actor",
+        "fixed": {
+          "world": "editor"
+        }
+      },
+      "postconditions": [
+        "Require matching actor path and returned transform. Native returns the transform before PostEditMove callbacks; independently inspect after the call. The actor package is dirtied but not saved. The current editor world may change between checks. Do not retry an uncertain dispatch."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube",
+        "location": {
+          "x": 0,
+          "y": 0,
+          "z": 100
+        }
+      }
+    },
+    {
       "id": "actor.inspect.editor",
       "description": "Read one exact actor in the editor world with explicit ambiguity-resistant identity.",
       "provider": "ue-mcp",

@@ -265,6 +265,16 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
       if (!exactPinRefusal && !knownSaveFailure) outcomeUnknown = true;
     }
   }
+  if (operation.id === 'actor.transform.editor') {
+    policy = 'require-correlated-actor-transform-receipt';
+    const knownRefusal = ueRefusalPrefix && !ueEnvelopes.length && !result.structuredContent;
+    const vector = (v, keys) => record(v) && keys.every((key) => typeof v[key] === 'number' && Number.isFinite(v[key]));
+    if (!knownRefusal && (result.isError === true || payload?.success !== true || payload.updated !== true
+      || payload.actorPath !== expectedArgs.actorPath || !vector(payload.location,['x','y','z'])
+      || !vector(payload.rotation,['pitch','yaw','roll']) || !vector(payload.scale,['x','y','z']))) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
   if (operation.id === 'actor.place.editor') {
     policy = 'require-correlated-actor-placement-receipt';
     // Native placement returns the requested class and label but not the resolved

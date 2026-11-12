@@ -1453,6 +1453,47 @@
       "qualification": [
         "Direct provider query observed the requested named actors; this new canonical route needs its own live test."
       ]
+    },
+    {
+      "id": "actor-transform-editor-fixed",
+      "status": "selected",
+      "scope": "Set one actor transform in the current editor world without saving.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.move_actor"
+      },
+      "operations": [
+        "actor.transform.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            2001,
+            2095
+          ],
+          "note": "Explicit world selection, exact path support, current transform receipt, package dirtying and PostEditMove callbacks.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L2001-L2095"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp",
+          "lines": [
+            7,
+            184
+          ],
+          "note": "Competing transform supports multiple forms and can use fuzzy actor selection; target and partial-effect semantics differ.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp#L7-L184"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "EngineWire batch and relative-transform variants remain distinct candidates."
+      ],
+      "qualification": [
+        "Native source comparison only; the canonical route requires live verification."
+      ]
     }
   ]
 }

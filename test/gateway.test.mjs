@@ -586,6 +586,18 @@ test('unrecognized or contradictory save failures fence subsequent editor work',
 });
 
 
+test('actor transform requires a change and preserves the editor target',async()=>{
+  const args={actorPath:'/Game/Map.Map:PersistentLevel.Actor',location:{x:1,y:2,z:3}};
+  const receipt={success:true,updated:true,actorPath:args.actorPath,location:args.location,rotation:{pitch:0,yaw:0,roll:0},scale:{x:1,y:1,z:1}};
+  const f=fixture({config:{enabledCapabilities:['actor.transform.editor']},reply:()=>json(receipt)});
+  assert.throws(()=>f.gateway.plan('actor.transform.editor',{actorPath:args.actorPath}),{code:'INVALID_ARGUMENTS'});
+  const out=await f.gateway.execute('actor.transform.editor',args);assert.notEqual(out.isError,true);
+  assert.deepEqual(f.calls[0].call.arguments.args,{...args,world:'editor'});await f.gateway.close();
+  const wrong=fixture({config:{enabledCapabilities:['actor.transform.editor']},reply:()=>json({...receipt,actorPath:'/Game/Other'})});
+  const failed=await wrong.gateway.execute('actor.transform.editor',args);assert.equal(failed.isError,true);assert.equal(failed._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+  await assert.rejects(wrong.gateway.execute('actor.transform.editor',args),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(wrong.calls.length,1);await wrong.gateway.close();
+});
+
 test('actor discovery preserves native page and fixes editor world',async()=>{
   const args={nameFilter:'NexusTest_',limit:10};
   const page={success:true,worldName:'Untitled_1',actors:[{label:'NexusTest_Cone',path:'/Temp/Untitled_1.Actor'}],count:1,returnedActors:1,total:1,totalKnown:true,hasMore:false,streamingSkipped:128};
