@@ -14880,18 +14880,42 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "add_sequence_section",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "editor"
+      "category": "editor",
+      "blockReason": "The handler finds or creates a track before resolving an optional camera binding, so camera resolution can fail after track creation. It selects the first matching track and can reuse its new default section; the stated inverse does not remove all created track or binding state.",
+      "reopeningCondition": "Require exact sequence, track, section and binding identities, a checked prior revision, prevalidated targets, complete partial-effect and persistence semantics, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers.cpp",
+          "lines": [
+            1221,
+            1392
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
       "sourceEntry": "add_sequence_track",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "editor"
+      "category": "editor",
+      "blockReason": "The handler resolves an actor in the implicit editor world and reuses the first possessable matching actor label or object name, or creates a binding. A later track creation failure can leave the new binding; the handler reports no complete inverse.",
+      "reopeningCondition": "Require exact sequence, world, actor and binding identities, a checked prior state, explicit partial effects and persistence semantics, and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers.cpp",
+          "lines": [
+            643,
+            831
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -20669,10 +20693,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "play_sequence",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "editor"
+      "category": "editor",
+      "blockReason": "The handler opens an optional named sequence or operates on the current Sequencer transport, with play, pause or stop affecting shared editor state. Stop pauses and rewinds; the stated inverse is explicitly lossy and does not restore the playhead.",
+      "reopeningCondition": "Require an exact sequence and editor epoch, native transport ownership, explicitly authorized effects, honest uncertain outcomes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers.cpp",
+          "lines": [
+            840,
+            927
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -22373,10 +22409,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "scrub_sequence",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "editor"
+      "category": "editor",
+      "blockReason": "The handler can open a sequence before validating time inputs, then pauses and evaluates possessed actors. Frame input is rounded, and the reported inverse is lossy for subframe positions or prior playback.",
+      "reopeningCondition": "Require owned editor context, exact sequence target, prevalidated bounded time values, authorized evaluation effects, correlated partial outcomes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers.cpp",
+          "lines": [
+            941,
+            1110
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
@@ -23541,10 +23589,22 @@
     {
       "provider": "ue-mcp",
       "sourceEntry": "set_sequence_playback_range",
-      "disposition": "unreviewed",
+      "disposition": "blocked",
       "reviewOwnerTask": "CAP-20",
       "canonicalRouteReferences": [],
-      "category": "editor"
+      "category": "editor",
+      "blockReason": "The handler loads a sequence by supplied path, converts seconds to tick frames, changes its range and marks its package dirty without a checked prior revision. Its inverse cannot restore unbounded prior bounds.",
+      "reopeningCondition": "Require exact resolved asset identity, checked prior state, bounded validated endpoints, explicit dirty and save semantics, correlated outcomes and native evidence.",
+      "sourceEvidence": [
+        {
+          "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers.cpp",
+          "lines": [
+            1116,
+            1220
+          ]
+        }
+      ]
     },
     {
       "provider": "ue-mcp",
