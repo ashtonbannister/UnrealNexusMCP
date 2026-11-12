@@ -20,3 +20,5 @@ Nexus's `verifySourceSnapshot` also accepted the temporary candidate checkout wh
 ## Reproducible evidence-span mapping
 
 `node scripts/map-candidate-evidence.mjs ue-mcp <absolute-upstream-checkout> da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8` reads the pinned and candidate Git objects without running upstream code. For this candidate it reports 24 existing UE decision-evidence spans: 15 unchanged and uniquely located, and nine changed. A matching span is only a review pointer: shared helpers, interfaces, side effects and live registration may still differ. The script never updates the pin or declares a route compatible.
+
+With `--include-inventory`, the same comparison includes source-evidence spans from the current local capability inventory, including the pre-existing uncommitted Sequencer records. It mapped 70 spans total: 54 unchanged and uniquely located, 16 changed, covering 34 UE inventory records. This identifies review work; it does not automatically carry a disposition to the new revision or modify the existing inventory.
