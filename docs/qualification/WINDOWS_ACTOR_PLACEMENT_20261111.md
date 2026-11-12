@@ -13,3 +13,15 @@ A subsequent `actor.list.editor` call through the updated Nexus coordinator used
 A subsequent Nexus `actor.transform.editor` call moved the previously created `NexusTest_Cone` from `(58020, -33560, 8170)` to `(58170, -33560, 8170)`. The native response reported the exact actor path, updated transform and `packageDirty: true`. A separate Nexus `actor.list.editor` query returned the same actor path at the requested new location after the call. No explicit save was invoked; autosave behavior remains unverified. Rotation, scale, failure and recovery cases were not live-tested.
 
 A further read-only Nexus workflow discovered `NexusTest_Cone` with `actor.list.editor` and supplied its returned path to `actor.inspect.editor`. The inspection returned the same path and label, class `StaticMeshActor`, and the previously observed location `(58170, -33560, 8170)`. This checks one discover-to-inspect handoff, not every actor, world or property type.
+
+
+On 2026-11-12, Nexus revision `22c1b81` was started against the disposable
+`NexusBuildHost.uproject` in UE 5.8.4 (editor PID 40840), using a copy of the
+Henday coordinator configuration with only the project path and selected
+capabilities changed. Automatic editor selection succeeded; `actor.list.editor`
+returned successfully, `actor.place.editor` created
+`NexusConfigSmoke_20261112`, and a second list found that actor. The test used
+the staged UE-MCP owned-hold-v1 checkout and its disposable-project plugin.
+The dirty fixture map was explicitly discarded and the fixture editor closed.
+No save was requested. This does not establish the version or behavior of the
+Henday Heat plugin binary.
