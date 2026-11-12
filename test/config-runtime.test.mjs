@@ -290,3 +290,39 @@ test('authoring example satisfies its enabled compatibility requirements',async(
   assert.equal(runtime.status().allowWrites,false);
   await runtime.close();
 });
+
+
+test('automatic UAP endpoint is resolved lazily and binds the verified target',async()=>{
+  const cfg=parseConfig({version:1,target,allowWrites:true,enabledCapabilities:['pie.start.viewport'],backends:{unrealagentplayer:{
+    ...backend(),compatibilityPatch:'uap-nexus-owned-pie-v4',rcEndpoint:'editor-auto',
+  }}});
+  let selected=0,launch;
+  const {adapters}=fixture({
+    endpointResolver:async(provider,actual)=>{selected++;assert.equal(provider,'unrealagentplayer');assert.equal(actual.processId,1234);return 'http://127.0.0.1:30078';},
+    connect:async transport=>{launch=transport;return {listTools:async()=>[{name:'pie_start',inputSchema:{type:'object'}}],
+      callTool:async()=>json({ok:true,phase:'Playing',playing:true,editorEpoch:'a'.repeat(32),sessionId:'b'.repeat(32)}),close:async()=>{}};},
+  });
+  const runtime=await createRuntime(cfg,adapters);
+  assert.equal(selected,0);
+  assert.notEqual((await runtime.gateway.execute('pie.start.viewport')).isError,true);
+  assert.equal(selected,1);assert.equal(launch.env.NEXUS_UAP_RC_PORT,'30078');
+  await runtime.close();
+});
+
+
+test('automatic Claireon endpoint is selected only on first use before connection',async()=>{
+  const cfg=parseConfig({version:1,target,allowWrites:true,enabledCapabilities:['blueprint.compile.memory.loaded'],backends:{claireon:{
+    sourceRoot:'/reviewed/source',compatibilityPatch:'claireon-nexus-compile-loaded-v2',
+    transport:{type:'streamable-http',url:'editor-auto'},
+  }}});
+  let selected=0,connected;
+  const {adapters}=fixture({
+    endpointResolver:async(provider,actual)=>{selected++;assert.equal(provider,'claireon');assert.equal(actual.processId,1234);return 'http://127.0.0.1:59055/mcp';},
+    connect:async transport=>{connected=transport.url;throw new Error('fixture stop');},
+  });
+  const runtime=await createRuntime(cfg,adapters);
+  assert.equal(selected,0);
+  await assert.rejects(runtime.gateway.execute('blueprint.compile.memory.loaded',{asset_path:'/Game/BP_Test'}));
+  assert.equal(selected,1);assert.equal(connected,'http://127.0.0.1:59055/mcp');
+  await runtime.close();
+});

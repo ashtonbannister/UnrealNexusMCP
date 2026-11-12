@@ -9,6 +9,7 @@ import { createMcpConnection } from './transport-client.mjs';
 import { createProviderProbe, inspectEditorProcess, selectEditorForProject } from './provider-probes.mjs';
 import { verifySourceSnapshot } from './source-verification.mjs';
 import { createWindowsProcessInspector } from './windows-process-inspector.mjs';
+import { resolveProjectEndpoint } from './project-endpoints.mjs';
 import { createSpecialistAdapter } from './specialist-adapters.mjs';
 import { NexusError, markCleanupIncomplete, cleanupIncomplete, boundedCleanup } from './errors.mjs';
 
@@ -26,7 +27,7 @@ export async function createRuntime(config, {
   connect = createMcpConnection, probeFactory = createProviderProbe,
   processInspector = inspectEditorProcess, sourceVerifier = verifySourceSnapshot,
   processInspectorFactory = process.platform === 'win32' ? createWindowsProcessInspector : null,
-  resolvePath = realpath, editorSelector = selectEditorForProject,
+  resolvePath = realpath, editorSelector = selectEditorForProject, endpointResolver = resolveProjectEndpoint,
 } = {}) {
   const enabled = selectCapabilities(catalog,config);
   const providers = new Set(enabled.map(id => catalog.get(id).provider));
@@ -48,8 +49,8 @@ export async function createRuntime(config, {
       const backend = config.backends[provider];
       let rc;
       try {rc = new URL(backend.rcEndpoint);} catch { /* Refused below. */ }
-      if (backend.transport.type !== 'stdio' || !rc || rc.protocol !== 'http:' || rc.hostname !== '127.0.0.1'
-        || rc.username || rc.password || rc.search || rc.hash || rc.pathname !== '/') {
+      if (backend.transport.type !== 'stdio' || (backend.rcEndpoint !== 'editor-auto' && (!rc || rc.protocol !== 'http:' || rc.hostname !== '127.0.0.1'
+        || rc.username || rc.password || rc.search || rc.hash || rc.pathname !== '/'))) {
         throw new NexusError('BACKEND_BINDING_REQUIRED','UAP requires launched stdio and an explicit local RC base URL for the selected editor.');
       }
     }
@@ -79,6 +80,11 @@ export async function createRuntime(config, {
       const backendConfig = structuredClone(config.backends[provider]);
       factories.set(provider, async ({source}) => {
         const sourceEvidence = await sourceVerifier(provider,backendConfig,source);
+        const endpointOptions = ownedInspector?.inspectListener ? {listenerInspector:ownedInspector.inspectListener} : {};
+        if (provider === 'claireon' && backendConfig.transport.url === 'editor-auto')
+          backendConfig.transport.url = await endpointResolver(provider,target,endpointOptions);
+        if (provider === 'unrealagentplayer' && backendConfig.rcEndpoint === 'editor-auto')
+          backendConfig.rcEndpoint = await endpointResolver(provider,target,endpointOptions);
         if (provider === 'unrealagentplayer') {
           // The reviewed optional UAP patch consumes these values when it builds
           // both native clients. Never accept a caller-selected discovery target.

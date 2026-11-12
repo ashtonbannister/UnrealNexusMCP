@@ -102,8 +102,11 @@ export function parseConfig(raw, { baseDir = process.cwd(), env = process.env } 
     } else if (['streamable-http','sse'].includes(t.type)) {
       if (['command','args','cwd','env','inheritEnv'].some(k => k in t)) fail('Stdio fields cannot be used for HTTP.');
       let url;
-      try { url = new URL(text(t.url, provider + '.url')); } catch { fail('Invalid backend URL for ' + provider); }
-      if (!['http:','https:'].includes(url.protocol) || url.username || url.password || url.hash) fail('Backend URL must be HTTP(S) without credentials or a fragment.');
+      if (provider === 'claireon' && t.type === 'streamable-http' && t.url === 'editor-auto') url = 'editor-auto';
+      else {
+        try { url = new URL(text(t.url, provider + '.url')); } catch { fail('Invalid backend URL for ' + provider); }
+        if (!['http:','https:'].includes(url.protocol) || url.username || url.password || url.hash) fail('Backend URL must be HTTP(S) without credentials or a fragment.');
+      }
       const headers = mapStrings(t.headers ?? {}, provider + '.headers');
       object(t.headerEnv ?? {}, provider + '.headerEnv');
       for (const [header, name] of Object.entries(t.headerEnv ?? {})) {
@@ -118,7 +121,7 @@ export function parseConfig(raw, { baseDir = process.cwd(), env = process.env } 
         if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name) || /[\r\n]/.test(value)) fail('Invalid HTTP header.');
         if (['host','content-length','connection','mcp-session-id','mcp-protocol-version'].includes(name.toLowerCase())) fail('Reserved HTTP header: ' + name);
       }
-      connection = { type:t.type, url:url.href, headers };
+      connection = { type:t.type, url:url === 'editor-auto' ? url : url.href, headers };
     } else fail('Unsupported transport type for ' + provider);
     backends[provider] = { sourceRoot, transport:connection };
     if (input.compatibilityPatch !== undefined) backends[provider].compatibilityPatch = text(input.compatibilityPatch, 'compatibilityPatch');

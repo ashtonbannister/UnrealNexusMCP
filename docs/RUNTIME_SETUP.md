@@ -154,7 +154,7 @@ environment from the pinned checkout. Configure, for example:
 ```
 
 Place that object under `backends.unrealagentplayer`. **30010 is an example, not
-a discovered per-editor port**; use the actual selected editor's RC port.
+a discovered per-editor port**; use the actual selected editor's RC port. On Windows, set `rcEndpoint` to `editor-auto` to read the selected project's Remote Control settings and require that the selected editor owns the listener.
 Enable `playtesting` or the desired UAP canonical IDs. If the editor's
 Python Remote Execution is bound to a specific IPv4 interface, set
 `NEXUS_UAP_MULTICAST_INTERFACE` in this transport's trusted `env` to the same
@@ -185,7 +185,7 @@ Configure the actual endpoint:
 }
 ```
 
-52000 is a placeholder. Enable any of `blueprint-compile`, `automation-tests` or
+52000 is a placeholder. On Windows, `transport.url: "editor-auto"` reads the selected project's direct-mode port metadata and verifies the selected editor owns the listener. Both auto endpoints are resolved once when that backend starts; they do not switch to another process or port after a failure. Enable any of `blueprint-compile`, `automation-tests` or
 `insights-analysis`. Every wrapper fixes `nexus_skip_auto_save=true`, including
 schema probes. Nexus does not execute Python to establish Claireon's identity.
 If the outer live marker or inner schema is missing, the requested operation is

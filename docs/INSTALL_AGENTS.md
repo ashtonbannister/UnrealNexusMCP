@@ -10,7 +10,7 @@ Placeholders: `<NEXUS_ROOT>` (where the gateway lives), `<UPSTREAMS>` (pinned up
 - **Never put secrets in config files or in committed files.** The EngineWire capability token is read from the editor's `Saved\MCP\capability-token` by a launcher script.
 - **Do not run any upstream `build` script that targets an engine tree or a test project.** Compile the target project itself with the engine's `Build.bat`.
 - **Do not write into `<ENGINE>`.** Only project files and `<NEXUS_ROOT>` should change.
-- **Editor state changes the config.** Set `target.processId` to `auto` on Windows to select the one running editor for the exact project at gateway startup. The gateway pins that process until restart and refuses zero or ambiguous matches. EngineWire, Claireon and UAP ports can also change; re-read them after each editor restart.
+- **Editor state changes the config.** Set `target.processId` to `auto` on Windows to select the one running editor for the exact project at gateway startup. The gateway pins that process until restart and refuses zero or ambiguous matches. EngineWire ports can change. On Windows, Claireon's `transport.url` and UAP's `rcEndpoint` can be set to `editor-auto`; each is resolved when its backend starts and must be owned by the selected editor.
 - **Restart the agent client after any config change.** The gateway's config and PID are cached per session.
 
 ## 1. Prerequisites  **USER** if missing
