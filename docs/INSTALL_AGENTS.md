@@ -143,6 +143,8 @@ set /p NEXUS_ENGINEWIRE_TOKEN=<"<PROJECT>\Saved\MCP\capability-token"
 
 Register it with the agent client as a stdio server whose command is `cmd.exe` with args `/c <launcher path>`.
 
+For optional direct provider connections, see the [draft skill direct-provider table](skills/unreal-nexus/SKILL.md#direct-provider-access) and [Claude Code configuration example](../examples/direct-providers.claude.example.json). These are separate MCP servers, so direct calls do not pass through Nexus. Replace example paths, ports and PID and keep the EngineWire token in the client environment.
+
 ## 10. Verify, in order
 
 1. **Status (read-only, no backends started):** `nexus.status` should list the enabled providers and no error.

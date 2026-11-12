@@ -1,0 +1,47 @@
+{
+  "mcpServers": {
+    "nexus-ue-mcp": {
+      "command": "node",
+      "args": [
+        "C:/Tools/upstreams/ue-mcp/dist/index.js",
+        "C:/Projects/NexusDemo/NexusDemo.uproject"
+      ],
+      "env": {
+        "UE_MCP_SERVER_MODE": "in-process"
+      }
+    },
+    "nexus-enginewire": {
+      "type": "http",
+      "url": "http://127.0.0.1:3000/mcp",
+      "headers": {
+        "X-MCP-Capability-Token": "${UNREAL_MCP_TOKEN}"
+      }
+    },
+    "nexus-claireon": {
+      "type": "http",
+      "url": "http://127.0.0.1:30001/mcp"
+    },
+    "nexus-hayba": {
+      "command": "node",
+      "args": [
+        "C:/Tools/upstreams/hayba/mcp-tools/hayba-mcp/dist/index.js"
+      ],
+      "env": {
+        "UE_TCP_HOST": "127.0.0.1",
+        "UE_TCP_PORT": "52342"
+      }
+    },
+    "nexus-unrealagentplayer": {
+      "command": "C:/Tools/upstreams/unrealagentplayer/mcp-server/.venv/Scripts/python.exe",
+      "args": [
+        "-m",
+        "unreal_agent_player"
+      ],
+      "env": {
+        "NEXUS_UAP_PROJECT_FILE": "C:/Projects/NexusDemo/NexusDemo.uproject",
+        "NEXUS_UAP_EDITOR_PID": "12345",
+        "NEXUS_UAP_RC_PORT": "30010"
+      }
+    }
+  }
+}

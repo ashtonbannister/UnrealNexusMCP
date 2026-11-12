@@ -21,6 +21,18 @@ For currently materialized PIE and Game worlds, use `play.worlds.list`; its resu
 
 An agent may also connect to an individual upstream MCP directly when the user requests it or the task calls for an upstream function that Nexus has not routed. The coordinator is not a required intermediary. When useful, consult Nexus `nexus.search`, `nexus.describe`, its guidance resources, or the local catalogue and provider decisions to find and understand a function before using the provider directly. Discovery and planning do not start backends. Discover that provider's actual advertised tools and schemas, use the intended editor/project, and follow the provider's own consent and operation semantics. Do not use a direct client to evade a specific refusal, an unresolved post-dispatch outcome, or the user's scope. Direct clients and separate gateways do not share the Nexus queue or its ownership state; coordinate their effects and reconcile uncertain outcomes explicitly. Do not silently claim that a direct-provider result was executed or qualified through Nexus.
 
+Connect providers as separate MCP servers using the pinned, built checkouts; [the Claude Code example](../../../examples/direct-providers.claude.example.json) shows all five (replace every example path, port and PID). Other clients use their own MCP configuration format. For the actual tools and schemas, use the connected server's discovery:
+
+| Provider | Direct entry point | Discover and use |
+| --- | --- | --- |
+| UE-MCP | Node: `ue-mcp/dist/index.js <project.uproject>`, with `UE_MCP_SERVER_MODE=in-process` | `tools` actions `guide`, `search`, `describe`, then `call` with category, method and args. |
+| EngineWire | Editor HTTP `http://127.0.0.1:<port>/mcp`, capability-token header | `unreal` search/describe/execute. Read the token from the project at runtime; do not paste it into tracked files. |
+| Claireon | Editor HTTP `http://127.0.0.1:<port>/mcp` | `tool_search`, then the provider's `python_execute`; look up the actual signature. |
+| Hayba | Node: `hayba/mcp-tools/hayba-mcp/dist/index.js`; set the editor's `UE_TCP_PORT` | `hayba_search_tools` and `get_tool_signature`, then the advertised invoke/pack tools. |
+| UnrealAgentPlayer | Its venv Python: `-m unreal_agent_player` | Direct named tools, starting with `bridge_status`. For the Nexus-patched version, bind project path, editor PID and Remote Control port together using the three `NEXUS_UAP_*` variables in the example. |
+
+Use the actual running editor's ports: Claireon records its port in `Saved/Claireon/MCPServer.json`; EngineWire's token is in `Saved/MCP/capability-token`; Hayba needs its native TCP listener, and UAP needs the editor's Remote Control port and Python remote execution. PID and ports can change after editor restart. Direct use has the upstream provider's full advertised surface and its own execution semantics; Nexus-specific target checks and queue do not wrap it. Direct discovery proves only server startup, not that the editor plugin is connected or current.
+
 ## Missing or unavailable functions
 
 Do not mistake an absent Nexus tool for an absent Unreal or upstream capability. Report whether it is disabled, held, not yet routed, or unavailable at the connected editor. When development is in scope, inspect the pinned upstream implementation, schema and semantics, choose the best implementation for the requested function, and integrate a fixed canonical contract across catalogue, routing, result handling, guidance and appropriate verification. Preserve distinct useful variants and upstream licence notices. Never expose an unrestricted backend, Python or console escape as a substitute for routing the requested function.
