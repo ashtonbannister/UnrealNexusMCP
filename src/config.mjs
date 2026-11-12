@@ -62,7 +62,7 @@ export function parseConfig(raw, { baseDir = process.cwd(), env = process.env } 
     keys(raw.target, ['projectRoot','processId','editorInstanceId'], 'target');
     const projectRoot = absolute(raw.target.projectRoot, baseDir, 'target.projectRoot');
     if (!projectRoot.toLowerCase().endsWith('.uproject')) fail('target.projectRoot must identify the exact .uproject file.');
-    target = { projectRoot, processId:integer(raw.target.processId, 1, 2147483647, 'target.processId') };
+    target = { projectRoot, processId:raw.target.processId === 'auto' ? 'auto' : integer(raw.target.processId, 1, 2147483647, 'target.processId') };
     if (raw.target.editorInstanceId !== undefined) target.editorInstanceId = text(raw.target.editorInstanceId, 'target.editorInstanceId');
   }
   const serverInput = raw.server ?? {};

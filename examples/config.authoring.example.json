@@ -6,7 +6,7 @@
   "timeoutMs": 120000,
   "target": {
     "projectRoot": "C:/Projects/NexusDemo/NexusDemo.uproject",
-    "processId": 12345
+    "processId": "auto"
   },
   "server": { "transport": "stdio" },
   "backends": {

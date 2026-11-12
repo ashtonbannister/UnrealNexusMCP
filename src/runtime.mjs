@@ -6,7 +6,7 @@ import { Gateway } from './gateway.mjs';
 import { selectCapabilities } from './packs.mjs';
 import { loadGuidance } from './guidance.mjs';
 import { createMcpConnection } from './transport-client.mjs';
-import { createProviderProbe, inspectEditorProcess } from './provider-probes.mjs';
+import { createProviderProbe, inspectEditorProcess, selectEditorForProject } from './provider-probes.mjs';
 import { verifySourceSnapshot } from './source-verification.mjs';
 import { createWindowsProcessInspector } from './windows-process-inspector.mjs';
 import { createSpecialistAdapter } from './specialist-adapters.mjs';
@@ -26,7 +26,7 @@ export async function createRuntime(config, {
   connect = createMcpConnection, probeFactory = createProviderProbe,
   processInspector = inspectEditorProcess, sourceVerifier = verifySourceSnapshot,
   processInspectorFactory = process.platform === 'win32' ? createWindowsProcessInspector : null,
-  resolvePath = realpath,
+  resolvePath = realpath, editorSelector = selectEditorForProject,
 } = {}) {
   const enabled = selectCapabilities(catalog,config);
   const providers = new Set(enabled.map(id => catalog.get(id).provider));
@@ -62,12 +62,14 @@ export async function createRuntime(config, {
     if (ownedInspector) processInspector = ownedInspector.inspect;
     let target = null;
     if (config.target) {
-      const process = await processInspector(config.target.processId);
+      const process = config.target.processId === 'auto'
+        ? await editorSelector(config.target.projectRoot, {processInspector})
+        : await processInspector(config.target.processId);
       if (config.target.editorInstanceId && config.target.editorInstanceId !== process.editorInstanceId) {
         throw new NexusError('EDITOR_IDENTITY_UNCONFIRMED','Configured editor process has restarted.');
       }
       target = Object.freeze({projectRoot:await resolvePath(config.target.projectRoot),
-        processId:config.target.processId,editorInstanceId:process.editorInstanceId});
+        processId:config.target.processId === 'auto' ? process.processId : config.target.processId,editorInstanceId:process.editorInstanceId});
     }
     const evidence = new Map();
     const factories = new Map();

@@ -285,7 +285,7 @@ test('runtime passes its owned listener inspector to provider probes',async()=>{
 test('authoring example satisfies its enabled compatibility requirements',async()=>{
   const raw=JSON.parse(await readFile(new URL('../examples/config.authoring.example.json',import.meta.url),'utf8'));
   const config=parseConfig(raw,{env:{NEXUS_ENGINEWIRE_TOKEN:'x'.repeat(32)}});
-  const {adapters}=fixture();
+  const {adapters}=fixture({editorSelector:async()=>({processId:1234,editorInstanceId:'linux-boot:1234:epoch'})});
   const runtime=await createRuntime(config,adapters);
   assert.equal(runtime.status().allowWrites,false);
   await runtime.close();

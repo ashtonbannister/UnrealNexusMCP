@@ -10,7 +10,7 @@ Placeholders: `<NEXUS_ROOT>` (where the gateway lives), `<UPSTREAMS>` (pinned up
 - **Never put secrets in config files or in committed files.** The EngineWire capability token is read from the editor's `Saved\MCP\capability-token` by a launcher script.
 - **Do not run any upstream `build` script that targets an engine tree or a test project.** Compile the target project itself with the engine's `Build.bat`.
 - **Do not write into `<ENGINE>`.** Only project files and `<NEXUS_ROOT>` should change.
-- **Editor state changes the config.** Every editor restart changes the process ID, and the EngineWire, Claireon and UAP ports can change. Re-read them after each restart.
+- **Editor state changes the config.** Set `target.processId` to `auto` on Windows to select the one running editor for the exact project at gateway startup. The gateway pins that process until restart and refuses zero or ambiguous matches. EngineWire, Claireon and UAP ports can also change; re-read them after each editor restart.
 - **Restart the agent client after any config change.** The gateway's config and PID are cached per session.
 
 ## 1. Prerequisites  **USER** if missing
@@ -114,7 +114,7 @@ Expected: `Result: Succeeded`. Check the log, not just the exit code. A first bu
 
 ## 7. Start the editor and find its PID
 
-Start the project in the editor. Wait until it is idle. Find the process whose command line includes `<Project>.uproject`, and note its PID. This PID changes on every restart.
+Start the project in the editor and wait until it is idle. With `target.processId: "auto"`, Nexus selects the unique editor for the exact project. Find its PID to inspect ports; if explicit selection is preferred, put that PID in the configuration and update it after each editor restart.
 
 Read the ports the editor actually bound (`Get-NetTCPConnection -OwningProcess <PID>` in PowerShell). Expect:
 
@@ -127,7 +127,7 @@ Read the ports the editor actually bound (`Get-NetTCPConnection -OwningProcess <
 
 ## 8. Write the gateway config
 
-Create `<NEXUS_ROOT>`-adjacent `nexus.config.json` (keep it outside the repo). Fields that change per machine: `target.processId`, `target.projectRoot` (the `.uproject` path), each backend's `sourceRoot`, transport command and args, and ports. Use `examples/config.authoring.example.json` as the template; it does not enable UAP or playtesting. Select only the required profile and explicitly configure its backends. Start with `"allowWrites": false` and `enabledPacks` limited to the packs you need; enable writes only after read-only checks pass.
+Create `<NEXUS_ROOT>`-adjacent `nexus.config.json` (keep it outside the repo). Fields that change per machine: `target.projectRoot` (the `.uproject` path), each backend's `sourceRoot`, transport command and args, and ports. Use `examples/config.authoring.example.json` as the template; it does not enable UAP or playtesting. Select only the required profile and explicitly configure its backends. Start with `"allowWrites": false` and `enabledPacks` limited to the packs you need; enable writes only after read-only checks pass.
 
 Secrets: pass the EngineWire token through a launcher script that reads the file (see section 9), not through the config file.
 

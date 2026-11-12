@@ -177,6 +177,44 @@ async function projectArgument(processInfo, expected) {
   if (actual !== expected) fail('Editor process was launched for a different project');
 }
 
+
+// Discover only a unique local Windows editor for the configured project. The
+// chosen creation epoch is pinned for the lifetime of this gateway; discovery
+// never silently switches to another editor after a restart.
+export async function selectEditorForProject(projectRoot, {
+  processInspector = inspectEditorProcess,
+  enumerate = async () => {
+    if (process.platform !== 'win32') fail('Automatic editor selection is currently supported only on Windows');
+    const script = "$rows = @(Get-CimInstance Win32_Process -Filter \"Name = 'UnrealEditor.exe' OR Name = 'UnrealEditor-Cmd.exe'\" -ErrorAction Stop | ForEach-Object { [int]$_.ProcessId }); ConvertTo-Json -InputObject $rows -Compress";
+    const result = await run('powershell.exe', ['-NoProfile','-NonInteractive','-Command',script],
+      {timeout:10000,maxBuffer:IO_LIMIT,windowsHide:true});
+    return JSON.parse(result.stdout);
+  },
+} = {}) {
+  const pids = await enumerate();
+  if (!Array.isArray(pids) || pids.some(pid => !validPid(pid)) || new Set(pids).size !== pids.length)
+    fail('Editor discovery returned invalid process identities');
+  const matches = [];
+  for (const pid of pids) {
+    const info = await processInspector(pid);
+    if (info.processId !== pid || !['win32','linux'].includes(info.platform)
+      || typeof info.editorInstanceId !== 'string' || !info.editorInstanceId
+      || !Array.isArray(info.argv) || !info.argv.length) fail('Cannot establish an editor discovery candidate');
+    if (info.argv.some(arg => /^-(?:game|server|run)(?:=|$)/iu.test(arg))) continue;
+    requireEditor(info, {processId:pid,editorInstanceId:info.editorInstanceId});
+    const args = info.argv.filter(arg => /\.uproject$/iu.test(arg)).map(arg => arg.replace(/^-project=/iu, ''));
+    if (args.length !== 1) fail('Editor discovery candidate lacks one unambiguous project');
+    const expected = await normalizedPath(projectRoot,info.platform);
+    if (await normalizedPath(args[0],info.platform,info.cwd) === expected) matches.push(info);
+  }
+  if (matches.length !== 1) fail('Automatic editor selection requires exactly one editor for the configured project');
+  const chosen = matches[0];
+  const fresh = await processInspector(chosen.processId);
+  requireEditor(fresh, {processId:chosen.processId,editorInstanceId:chosen.editorInstanceId});
+  await projectArgument(fresh, await normalizedPath(projectRoot,fresh.platform));
+  return fresh;
+}
+
 function payload(result) {
   if (!object(result) || result.isError === true || !Array.isArray(result.content)) fail('Identity/discovery call failed');
   let data = result.structuredContent;
