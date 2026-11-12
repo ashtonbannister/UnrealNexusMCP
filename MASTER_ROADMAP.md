@@ -14,6 +14,8 @@ A winner is selected per semantic contract, not per whole MCP repository. Exact 
 
 “Best latest” means the best eligible implementation among inspected revisions, recorded at an immutable pin. Newer code is a candidate for review. Recency never overrides correctness or silently changes the running route.
 
+The owner clarified on 2026-11-11 that the product target is comprehensive function coverage through one master MCP, selecting the strongest implementation across the upstream MCPs for each function and retaining distinct meaningful variants. The current catalogue is an incomplete implementation, not a scope ceiling. Continue expanding actor creation, discovery and the other source surfaces until their functions have been mapped and made usable with accurate target, effect and outcome semantics. A source review, hold, or inventory entry alone does not fulfill a function.
+
 ## 2. Authority and current baseline
 
 [AGENTS.md](AGENTS.md) requirements remain in force. This roadmap governs future work and status; [operations.json](catalog/operations.json) remains the executable allowlist, [decisions.json](catalog/decisions.json) records source-backed selections, [upstreams.lock.json](catalog/upstreams.lock.json) owns revisions, and the [master guidance draft](docs/MASTER_SKILL_GUIDANCE_DRAFT.md) owns task workflows. A planned task or proposed name is not a callable capability.
