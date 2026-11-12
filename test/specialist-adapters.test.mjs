@@ -17,6 +17,7 @@ const shape = (properties,required=[]) => ({type:'object',properties,required});
 const s={type:'string'},n={type:'number'},i={type:'integer'},b={type:'boolean'};
 const schemas = {
   bp_compile:shape({asset_path:s,session_id:s,response_mode:s}),
+  bp_compile_batch:shape({paths:{type:'array',items:s},max_count:i,remove_unused:b,failOnWarnings:b,nexus_exact_no_save:b}),
   test_run:shape({testFilter:s,noTimeout:b,strict:b,expected_tests:{type:'array',items:s},allowed_skips:{type:'array',items:{type:'object'}}}),
   test_poll:shape({run_id:s,cancel:b}),
   pie_trace_start:shape({filename:s,directory:s,channels:s}),pie_trace_stop:shape({}),
@@ -33,8 +34,10 @@ const claireonTools = () => [
 ];
 const haybaTools = () => [{name:'material_set_param',inputSchema:shape({
   instance_path:s,param_name:s,nexus_retry_policy:{type:'string',const:'never'},
+  nexus_receipt_version:{type:'number',const:2},
   value:{anyOf:[n,{type:'array',items:n,minItems:1,maxItems:4},s]},
-},['instance_path','param_name','value','nexus_retry_policy'])}];
+},['instance_path','param_name','value','nexus_retry_policy'])},
+{name:'material_nexus_identity',inputSchema:shape({nonce:s},['nonce'])}];
 const native = (data={},summary='native result',warnings=[]) => ({data,summary,warnings});
 function requestPayload(args) {
   const match=args.code.match(/_nexus_payload = json\.loads\(base64\.b64decode\("([A-Za-z0-9+/=]+)"\)/);
@@ -82,8 +85,8 @@ const accepted=()=>native({run_id:'run-owned',state:'awaiting_workers',total:1,c
   suggested_poll_after_seconds:5,poll_with:'test_poll'});
 const terminal=()=>native({},'Tests completed successfully\nResults: 1 passed, 0 failed, 0 skipped, 0 not run\nStrict: PASSED -- 1 discovered, 1 reported, 0 allowlisted skip(s) observed.\n');
 
-test('all thirteen specialist schemas/examples compile in the supported validator subset',()=>{
-  assert.equal(catalog.operations.length,13);
+test('all fourteen specialist schemas/examples compile in the supported validator subset',()=>{
+  assert.equal(catalog.operations.length,14);
   for(const op of catalog.operations) {
     assert.equal(compileSchema(op.parameters)(op.example),true);
     const planned=buildSpecialistCall(op,op.example);
@@ -463,21 +466,34 @@ function hayba(handler,{tools=haybaTools()}={}) {
   const calls=[];
   const adapter=createSpecialistAdapter({provider:'hayba',tools,callTool:async(name,args,options)=>{
     calls.push({name,args,options});
-    assert.equal(name,'material_set_param');assert.equal(args.nexus_retry_policy,'never');
+    assert.equal(name,'material_set_param');assert.equal(args.nexus_retry_policy,'never');assert.equal(args.nexus_receipt_version,2);
     return handler(args);
   }});
   return {adapter,calls};
 }
-const materialReceipt=(args,extra={})=>({content:[{type:'text',text:JSON.stringify({
-  param:args.param_name,value:typeof args.value==='number'?args.value:typeof args.value==='string'?args.value:'(R=0.2,G=0.3,B=0.4,A=1.0)',
-  observed_value:typeof args.value==='number'?args.value:typeof args.value==='string'?args.value:'(R=0.2,G=0.3,B=0.4,A=1.0)',
-  verified:true,saved:true,dirty:false,...extra})},{type:'text',text:'Native advisory: validate appearance in viewport.'}]});
+const floatBits=value=>{const v=new DataView(new ArrayBuffer(4));v.setFloat32(0,value,false);return v.getUint32(0,false).toString(16).padStart(8,'0');};
+const materialReceipt=(args,extra={})=>{
+  const input=JSON.parse(JSON.stringify(args.value));
+  const values=Array.isArray(input)?[...input]:[input];if(values.length===3)values.push(1);
+  const isTexture=typeof input==='string';
+  const bits=isTexture?undefined:values.map(floatBits);
+  return {content:[{type:'text',text:JSON.stringify({
+    nexus_receipt_version:2,requested_instance:args.instance_path,actual_instance:args.instance_path,
+    instance_class:'/Script/Engine.MaterialInstanceConstant',param:args.param_name,requested_value:input,
+    value:typeof input==='number'?input:isTexture?input:'(vector)',
+    observed_value:typeof input==='number'?Math.fround(input):isTexture?input:'(vector)',
+    ...(isTexture?{resolved_texture:input,same_texture:true}:{comparison:'binary32_exact',expected_bits:bits,observed_bits:bits}),
+    readback_available:extra.verified===false?false:true,verified:true,saved:true,dirty:false,...extra})},
+    {type:'text',text:'Native advisory: validate appearance in viewport.'}]};
+};
 
 test('unpatched/deferred Hayba is held; no meta invocation or automatic pack loading',async()=>{
   for(const tools of [
     [{name:'hayba_invoke',inputSchema:shape({tool:s,via:s})}],
     (()=>{const t=haybaTools();delete t[0].inputSchema.properties.nexus_retry_policy;return t;})(),
     (()=>{const t=haybaTools();t[0].inputSchema.required=t[0].inputSchema.required.filter((s)=>s!=='nexus_retry_policy');return t;})(),
+    (()=>{const t=haybaTools();delete t[0].inputSchema.properties.nexus_receipt_version;return t;})(),
+    (()=>{const t=haybaTools();t.pop();return t;})(),
   ]) {
     const {adapter,calls}=hayba(materialReceipt,{tools});
     assert.equal(await adapter.supports(operation('material.parameter.scalar.persisted')),false);
@@ -514,8 +530,28 @@ test('material scalar and texture receipts must echo the dispatched requested va
   }
 });
 
+test('material v2 refuses crossed target and contradictory binary32 receipts',async()=>{
+  for(const extra of [
+    {actual_instance:'/Game/Other.Other'},
+    {expected_bits:['00000000']},
+    {observed_bits:['00000000'],verified:true},
+    {observed_value:999},
+    {nexus_receipt_version:1},
+  ]) {
+    const {adapter,calls}=hayba(args=>materialReceipt(args,extra));
+    await assert.rejects(run(adapter,'material.parameter.scalar.persisted'),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
+    assert.equal(calls.length,1);
+  }
+  const vector=operation('material.parameter.vector.persisted');
+  const {adapter}=hayba(materialReceipt);
+  const result=await run(adapter,vector.id,{...vector.example,value:[-0,0.3,0.4]});
+  assert.equal(result.structuredContent.ok,true);
+  assert.equal(result.structuredContent.native.expected_bits[0],'00000000');
+  assert.equal(result.structuredContent.native.expected_bits[3],'3f800000');
+});
+
 test('material native Ok is insufficient when verified or saved is false',async()=>{
-  for(const extra of [{saved:false,dirty:true,save_error:'read-only'}, {verified:false,warning:'readback mismatch'}]) {
+  for(const extra of [{saved:false,dirty:true,save_error:'read-only'}, {saved:true,dirty:true}, {verified:false,warning:'readback mismatch'}]) {
     const {adapter}=hayba((args)=>materialReceipt(args,extra));
     const result=await run(adapter,'material.parameter.scalar.persisted');
     assert.equal(result.isError,true);
@@ -561,8 +597,8 @@ test('compatibility patch byte hashes and hardening markers match the reviewed m
   for(const patch of patches.patches.filter((p)=>['claireon','hayba'].includes(p.provider))) {
     const body=await readFile(new URL('../'+patch.file,import.meta.url));
     assert.equal(createHash('sha256').update(body).digest('hex'),patch.sha256);
-    assert.equal(patch.files.length,patch.provider==='claireon'?1:3);
-    assert.match(body.toString(),new RegExp(patch.capabilityMarker.parameter));
+    assert.equal(patch.files.length,patch.id==='claireon-nexus-compile-loaded-v2'?6:patch.provider==='claireon'?1:patch.id==='hayba-nexus-material-receipt-v2'?5:3);
+    if(patch.capabilityMarker.parameter) assert.match(body.toString(),new RegExp(patch.capabilityMarker.parameter));
     assert.ok(patch.files.every((f)=>/^[a-f0-9]{64}$/.test(f.beforeSha256)&&/^[a-f0-9]{64}$/.test(f.afterSha256)));
     if(patch.provider==='claireon')assert.equal((body.toString().match(/\+\s*if \(!bNexusSkipAutoSave\)/g)??[]).length,2);
     if(patch.provider==='hayba')assert.match(body.toString(),/\+  'material_set_param',/);
@@ -583,4 +619,29 @@ test('generated Python parses and invokes one fixed callable with safe JSON deco
   assert.deepEqual(parsed.calls[0].expected_tests,args.expected_tests);
   assert.equal(parsed.calls[0].strict,true);
   assert.match(parsed.stdout,/^NEXUS_RESULT_[a-f0-9]+:[A-Za-z0-9+/=]+:END\n$/);
+});
+
+
+test('loaded Blueprint compile sends only a fixed exact no-save batch and checks its receipt',async()=>{
+  const target='/Game/Blueprints/BP_Vehicle.BP_Vehicle';
+  const row={blueprint_path:target,resolved_object_path:target,status:'succeeded',compiler_status:'up_to_date',
+    nexusCompileVersion:1,skip_save:true,cleanup_expired:false,source_cleanup:false,
+    errors:[],warnings:[],total_errors:0,total_warnings:0,diagnostics_truncated:false,synthetic_error:false};
+  const nativeResult=native({total:1,succeeded:1,failed:0,results:[row]},'Compiled 1 blueprint(s)');
+  const {adapter,calls}=claireon(()=>nativeResult);
+  const out=await run(adapter,'blueprint.compile.memory.loaded');
+  assert.equal(out.structuredContent.phase,'compiled-memory-only');assert.equal(out.structuredContent.saved,false);
+  assert.deepEqual(calls[1].payload.args,{paths:['/Game/Blueprints/BP_Vehicle'],
+    nexus_exact_no_save:true,max_count:1,remove_unused:false,failOnWarnings:false});
+  for(const changed of [{skip_save:false},{resolved_object_path:'/Game/Wrong.Wrong'},{diagnostics_truncated:'bad'}]) {
+    const bad=claireon(()=>native({total:1,succeeded:1,failed:0,results:[{...row,...changed}]},'Compiled 1 blueprint(s)'));
+    await assert.rejects(run(bad.adapter,'blueprint.compile.memory.loaded'),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
+  }
+});
+
+
+test('loaded compile busy responses remain uncertain',async()=>{
+  const row={blueprint_path:'/Game/Blueprints/BP_Vehicle.BP_Vehicle',status:'busy',mutation_started:false};
+  const busy=claireon(()=>native({total:1,succeeded:0,failed:1,results:[row]},'Blueprint busy'));
+  await assert.rejects(run(busy.adapter,'blueprint.compile.memory.loaded'),{code:'SPECIALIST_OUTCOME_UNKNOWN'});
 });

@@ -1,6 +1,6 @@
 # CAP-18A WebSocket ingress fixture
 
-This is an isolated local protocol fixture, **not a production receiver, a native patch, an Unreal qualification, or a configured application budget**. The held `screenshot.pie` route is unchanged.
+Historical note: this is an isolated local protocol fixture, **not a production receiver, a native patch, an Unreal qualification, or a configured application budget**. The original held route was unchanged when this fixture was written.
 
 The pinned UE-MCP lock at `62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d` records `ws` 8.22.0 with tarball integrity `sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==`. Acquire that package separately, verify its complete archive against the lock integrity, extract it into a trusted disposable directory, and set `NEXUS_WS_FIXTURE_ROOT` to its absolute package directory. The fixture checks the package name/version but does **not** itself authenticate the package or its extracted files. It runs without installing a dependency into Nexus:
 

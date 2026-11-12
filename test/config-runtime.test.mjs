@@ -15,7 +15,7 @@ const coreConfig=()=>parseConfig({version:1,target,allowWrites:true,
   enabledCapabilities:['actor.inspect.editor','screenshot.viewport.current'],
   backends:{'ue-mcp':backend(),'enginewire':backend({type:'streamable-http',url:'http://127.0.0.1:8001/mcp'})}});
 const json=value=>({content:[{type:'text',text:JSON.stringify(value)}]});
-const levelReceipt=()=>({success:true,levelName:'Demo',levelPath:'/Game/Demo.Demo',levelPackage:'/Game/Demo',usesExternalActors:false,externalPackagesLoaded:0,landscapesMerged:0,savedCount:0,failedCount:0,skippedCount:1,deletedCount:0,saved:[],skipped:[{package:'/Game/Demo',saved:false,skipped:true}]});
+const levelReceipt=()=>({success:true,levelName:'Demo',levelPath:'/Game/Demo.Demo',levelPackage:'/Game/Demo',nexusGuardVersion:1,expectedLevelPackage:'/Game/Demo',externalDeletionAllowed:false,usesExternalActors:false,externalPackagesLoaded:0,landscapesMerged:0,savedCount:0,failedCount:0,skippedCount:1,deletedCount:0,saved:[],skipped:[{package:'/Game/Demo',saved:false,skipped:true}]});
 function fixture(overrides={}) {
   const events=[];
   const adapters={
@@ -110,13 +110,15 @@ test('source or identity failure refuses before a canonical call and closes open
     assert.equal(runtime.gateway.status().queue.blocked,false);await runtime.close();
   }
 });
-test('v2 is an explicit UAP compatibility alternative and keeps PIE dispatch held',async()=>{
+test('queued-aware status requires v3 before any provider starts',async()=>{
   const {events,adapters}=fixture();
   const raw={version:1,target,enabledCapabilities:['pie.status'],backends:{unrealagentplayer:{
     ...backend(),compatibilityPatch:'uap-nexus-strict-status-v2',rcEndpoint:'http://127.0.0.1:30011',
   }}};
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
+  assert.equal(events.filter(e=>e[0]==='connect').length,0);
+  raw.backends.unrealagentplayer.compatibilityPatch='uap-nexus-queued-status-v3';
   const runtime=await createRuntime(parseConfig(raw),adapters);
-  await assert.rejects(runtime.gateway.execute('pie.status'),{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED'});
   assert.equal(events.filter(e=>e[0]==='connect').length,0);
   await runtime.close();
   raw.backends.unrealagentplayer.compatibilityPatch='unreviewed-v3';
@@ -135,24 +137,24 @@ test('specialists require exact declared compatibility and Hayba fixed launch po
   const {events,adapters}=fixture();
   const cfg=parseConfig({version:1,target,enabledPacks:['material-strict'],backends:{hayba:backend()}});
   await assert.rejects(createRuntime(cfg,adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
-  cfg.backends.hayba.compatibilityPatch='hayba-nexus-no-retry-v1';
+  cfg.backends.hayba.compatibilityPatch='hayba-nexus-material-receipt-v2';
   await assert.rejects(createRuntime(cfg,adapters),{code:'BACKEND_BINDING_REQUIRED'});
   assert.equal(events.length,0);
 });
 test('UAP native bindings derive from the attested target and explicit RC port, overriding stale launch env',async()=>{
-  const cfg=parseConfig({version:1,target,enabledCapabilities:['pie.status'],backends:{unrealagentplayer:{
+  const cfg=parseConfig({version:1,target,allowWrites:true,enabledCapabilities:['pie.start.viewport'],backends:{unrealagentplayer:{
     ...backend({...stdio(),env:{NEXUS_UAP_EDITOR_PID:'999',NEXUS_UAP_PROJECT_FILE:'/wrong.uproject',NEXUS_UAP_RC_PORT:'123'}}),
-    compatibilityPatch:'uap-nexus-no-replay-v1',rcEndpoint:'http://127.0.0.1:30011',
+    compatibilityPatch:'uap-nexus-owned-pie-v4',rcEndpoint:'http://127.0.0.1:30011',
   }}});
   let launch;
   const {adapters}=fixture({connect:async transport=>{
     launch=transport;
-    return {listTools:async()=>[{name:'pie_status',inputSchema:{type:'object'}}],
-      callTool:async()=>json({ok:true,phase:'NotPlaying'}),close:async()=>{}};
+    return {listTools:async()=>[{name:'pie_start',inputSchema:{type:'object'}}],
+      callTool:async()=>json({ok:true,phase:'Playing',playing:true,editorEpoch:'a'.repeat(32),sessionId:'b'.repeat(32)}),close:async()=>{}};
   }});
   const runtime=await createRuntime(cfg,adapters);assert.equal(launch,undefined);
-  await assert.rejects(runtime.gateway.execute('pie.status'),{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED'});
-  assert.equal(launch,undefined,'a held capability must not launch UAP');
+  assert.notEqual((await runtime.gateway.execute('pie.start.viewport')).isError,true);
+  assert.ok(launch,'the selected provider is launched lazily');
   const env=createUapBindingEnv({existingEnv:cfg.backends.unrealagentplayer.transport.env,
     target:{...target,projectRoot:path.resolve(target.projectRoot)},
     rcEndpoint:cfg.backends.unrealagentplayer.rcEndpoint,sourceRoot:path.resolve('/reviewed/source')});
@@ -181,30 +183,99 @@ test('identity refusal preserves its code and exposes unconfirmed startup cleanu
 });
 
 
-test('runtime passes the separate level external package deletion grant to the gateway',async()=>{
+test('guarded level save requires its reviewed patch, not a deletion grant',async()=>{
   const {events,adapters}=fixture();
   const raw={version:1,target,allowWrites:true,enabledCapabilities:['level.save.current'],backends:{'ue-mcp':backend()}};
-  const denied=await createRuntime(parseConfig(raw),adapters);
-  await assert.rejects(denied.gateway.execute('level.save.current',{}),{code:'LEVEL_SAVE_TARGET_UNVERIFIED'});
-  assert.equal(events.filter(e=>e[0]==='connect').length,0);
-  await denied.close();
-  const allowed=await createRuntime(parseConfig({...raw,allowLevelExternalPackageDeletion:true}),adapters);
-  await assert.rejects(allowed.gateway.execute('level.save.current',{}),{code:'LEVEL_SAVE_TARGET_UNVERIFIED'});
-  assert.equal(events.filter(e=>e[0]==='call').length,0);
-  assert.equal(events.filter(e=>e[0]==='connect').length,0);
-  assert.equal(allowed.status().allowLevelExternalPackageDeletion,true);
-  await allowed.close();
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
+  raw.backends['ue-mcp'].compatibilityPatch='ue-mcp-nexus-guarded-save-v2';
+  const runtime=await createRuntime(parseConfig(raw),adapters);
+  assert.notEqual((await runtime.gateway.execute('level.save.current',{expectedLevelPackage:'/Game/Demo'})).isError,true);
+  assert.equal(runtime.status().allowLevelExternalPackageDeletion,false);
+  assert.equal(events.filter(e=>e[0]==='call').length,1);await runtime.close();
 });
 
 
-test('runtime holds PIE capture before connecting and refuses an invented override',async()=>{
+test('PIE direct capture requires the exact compatibility patch',async()=>{
   const {events,adapters}=fixture();
-  const raw={version:1,target,allowWrites:true,enabledCapabilities:['screenshot.pie'],backends:{'ue-mcp':backend()}};
-  const args={filename:'nexus-frame.png',pieInstance:1};
-  const runtime=await createRuntime(parseConfig(raw),adapters);
-  await assert.rejects(runtime.gateway.execute('screenshot.pie',args),{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED'});
+  const raw={version:1,target,enabledCapabilities:['screenshot.pie'],backends:{'ue-mcp':backend()}};
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
   assert.equal(events.filter(e=>e[0]==='connect').length,0);
-  assert.equal(events.filter(e=>e[0]==='call').length,0);
   assert.throws(()=>parseConfig({...raw,allowPieScreenshotOverwrite:true}),{code:'INVALID_CONFIGURATION'});
+});
+
+
+test('owned patch satisfies both status and lifecycle requirements',async()=>{
+  const {adapters}=fixture();
+  const raw={version:1,target,enabledCapabilities:['pie.status','pie.start.viewport'],backends:{unrealagentplayer:{
+    ...backend(),compatibilityPatch:'uap-nexus-owned-pie-v4',rcEndpoint:'http://127.0.0.1:30011',
+  }}};
+  const runtime=await createRuntime(parseConfig(raw),adapters);
   await runtime.close();
+  raw.backends.unrealagentplayer.compatibilityPatch='uap-nexus-queued-status-v3';
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
+});
+
+
+test('guarded save patch satisfies the existing pagination requirement',async()=>{
+  const {adapters}=fixture();
+  const raw={version:1,target,enabledCapabilities:['actor.list.editor','level.save.current'],backends:{'ue-mcp':{
+    ...backend(),compatibilityPatch:'ue-mcp-nexus-guarded-save-v2',
+  }}};
+  const runtime=await createRuntime(parseConfig(raw),adapters);await runtime.close();
+  raw.backends['ue-mcp'].compatibilityPatch='ue-mcp-nexus-pagination-count-v1';
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
+});
+
+test('direct PIE patch also satisfies guarded-save and pagination requirements',async()=>{
+  const {adapters}=fixture();
+  const raw={version:1,target,enabledCapabilities:['actor.list.editor','level.save.current','screenshot.pie'],backends:{'ue-mcp':{
+    ...backend(),compatibilityPatch:'ue-mcp-nexus-direct-pie-v1',
+  }}};
+  const runtime=await createRuntime(parseConfig(raw),adapters);await runtime.close();
+  raw.backends['ue-mcp'].compatibilityPatch='ue-mcp-nexus-guarded-save-v2';
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
+});
+
+test('owned-hold patch satisfies the earlier UE compatibility requirements',async()=>{
+  const {adapters}=fixture();
+  const raw={version:1,target,enabledCapabilities:['actor.list.editor','level.save.current','screenshot.pie','input.action.hold.start'],
+    backends:{'ue-mcp':{...backend(),compatibilityPatch:'ue-mcp-nexus-owned-hold-v1'}}};
+  const runtime=await createRuntime(parseConfig(raw),adapters);await runtime.close();
+  raw.backends['ue-mcp'].compatibilityPatch='ue-mcp-nexus-direct-pie-v1';
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
+});
+
+
+test('runtime owns and closes its process inspector on success and startup failure',async()=>{
+  const {adapters}=fixture();delete adapters.processInspector;
+  let closes=0,reads=0;
+  adapters.processInspectorFactory=()=>({
+    inspect:async()=>{reads++;return {editorInstanceId:'linux-boot:1234:epoch'};},
+    close:async()=>{closes++;},
+  });
+  const runtime=await createRuntime(coreConfig(),adapters);
+  assert.equal(reads,1);await runtime.close();await runtime.close();assert.equal(closes,1);
+  adapters.processInspectorFactory=()=>({
+    inspect:async()=>{throw new Error('missing process');},
+    close:async()=>{closes++;},
+  });
+  await assert.rejects(createRuntime(coreConfig(),adapters),/missing process/u);
+  assert.equal(closes,2);
+});
+
+
+test('runtime passes its owned listener inspector to provider probes',async()=>{
+  const {adapters}=fixture();delete adapters.processInspector;
+  const inspectListener=async()=>({processId:1234,port:30011});
+  let seen=false;
+  adapters.processInspectorFactory=()=>({
+    inspect:async()=>({editorInstanceId:'linux-boot:1234:epoch'}),inspectListener,close:async()=>{},
+  });
+  adapters.probeFactory=({target,listenerInspector})=>{
+    assert.equal(listenerInspector,inspectListener);seen=true;
+    return {attestIdentity:async()=>({identityVerified:true,target,evidence:{}}),supports:async()=>true};
+  };
+  const runtime=await createRuntime(coreConfig(),adapters);
+  await runtime.gateway.execute('actor.inspect.editor',{actorPath:'/Game/Map.Map:PersistentLevel.Actor'});
+  assert.equal(seen,true);await runtime.close();
 });

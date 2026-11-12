@@ -64,9 +64,9 @@ index flags that hide modifications, and missing/altered required patches.
 
 Keep local Nexus configuration and tokens outside upstream source checkouts.
 Use the upstream's documented build/install procedure to install that source
-into the intended Unreal project. For compatibility patches, retain LF source
-bytes (`git -c core.autocrlf=false clone ...` is suitable): their reviewed file
-hashes are exact. Do not commit the patch into the pinned upstream checkout;
+into the intended Unreal project. For compatibility patches, preserve the checkout's declared Git attributes and
+reviewed working-tree bytes: their file hashes are exact. Some upstream files
+explicitly require CRLF even with `core.autocrlf=false`. Do not commit the patch into the pinned upstream checkout;
 Nexus expects the base HEAD plus the exact reviewed working-tree delta.
 
 Ignored build products are deliberately outside source attestation. A matching
@@ -81,27 +81,24 @@ Copy `examples/config.authoring.example.json` to a host-owned file such as
 packs select UE-MCP and EngineWire; remove either pack and its backend if unused.
 You may instead set `enabledCapabilities` to individual IDs. Writes/lifecycle
 actions require `allowWrites: true`; this host setting does not replace the
-user's task-specific authority. `level.save.current` is held before dispatch:
-its native handler cannot atomically compare the intended current level before
-any mutation. A direct client's level change can race a separate target check.
-The separate deletion grant is retained for a future reviewed native route and
-cannot bypass this hold. The native operation can delete dirty, empty
-external actor/object package files even when `commitDeletes` is false. It also
-requires the separate host setting `allowLevelExternalPackageDeletion: true`,
-which defaults to false. Grant it only when that scoped deletion is authorized.
-This setting is not a model-callable argument and does not authorize the broad
-dirty-package sweep. `screenshot.pie` is held before dispatch until a reviewed
-native implementation proves output ownership and prevents link/reparse
-redirection. Neither a fresh basename nor a host write grant proves the physical
-output target; no configuration flag bypasses this hold. `requiredProviders`
+user's task-specific authority. `level.save.current` requires the UE-MCP guarded-save v2 patch and an exact
+expected level package from `level.current.inspect`. It includes loaded
+external packages and refuses dirty empty external packages instead of deleting
+them. The legacy `allowLevelExternalPackageDeletion` setting does not grant
+deletion for this route. `screenshot.pie` requires the UE-MCP direct-PIE compatibility patch and
+a rebuilt matching native plugin and server. It uses a dedicated bounded socket
+and writes no screenshot file. Specify an exact world path and instance from
+`play.worlds.list`; the capture does not own the PIE session. `requiredProviders`
 includes providers for enabled catalog entries, including held entries; a held
-entry never starts its backend. PIE start, stop and status are held because native
-ownership and epoch-bound lifecycle are unverified and status may default
-malformed phase data to NotPlaying. Reconcile existing PIE sessions and grants
-externally; Nexus performs no implicit stop or grant release. The three
-input-hold operations, the material parameter pack, automation start, both Blueprint compile forms, trace capture and
-trace-reader open are also held
-pending their native target or ownership boundaries. Existing holds, runs,
+entry never starts its backend. PIE start and stop require the v4 native
+ownership patch and a unique machine grant. `pie.status` is only a point-in-time
+observation. Reconcile pre-existing PIE sessions and uncertain grants
+externally; Nexus performs no implicit stop or grant release. Owned input holds require the UE-MCP owned-hold v1 patch and a rebuilt native
+plugin and TypeScript server. The gateway keeps private hold tokens only in
+memory; a finite lease limits abandoned input, and stop can leave one already
+queued frame. Other sources on the same action can combine with the hold.
+Automation start, both Blueprint compile forms, trace capture and trace-reader
+open remain held pending their native ownership boundaries. Existing holds, runs,
 captures and readers require external reconciliation; Nexus does not implicitly
 stop, cancel or reset them.
 
@@ -139,13 +136,13 @@ The URL must be literal loopback for production identity verification.
 
 ### UnrealAgentPlayer
 
-Apply `uap-nexus-no-replay-v1` from the patch guide, then install/build its Python
+Apply `uap-nexus-owned-pie-v4` from the patch guide, then rebuild its native plugin and install/build its Python
 environment from the pinned checkout. Configure, for example:
 
 ```json
 {
   "sourceRoot": "C:/Tools/upstreams/UnrealAgentPlayer",
-  "compatibilityPatch": "uap-nexus-no-replay-v1",
+  "compatibilityPatch": "uap-nexus-owned-pie-v4",
   "rcEndpoint": "http://127.0.0.1:30010",
   "transport": {
     "type": "stdio",
@@ -158,7 +155,12 @@ environment from the pinned checkout. Configure, for example:
 
 Place that object under `backends.unrealagentplayer`. **30010 is an example, not
 a discovered per-editor port**; use the actual selected editor's RC port.
-Enable `playtesting` or the desired UAP canonical IDs.
+Enable `playtesting` or the desired UAP canonical IDs. If the editor's
+Python Remote Execution is bound to a specific IPv4 interface, set
+`NEXUS_UAP_MULTICAST_INTERFACE` in this transport's trusted `env` to the same
+address (for example `127.0.0.1` for a loopback-only host). If omitted, the
+provider retains its default interface selection. No discovery fallback is
+attempted on another interface.
 
 Nexus injects `NEXUS_UAP_PROJECT_FILE`, `NEXUS_UAP_EDITOR_PID` and
 `NEXUS_UAP_RC_PORT` from the pinned target and validated RC URL. It also binds
@@ -169,15 +171,16 @@ can substitute a discovery selector in canonical arguments.
 
 ### Claireon
 
-Apply `claireon-nexus-no-autosave-v1`, rebuild the plugin and run it in direct
-mode. Find the live port in the intended project's `Saved/Claireon/MCPServer.json`;
+For `blueprint.compile.memory.loaded` or the `blueprint-compile` pack, apply
+`claireon-nexus-compile-loaded-v2`; it includes the no-autosave patch. Rebuild
+the plugin and run it in direct mode. Find the live port in the intended project's `Saved/Claireon/MCPServer.json`;
 Nexus verifies the actual listener owner. Proxy mode cannot satisfy this check.
 Configure the actual endpoint:
 
 ```json
 {
   "sourceRoot": "C:/Tools/upstreams/Claireon",
-  "compatibilityPatch": "claireon-nexus-no-autosave-v1",
+  "compatibilityPatch": "claireon-nexus-compile-loaded-v2",
   "transport": {"type": "streamable-http", "url": "http://127.0.0.1:52000/mcp"}
 }
 ```
@@ -190,15 +193,15 @@ not dispatched.
 
 ### Hayba
 
-Apply `hayba-nexus-no-retry-v1` and rebuild the TypeScript server. Copy
-`examples/hayba.settings.example.json` outside the source checkout and configure
-it as `HAYBA_SETTINGS_PATH`. That settings file preloads the direct `material`
-and `python` domain packs using upstream deferred routing.
+Apply `hayba-nexus-material-receipt-v2` and rebuild both its native plugin and
+TypeScript server. Copy `examples/hayba.settings.example.json` outside the
+source checkout and configure it as `HAYBA_SETTINGS_PATH`. The host settings
+preload the direct `material` domain pack using upstream deferred routing.
 
 ```json
 {
   "sourceRoot": "C:/Tools/upstreams/hayba",
-  "compatibilityPatch": "hayba-nexus-no-retry-v1",
+  "compatibilityPatch": "hayba-nexus-material-receipt-v2",
   "transport": {
     "type": "stdio",
     "command": "node",
@@ -215,10 +218,10 @@ and `python` domain packs using upstream deferred routing.
 
 Use the actual editor-owned native TCP port, not an assumed default. Explicit
 `UE_TCP_PORT` prevents the transport from rediscovering a different editor port
-after reconnection. Nexus requires direct `python_run` with read-only/no-transaction
-parameters for its private identity probe and direct `material_set_param` with
-the required `nexus_retry_policy="never"` marker for mutation. It never invokes
-Hayba's generic routing or dynamically loads a pack to evade a refusal.
+after reconnection. Nexus uses the fixed read-only `material_nexus_identity`
+tool to corroborate the editor and native receipt marker, then the direct
+`material_set_param` tool with the v2 receipt selector and no-retry marker.
+It does not invoke Hayba's generic routing or dynamically load a pack to evade a refusal.
 
 ## 5. Local HTTP instead of stdio
 

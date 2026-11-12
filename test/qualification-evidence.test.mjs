@@ -63,33 +63,21 @@ test('a partial run with a passing case still requires environment and target pr
 });
 
 
-test('compatibility-dependent passing cases declare the exact reviewed patch and capability marker',()=>{
-  const m=passing();const patch=compatibility.patches.find(p=>p.id==='uap-nexus-no-replay-v1');
-  m.profile.enabled_operations=['pie.status'];m.profile.providers=['unrealagentplayer'];
-  Object.assign(m.cases[0],{operation:'pie.status',provider:'unrealagentplayer',provider_pin:patch.baseCommit,patch_sha256:null,live_marker:null});
-  let result=validateQualificationManifest(m);assert.equal(result.valid,false);
-  assert.ok(result.errors.some(e=>e.includes('patch_sha256')));assert.ok(result.errors.some(e=>e.includes('live_marker')));
-  Object.assign(m.cases[0],{patch_sha256:patch.sha256,live_marker:structuredClone(patch.capabilityMarker)});
+test('owned PIE qualification requires all compatibility markers',()=>{
+  const m=passing();
+  const v1=compatibility.patches.find(p=>p.id==='uap-nexus-no-replay-v1');
+  const v3=compatibility.patches.find(p=>p.id==='uap-nexus-queued-status-v3');
+  const v4=compatibility.patches.find(p=>p.id==='uap-nexus-owned-pie-v4');
+  m.profile.enabled_operations=['pie.start.viewport'];m.profile.providers=['unrealagentplayer'];
+  Object.assign(m.cases[0],{operation:'pie.start.viewport',provider:'unrealagentplayer',provider_pin:v4.baseCommit,
+    compatibility_patch:v4.id,patch_sha256:v4.sha256,live_marker:structuredClone(v4.capabilityMarker),
+    no_replay_marker:structuredClone(v1.capabilityMarker),strict_status_marker:structuredClone(v3.capabilityMarker)});
   assert.equal(validateQualificationManifest(m).valid,true);
-  m.cases[0].live_marker.value.post_send_replay=true;
-  result=validateQualificationManifest(m);assert.equal(result.valid,false);assert.ok(result.errors.some(e=>e.includes('live_marker')));
-});
-
-
-test('UAP v2 evidence must identify the explicit patch and both reviewed markers',()=>{
-  const m=passing();const v1=compatibility.patches.find(p=>p.id==='uap-nexus-no-replay-v1');
-  const v2=compatibility.patches.find(p=>p.id==='uap-nexus-strict-status-v2');
-  m.profile.enabled_operations=['pie.status'];m.profile.providers=['unrealagentplayer'];
-  Object.assign(m.cases[0],{operation:'pie.status',provider:'unrealagentplayer',provider_pin:v2.baseCommit,
-    compatibility_patch:v2.id,patch_sha256:v2.sha256,live_marker:structuredClone(v2.capabilityMarker),no_replay_marker:structuredClone(v1.capabilityMarker)});
-  assert.equal(validateQualificationManifest(m).valid,true);
-  for(const mutate of [x=>{x.no_replay_marker.value.post_send_replay=true;},x=>{x.live_marker.value.version=1;},
-    x=>{x.patch_sha256=v1.sha256;},x=>{x.compatibility_patch='unreviewed-v3';}]) {
-    const bad=structuredClone(m);mutate(bad.cases[0]);assert.equal(validateQualificationManifest(bad).valid,false);
+  for(const field of ['live_marker','no_replay_marker','strict_status_marker']) {
+    const bad=structuredClone(m);delete bad.cases[0][field];assert.equal(validateQualificationManifest(bad).valid,false);
   }
-  const missing=structuredClone(m);delete missing.cases[0].no_replay_marker;
-  assert.equal(validateQualificationManifest(missing).valid,false);
 });
+
 
 test('profile rejects unknown, duplicate, and unrelated provider claims',()=>{
   const m=passing();m.profile.providers=['ue-mcp','ue-mcp','unknown','enginewire'];
@@ -110,4 +98,27 @@ test('qualification CLI bounds manifest bytes and rejects malformed UTF-8',()=>{
     writeFileSync(path,Buffer.from([0x7b,0x22,0x78,0x22,0x3a,0x22,0xff,0x22,0x7d]));
     const malformed=run();assert.equal(malformed.status,2);assert.match(malformed.stderr,/Could not read or parse manifest/);
   } finally {rmSync(dir,{recursive:true,force:true});}
+});
+
+
+test('queued-aware status qualification requires its patch and no-replay marker',()=>{
+  const m=passing();const v1=compatibility.patches.find(p=>p.id==='uap-nexus-no-replay-v1');
+  const v3=compatibility.patches.find(p=>p.id==='uap-nexus-queued-status-v3');
+  m.profile.enabled_operations=['pie.status'];m.profile.providers=['unrealagentplayer'];
+  Object.assign(m.cases[0],{operation:'pie.status',provider:'unrealagentplayer',provider_pin:v3.baseCommit,
+    compatibility_patch:v3.id,patch_sha256:v3.sha256,live_marker:structuredClone(v3.capabilityMarker),no_replay_marker:structuredClone(v1.capabilityMarker)});
+  assert.equal(validateQualificationManifest(m).valid,true);
+  delete m.cases[0].no_replay_marker;
+  assert.equal(validateQualificationManifest(m).valid,false);
+});
+
+
+test('material v2 qualification requires the fixed native marker',()=>{
+  const m=passing();const patch=compatibility.patches.find(p=>p.id==='hayba-nexus-material-receipt-v2');
+  m.profile.enabled_operations=['material.parameter.scalar.persisted'];m.profile.providers=['hayba'];
+  Object.assign(m.cases[0],{operation:'material.parameter.scalar.persisted',provider:'hayba',provider_pin:patch.baseCommit,
+    compatibility_patch:patch.id,patch_sha256:patch.sha256,live_marker:structuredClone(patch.capabilityMarker)});
+  assert.equal(validateQualificationManifest(m).valid,true);
+  m.cases[0].live_marker.value=1;
+  assert.equal(validateQualificationManifest(m).valid,false);
 });

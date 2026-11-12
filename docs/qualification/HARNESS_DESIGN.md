@@ -1,6 +1,6 @@
 # Disposable native acceptance harness: design only
 
-Status: **not built, not run, not native-qualified**. This is preparation for [ENV-04](../QUALIFICATION_PLAN.md#env-04), not a result or a replacement for the [acceptance matrix](../INTEGRATION_ACCEPTANCE.md). Project, engine, profile, loaded builds and endpoints remain to be selected and recorded under ENV-01–03. No native artifacts or project changes are asserted here.
+Status: historical harness design, not a claim of complete native qualification. Isolated UE 5.8.4 evidence is recorded separately under [qualification](UE_MCP_CANDIDATE_20261111.md) and [owned PIE](UAP_OWNED_PIE_20261112.md). The user confirmed upstream MCPs are already tested and requested representative provider read/write checks rather than individual live tests for every command; use the rows below to select targeted checks for actual integration risks.
 
 ## Fixture and execution design
 
@@ -23,21 +23,24 @@ Each row specifies minimum distinct setup and positive/negative evidence in addi
 | `pie.stop` | Owned running PIE; observe NotPlaying and teardown. | Unowned stop, queued teardown, uncertain release. | S |
 | `pie.status` | Known editor/PIE phases; compare RC/native identity. | Wrong editor, malformed RC, restart epoch. | R |
 | `screenshot.viewport.current` | Visible marker; inspect actual MCP pixels, dimensions, view and shader wait. | Missing image, view mismatch, headless intent. | R |
-| `screenshot.pie` | Known client and fresh output path; verify PNG, dimensions, exact client. | Wrong instance, stale output, failed write; path alone is not pixels. | F |
+| `play.worlds.list` | Observe world paths, instance IDs, net modes and viewport presence. | Empty observation does not prove lifecycle phase or ownership. | R |
+| `screenshot.pie` | Disposable PIE: exact client, dimensions and PNG image through Nexus. | Wrong target, resized viewport and visual fidelity remain bounded or separately qualified. | P |
 | `actor.list.editor` | Discover known actor labels and paths in the editor world. | Pagination, streaming exclusion and changing-world limitations. | R |
 | `actor.transform.editor` | Move an owned test actor by exact path and independently inspect the resulting transform. | Wrong target, no transform and unknown completion. | S |
 | `actor.place.editor` | User-authorized unique label and class; independently observe actual actor and mesh without implicit save. | Duplicate label, wrong world, failed class/mesh and uncertain dispatch. | S |
 | `actor.inspect.editor` | Duplicate labels with exact paths/properties in editor world; verify identity/truncation. | Ambiguous label, wrong path, stale epoch. | R |
 | `actor.inspect.pie` | Matching actor in explicit PIE instance; compare world and identity. | Missing/wrong instance, editor-world substitution. | R |
-| `level.save.current` | Dirty current map/external packages; inspect per-package receipt and reload. | PIE refusal, wrong map, partial/read-only save. | P |
+| `level.save.current` | Disposable current map: wrong target refused and force save reported; see UE guarded-save qualification. | External packages, partial and read-only cases remain source/fixture evidence. | P |
 | `asset.save.exact` | Multiple dirty assets, select subset; verify selected files/reload and untouched others. | Empty/invalid scope, missing/read-only, partial or malformed receipt. | P |
+| `pcg.graph.inspect` | Inspect known graph nodes, pin labels and edges. | Missing graph, large output and state changes. | R |
 | `pcg.graph.connect.persisted` | Exact graph/node/pins; verify edge and reload. | Existing edge no-op, stale/wrong pin, save failure; do not invert no-op. | P |
 | `pcg.generation.execute` | Actor with known first component; verify returned component/run and start. | Multi-component intent mismatch, failure after start, loss without replay. | S |
 | `pcg.generation.wait` | Returned generation run; verify generated state and matching lastRun. | Cancelled, idle, not_started, stale, timed-out. | S |
 | `input.action.once` | Instrumented action in explicit world/player; compare input log and effect. | Missing action, wrong player/world, nonfinite value. | R |
-| `input.action.hold.start` | Instrumented action; observe sustained effect and owned ID. | Foreign/conflicting hold, loss after start. | S |
-| `input.action.hold.update` | Owned hold; verify changed effect for same ID. | Foreign/stale ID, invalid values. | S |
-| `input.action.hold.stop` | Owned hold; confirm stop receipt and no residual effect. | Loss/timeout is not release proof. | S |
+| `input.action.hold.start` | Disposable coordinator start and coexistence observed. | Gameplay effect and lease expiry remain to qualify. | P |
+| `input.action.hold.update` | Owned coordinator update and foreign-token refusal observed. | Gameplay response remains to qualify. | P |
+| `input.action.hold.stop` | Owned coordinator stop observed; one queued frame may remain. | Loss/timeout is not release proof. | P |
+| `blueprint.compile.memory.loaded` | Disposable loaded Blueprint compiled with unchanged disk hash. | Dirty asset, session contention, warning and failure diagnostics remain separately qualified. | P |
 | `blueprint.compile.memory.asset` | Valid/broken/warning assets and unrelated dirty package; capture diagnostics and disk hashes. | Truncation, both autosave sites, Save-on-Compile. | P |
 | `blueprint.compile.memory.session` | Explicit session and known asset; compile with no unintended save. | Foreign/stale session, close persistence semantics. | S, P |
 | `automation.tests.run` | Exact known set and skip reasons; observe owned ID, not a pass. | Missing tests, disallowed skip, second run, uncertain start. | S |

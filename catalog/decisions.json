@@ -52,11 +52,11 @@
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp",
           "lines": [
-            405,
-            480
+            398,
+            490
           ],
-          "note": "Queue acknowledgement; stop cannot cancel queued start.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp#L405-L480"
+          "note": "UE requests a play session asynchronously; queued requests can replace prior requests and stop does not cancel a queued start. The candidate can select standalone play.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp#L398-L490"
         },
         {
           "provider": "enginewire",
@@ -109,10 +109,21 @@
         "Simulation, toolbar pause, game pause, and separate-window modes are distinct capabilities."
       ],
       "qualification": [
-        "Static source review only; live Unreal qualification pending.",
-        "Only PlayInViewport; no map_path interpolation or separate-window claim.",
-        "UAP Remote Control getters default some missing values; host qualification must test malformed responses.",
-        "The stock Python transport can replay after send and public exec_python checks the wrong success field. Require uap-nexus-no-replay-v1, exact project/PID/RC client binding and the live bridge_status marker."
+        "The owned start/stop route requires uap-nexus-owned-pie-v4; status-only may use the v3 patch. The v4 native request identity, unique grant and live markers must be checked.",
+        "An isolated UE 5.8.4 start/stop passed through Nexus; this does not qualify other projects, engine versions, external-client cooperation or mapped DLL provenance.",
+        "No implicit retry, project-wide release or ownership recovery is performed after an uncertain outcome."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp",
+          "lines": [
+            405,
+            480
+          ],
+          "note": "Queue acknowledgement; stop cannot cancel queued start.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp#L405-L480"
+        }
       ]
     },
     {
@@ -191,10 +202,10 @@
     {
       "id": "pie-screenshot",
       "status": "selected",
-      "scope": "Exact PIE client viewport with UMG and synchronous PNG write; host file output.",
+      "scope": "Exact PIE client viewport, including composited UI, delivered as a bounded in-memory PNG.",
       "winner": {
         "provider": "ue-mcp",
-        "native": "tools -> editor.capture_screenshot(target=pie)"
+        "native": "tools -> editor.nexus_capture_pie_png_v1"
       },
       "operations": [
         "screenshot.pie"
@@ -204,21 +215,21 @@
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
           "lines": [
-            2822,
-            2963
+            2927,
+            3140
           ],
-          "note": "Explicit world selection, Slate capture, actual dimensions and file write.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L2822-L2963"
+          "note": "Pinned source supplies the Slate viewport and original path-writing capture; the reviewed direct-PIE patch adds the bounded exact-target in-memory route.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L2927-L3140"
         },
         {
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
           "lines": [
-            3026,
-            3064
+            3203,
+            3241
           ],
-          "note": "Captures selected game viewport including UMG.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L3026-L3064"
+          "note": "Captures selected game viewport including UMG. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L3203-L3241"
         },
         {
           "provider": "claireon",
@@ -262,6 +273,28 @@
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
         "Returned path is not an inline image. Fresh filename required by workflow; no atomic no-clobber guarantee."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "lines": [
+            3026,
+            3064
+          ],
+          "note": "Captures selected game viewport including UMG.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L3026-L3064"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "lines": [
+            2822,
+            2963
+          ],
+          "note": "Explicit world selection, Slate capture, actual dimensions and file write.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L2822-L2963"
+        }
       ]
     },
     {
@@ -281,21 +314,21 @@
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
           "lines": [
-            1355,
-            1478
+            1440,
+            1563
           ],
-          "note": "World-aware detailed actor read.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1355-L1478"
+          "note": "World-aware detailed actor read. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1440-L1563"
         },
         {
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h",
           "lines": [
-            64,
-            172
+            96,
+            204
           ],
-          "note": "Exact paths and ambiguity-aware label resolution.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h#L64-L172"
+          "note": "Exact paths and ambiguity-aware label resolution. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h#L96-L204"
         },
         {
           "provider": "unrealagentplayer",
@@ -321,15 +354,37 @@
       ],
       "qualification": [
         "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1355,
+            1478
+          ],
+          "note": "World-aware detailed actor read.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1355-L1478"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h",
+          "lines": [
+            64,
+            172
+          ],
+          "note": "Exact paths and ambiguity-aware label resolution.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h#L64-L172"
+        }
       ]
     },
     {
       "id": "level-save",
       "status": "selected",
-      "scope": "Current editing level plus loaded external packages, with checked per-package receipts and no global dirty sweep.",
+      "scope": "Guarded current editing level plus loaded external packages, with exact expected package, checked receipts, and no external package deletion or global dirty sweep.",
       "winner": {
         "provider": "ue-mcp",
-        "native": "tools -> level.save(commitDeletes=false)"
+        "native": "tools -> level.save(expectedLevelPackage, commitDeletes=false, includeExternalActors=true, nexusNoExternalDelete=true)"
       },
       "operations": [
         "level.save.current"
@@ -340,10 +395,10 @@
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp",
           "lines": [
             259,
-            383
+            384
           ],
-          "note": "PIE refusal, current editing sublevel, external packages and checked outcomes.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp#L259-L383"
+          "note": "Pinned candidate refuses PIE and saves the current editing level. The reviewed guarded-save v2 patch adds the expected-level precondition and forbids external package deletion.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp#L259-L384"
         }
       ],
       "excludedDefaults": [
@@ -366,6 +421,18 @@
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
         "commitDeletes=true broadens to every dirty map/content package; fixed false."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp",
+          "lines": [
+            259,
+            383
+          ],
+          "note": "PIE refusal, current editing sublevel, external packages and checked outcomes.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp#L259-L383"
+        }
       ]
     },
     {
@@ -380,6 +447,43 @@
         "asset.save.exact"
       ],
       "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            3816,
+            3949
+          ],
+          "note": "Whole-set resolution preflight and per-package checked save. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp#L3816-L3949"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/asset.ts",
+          "lines": [
+            269,
+            270
+          ],
+          "note": "Public scoped and broad save distinction. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/src/tools/asset.ts#L269-L270"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "claireon",
+          "native": "asset resave as exact-save default",
+          "reason": "Loads/marks packages dirty and can outer-success partial failure; not equivalent loaded-package scope.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Broad save-all remains a distinct, intentionally unexposed operation.",
+        "force is an explicit caller choice, not silently assumed."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
         {
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
@@ -400,21 +504,6 @@
           "note": "Public scoped and broad save distinction.",
           "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/tools/asset.ts#L266-L267"
         }
-      ],
-      "excludedDefaults": [
-        {
-          "provider": "claireon",
-          "native": "asset resave as exact-save default",
-          "reason": "Loads/marks packages dirty and can outer-success partial failure; not equivalent loaded-package scope.",
-          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
-        }
-      ],
-      "preserve": [
-        "Broad save-all remains a distinct, intentionally unexposed operation.",
-        "force is an explicit caller choice, not silently assumed."
-      ],
-      "qualification": [
-        "Static source review only; live Unreal qualification pending."
       ]
     },
     {
@@ -433,11 +522,11 @@
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
           "lines": [
-            1208,
-            1308
+            1261,
+            1460
           ],
-          "note": "Existing edge distinguished, actual edge checked, save outcome checked.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1208-L1308"
+          "note": "Candidate validates pin labels and reports structured edge refusals, verifies the resulting edge, and retains mutation/save semantics for separate review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1261-L1460"
         },
         {
           "provider": "hayba",
@@ -463,6 +552,18 @@
       ],
       "qualification": [
         "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            1208,
+            1308
+          ],
+          "note": "Existing edge distinguished, actual edge checked, save outcome checked.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1208-L1308"
+        }
       ]
     },
     {
@@ -478,6 +579,44 @@
         "pcg.generation.wait"
       ],
       "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            1958,
+            2023
+          ],
+          "note": "Actor resolution and first-component trigger with returned run identity. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1958-L2023"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/pcg-wait.ts",
+          "lines": [
+            68,
+            153
+          ],
+          "note": "Candidate wait distinguishes terminal states and adds a grace interval and additional details for not_started; direct-client interference remains a separate concern.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/src/tools/pcg-wait.ts#L68-L153"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "hayba",
+          "native": "pcg_cook_and_wait as generic generation gate",
+          "reason": "ISM count and tolerated timeout cannot prove arbitrary PCG generation success.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "ISM-specific diagnostics remain useful but are not a universal gate."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Require state=generated. Native success can mean cancelled/cleaned/not_started/idle.",
+        "No componentName selector on execute; it targets the first PCG component."
+      ],
+      "historicalEvidence": [
         {
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
@@ -498,31 +637,15 @@
           "note": "Run-aware polling; terminal states and nested timeout warnings are distinct.",
           "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/tools/pcg-wait.ts#L55-L138"
         }
-      ],
-      "excludedDefaults": [
-        {
-          "provider": "hayba",
-          "native": "pcg_cook_and_wait as generic generation gate",
-          "reason": "ISM count and tolerated timeout cannot prove arbitrary PCG generation success.",
-          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
-        }
-      ],
-      "preserve": [
-        "ISM-specific diagnostics remain useful but are not a universal gate."
-      ],
-      "qualification": [
-        "Static source review only; live Unreal qualification pending.",
-        "Require state=generated. Native success can mean cancelled/cleaned/not_started/idle.",
-        "No componentName selector on execute; it targets the first PCG component."
       ]
     },
     {
       "id": "enhanced-input",
       "status": "selected",
-      "scope": "Explicit local PIE world/player action injection with independently named hold lifecycle.",
+      "scope": "Exact local PIE world/player one-shot injection and independent, privately owned finite-lease hold lifecycle.",
       "winner": {
         "provider": "ue-mcp",
-        "native": "tools -> pie.inject_input[_start|_update|_stop]"
+        "native": "tools -> pie.inject_input; patched pie.nexus_hold_[start|update|stop]_v1"
       },
       "operations": [
         "input.action.once",
@@ -535,21 +658,21 @@
           "provider": "ue-mcp",
           "path": "src/tools/specs/pie.generated.ts",
           "lines": [
-            113,
-            312
+            256,
+            510
           ],
-          "note": "Actual action, world, player and hold schemas.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/tools/specs/pie.generated.ts#L113-L312"
+          "note": "Candidate schemas retain action and hold operations and add optional hold duration and control rotation.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/src/tools/specs/pie.generated.ts#L256-L510"
         },
         {
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp",
           "lines": [
-            103,
-            284
+            164,
+            351
           ],
-          "note": "Validation, world resolution, hold updates and stop.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp#L103-L284"
+          "note": "Candidate retains local and remote relay paths and adds local hold options; remote relay does not support those options.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp#L164-L351"
         },
         {
           "provider": "enginewire",
@@ -574,9 +697,31 @@
         "Raw gameplay keys, Slate/UI dispatch, gamepad and XR pose are different layers."
       ],
       "qualification": [
-        "Static source review only; live Unreal qualification pending.",
-        "Remote relay omitted until remote_result correlation is implemented.",
-        "Track owned holds and release explicitly; timeout is not confirmed release."
+        "One-shot remains distinct; owned hold start/update/stop passed a disposable coordinator smoke test. Gameplay effects and lease expiry are not individually live-qualified.",
+        "Inputs from other sources may combine; the independent injector does not own or stop their continuous slot.",
+        "Remote relay remains a distinct variant; a timeout is not confirmed release."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/specs/pie.generated.ts",
+          "lines": [
+            113,
+            312
+          ],
+          "note": "Actual action, world, player and hold schemas.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/tools/specs/pie.generated.ts#L113-L312"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp",
+          "lines": [
+            103,
+            284
+          ],
+          "note": "Validation, world resolution, hold updates and stop.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp#L103-L284"
+        }
       ]
     },
     {
@@ -585,11 +730,12 @@
       "scope": "Compile one Blueprint without saving; structured bounded compiler diagnostics.",
       "winner": {
         "provider": "claireon",
-        "native": "python_execute -> claireon.bp_compile"
+        "native": "python_execute -> claireon.bp_compile or patched claireon.bp_compile_batch"
       },
       "operations": [
         "blueprint.compile.memory.asset",
-        "blueprint.compile.memory.session"
+        "blueprint.compile.memory.session",
+        "blueprint.compile.memory.loaded"
       ],
       "evidence": [
         {
@@ -679,7 +825,8 @@
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
         "Adapter must call a fixed function, safely encode arguments and strictly parse marked results; no arbitrary Python exposure.",
-        "Conditional on exact reviewed Claireon compatibility patch and live marker; native compile status is parsed from status-mode summary plus structured diagnostics, not invented upstream JSON status."
+        "Conditional on exact reviewed Claireon compatibility patch and live marker; native compile status is parsed from status-mode summary plus structured diagnostics, not invented upstream JSON status.",
+        "The fixed loaded-asset compile variant uses the session-free exact batch slice and refuses expired-session cleanup; native qualification is recorded separately."
       ]
     },
     {
@@ -761,10 +908,9 @@
         "Layer associations, undeclared staging, static switches and unsaved session edits remain distinct."
       ],
       "qualification": [
-        "Static source review only; live Unreal qualification pending.",
-        "Require verified=true AND saved=true; failed persistence may leave memory changed.",
-        "Vectors must be 3 or 4 finite float32-range values; verify typed route exists and block Hayba legacy fallthrough.",
-        "Unmodified pin is HELD: TS executor silently retries material_set_param after transport error. Only exact reviewed no-retry patch + required live direct typed marker qualifies; no legacy fallback."
+        "Requires hayba-nexus-material-receipt-v2, exact source hashes, fixed native identity marker and the typed no-retry selector.",
+        "Native v2 checks exact resolved object paths and binary32 or texture readback; a failed save or readback may leave a partial mutation.",
+        "One isolated UE 5.8.4 scalar write passed through Nexus; vector, texture, other projects and mapped binary provenance remain separately unverified."
       ]
     },
     {
@@ -1003,8 +1149,8 @@
             880,
             1025
           ],
-          "note": "Factory validation, property preflight and checked save.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers_Import.cpp#L880-L1025"
+          "note": "Factory validation, property preflight and checked save. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers_Import.cpp#L880-L1025"
         }
       ],
       "excludedDefaults": [],
@@ -1015,6 +1161,18 @@
         "Static source review only; live Unreal qualification pending.",
         "Pin replaceExisting=false; third-party factories may not honor it, so do not claim a security sandbox.",
         "Source/destination path authority and no-overwrite validation must precede exposure."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers_Import.cpp",
+          "lines": [
+            880,
+            1025
+          ],
+          "note": "Factory validation, property preflight and checked save.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers_Import.cpp#L880-L1025"
+        }
       ]
     },
     {
@@ -1065,8 +1223,8 @@
             258,
             355
           ],
-          "note": "Source validation, checked rename/cleanup and checked save.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Animation/AnimationHandlers_ControlRig.cpp#L258-L355"
+          "note": "Source validation, checked rename/cleanup and checked save. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Animation/AnimationHandlers_ControlRig.cpp#L258-L355"
         },
         {
           "provider": "enginewire",
@@ -1086,6 +1244,18 @@
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
         "Not yet in executable first-pass catalogue."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Animation/AnimationHandlers_ControlRig.cpp",
+          "lines": [
+            258,
+            355
+          ],
+          "note": "Source validation, checked rename/cleanup and checked save.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Animation/AnimationHandlers_ControlRig.cpp#L258-L355"
+        }
       ]
     },
     {
@@ -1112,8 +1282,8 @@
             1093,
             1229
           ],
-          "note": "Actual graph schema, previous-link restoration and persistence.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Graph.cpp#L1093-L1229"
+          "note": "Actual graph schema, previous-link restoration and persistence. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Graph.cpp#L1093-L1229"
         },
         {
           "provider": "enginewire",
@@ -1132,6 +1302,18 @@
       ],
       "qualification": [
         "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Graph.cpp",
+          "lines": [
+            1093,
+            1229
+          ],
+          "note": "Actual graph schema, previous-link restoration and persistence.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Graph.cpp#L1093-L1229"
+        }
       ]
     },
     {
@@ -1182,11 +1364,11 @@
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
           "lines": [
-            2942,
-            3020
+            2997,
+            3075
           ],
-          "note": "Reference-aware deletion has edge cases when registry state is absent.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp#L2942-L3020"
+          "note": "Reference-aware deletion has edge cases when registry state is absent. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp#L2997-L3075"
         },
         {
           "provider": "enginewire",
@@ -1205,6 +1387,18 @@
       ],
       "qualification": [
         "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            2942,
+            3020
+          ],
+          "note": "Reference-aware deletion has edge cases when registry state is absent.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp#L2942-L3020"
+        }
       ]
     },
     {
@@ -1231,8 +1425,8 @@
             404,
             549
           ],
-          "note": "Exact-channel prevalidation/readback; inverse is not lossless for custom tangents.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers_Channels.cpp#L404-L549"
+          "note": "Exact-channel prevalidation/readback; inverse is not lossless for custom tangents. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers_Channels.cpp#L404-L549"
         },
         {
           "provider": "hayba",
@@ -1258,6 +1452,18 @@
       ],
       "qualification": [
         "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers_Channels.cpp",
+          "lines": [
+            404,
+            549
+          ],
+          "note": "Exact-channel prevalidation/readback; inverse is not lossless for custom tangents.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers_Channels.cpp#L404-L549"
+        }
       ]
     },
     {
@@ -1274,8 +1480,8 @@
             383,
             590
           ],
-          "note": "Native type rules and placement receipts; bounded/lossy inverse.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp#L383-L590"
+          "note": "Native type rules and placement receipts; bounded/lossy inverse. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp#L383-L590"
         },
         {
           "provider": "ue-mcp",
@@ -1284,8 +1490,8 @@
             168,
             223
           ],
-          "note": "Layer-specific sculpt semantics.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp#L168-L223"
+          "note": "Layer-specific sculpt semantics. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp#L168-L223"
         },
         {
           "provider": "enginewire",
@@ -1305,6 +1511,28 @@
       ],
       "qualification": [
         "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp",
+          "lines": [
+            383,
+            590
+          ],
+          "note": "Native type rules and placement receipts; bounded/lossy inverse.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp#L383-L590"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp",
+          "lines": [
+            168,
+            223
+          ],
+          "note": "Layer-specific sculpt semantics.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp#L168-L223"
+        }
       ]
     },
     {
@@ -1358,11 +1586,11 @@
           "provider": "ue-mcp",
           "path": "src/dispatch/locking.ts",
           "lines": [
-            150,
-            165
+            159,
+            174
           ],
-          "note": "Lock acquisition failure can run unlocked.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/dispatch/locking.ts#L150-L165"
+          "note": "Lock acquisition failure can run unlocked. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/src/dispatch/locking.ts#L159-L174"
         }
       ],
       "excludedDefaults": [
@@ -1380,6 +1608,18 @@
       "qualification": [
         "Static source review only; live Unreal qualification pending.",
         "Nexus serial queue is one process only and cannot police direct backend clients."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "src/dispatch/locking.ts",
+          "lines": [
+            150,
+            165
+          ],
+          "note": "Lock acquisition failure can run unlocked.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/dispatch/locking.ts#L150-L165"
+        }
       ]
     },
     {
@@ -1398,11 +1638,11 @@
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
           "lines": [
-            1147,
-            1268
+            1230,
+            1352
           ],
-          "note": "Explicit editor-world selector and unsaved spawn; receipt includes label and requested class, not resolved actor path or mesh verification.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1147-L1268"
+          "note": "Explicit editor-world placement and label/class receipt; candidate adds editor lighting-cache finalization. The native receipt still does not verify mesh, resolved world or actor path.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1230-L1352"
         },
         {
           "provider": "enginewire",
@@ -1413,6 +1653,16 @@
           ],
           "note": "Competing spawn chooses PIE world when running before falling back to editor; distinct targeting semantics.",
           "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorSpawn.cpp#L145-L180"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelSpawnFinalize.h",
+          "lines": [
+            1,
+            24
+          ],
+          "note": "Editor-world spawn finalization invalidates actor lighting cache after placement.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelSpawnFinalize.h#L1-L24"
         }
       ],
       "excludedDefaults": [],
@@ -1421,6 +1671,18 @@
       ],
       "qualification": [
         "Live UE-MCP placement observed; canonical route requires separate live verification and the receipt does not prove the mesh was assigned."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1147,
+            1268
+          ],
+          "note": "Explicit editor-world selector and unsaved spawn; receipt includes label and requested class, not resolved actor path or mesh verification.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1147-L1268"
+        }
       ]
     },
     {
@@ -1439,11 +1701,21 @@
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
           "lines": [
-            900,
-            1065
+            994,
+            1155
           ],
-          "note": "Editor-world actor listing with path, label, component summary, streaming exclusions and continuation; rows are gathered before pagination.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L900-L1065"
+          "note": "Editor-world outliner reports paths, actor details, paging and streaming exclusions; candidate delegates folder matching to a helper that also normalizes trailing separators.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L994-L1155"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h",
+          "lines": [
+            58,
+            94
+          ],
+          "note": "Shared folder filtering includes nested paths and trims trailing separators.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h#L58-L94"
         }
       ],
       "excludedDefaults": [],
@@ -1452,6 +1724,18 @@
       ],
       "qualification": [
         "Direct provider query observed the requested named actors; this new canonical route needs its own live test."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            900,
+            1065
+          ],
+          "note": "Editor-world actor listing with path, label, component summary, streaming exclusions and continuation; rows are gathered before pagination.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L900-L1065"
+        }
       ]
     },
     {
@@ -1470,11 +1754,11 @@
           "provider": "ue-mcp",
           "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
           "lines": [
-            2001,
-            2095
+            2086,
+            2180
           ],
-          "note": "Explicit world selection, exact path support, current transform receipt, package dirtying and PostEditMove callbacks.",
-          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L2001-L2095"
+          "note": "Explicit world selection, exact path support, current transform receipt, package dirtying and PostEditMove callbacks. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L2086-L2180"
         },
         {
           "provider": "enginewire",
@@ -1493,6 +1777,111 @@
       ],
       "qualification": [
         "Native source comparison only; the canonical route requires live verification."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            2001,
+            2095
+          ],
+          "note": "Explicit world selection, exact path support, current transform receipt, package dirtying and PostEditMove callbacks.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L2001-L2095"
+        }
+      ]
+    },
+    {
+      "id": "pcg-graph-inspection",
+      "status": "selected",
+      "scope": "Read current PCG graph node names, pin labels and edges.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> pcg.read_graph"
+      },
+      "operations": [
+        "pcg.graph.inspect"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            1068,
+            1160
+          ],
+          "note": "Candidate read returns graph node names, pin labels and edges without a revision or paginated enumeration.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1068-L1160"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Graph mutation and other provider discovery variants remain distinct contracts."
+      ],
+      "qualification": [
+        "Candidate server schema is verified; native behavior and loaded plugin are not yet qualified."
+      ]
+    },
+    {
+      "id": "play-world-discovery",
+      "status": "selected",
+      "scope": "Observe currently materialized PIE and Game world contexts and their native instance metadata.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> editor.list_pie_instances"
+      },
+      "operations": [
+        "play.worlds.list"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIERuntime.cpp",
+          "lines": [
+            678,
+            709
+          ],
+          "note": "Enumerates PIE and Game world contexts, returning native paths, instance identifiers, net mode, viewport presence and player counts. An empty list is not lifecycle ownership or a guarantee against queued starts.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIERuntime.cpp#L678-L709"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Confirmed owned lifecycle and other status or world-discovery variants remain distinct."
+      ],
+      "qualification": [
+        "Source reviewed; runtime qualification is scoped to the observed editor and build."
+      ]
+    },
+    {
+      "id": "level-current-inspection",
+      "status": "selected",
+      "scope": "Read the current editor edit-level package and world.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.get_current_edit_level"
+      },
+      "operations": [
+        "level.current.inspect"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "lines": [
+            699,
+            711
+          ],
+          "note": "The pinned read selects the current edit level; the reviewed compatibility patch adds the level package and world path.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp#L699-L711"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Other level discovery and level-switching operations remain distinct."
+      ],
+      "qualification": [
+        "Guard patch required; runtime evidence is scoped to the identified editor."
       ]
     }
   ]

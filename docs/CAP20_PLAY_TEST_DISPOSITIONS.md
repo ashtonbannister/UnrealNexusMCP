@@ -1,5 +1,7 @@
 # CAP-20: play, input, automation and trace dispositions
 
+Historical review: the three legacy hold rows below are superseded for Nexus routing by the [owned-hold patch evidence](qualification/UE_OWNED_INPUT_HOLD_20261112.md).
+
 Status: **bounded source review**, not native qualification or a whole-record classification. The keys in the table are exact `(provider, sourceEntry)` pairs in `catalog/capability-coverage.json`; a selected slice does not settle all selectors or variants in that source record. `catalog/operations.json` remains the executable authority. Review is against the locked revisions, and no route, provider pin or permission changes here.
 
 | Exact source ledger key | Scoped disposition and owner | Source-backed distinction and remaining evidence |

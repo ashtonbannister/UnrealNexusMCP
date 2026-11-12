@@ -51,8 +51,8 @@ export async function createFixtureRuntime({mode = 'normal',allowWrites = true} 
             });
           } else state.completed++;
           if(provider==='enginewire') return structuredClone(FIXTURE_IMAGE);
-          const body=call.name==='pie_start'?{ok:true,playing:true,phase:'Playing'}
-            :call.name==='pie_status'?{ok:true,phase:'NotPlaying'}
+          const body=call.name==='pie_start'?{ok:true,playing:true,phase:'Playing',editorEpoch:'a'.repeat(32),sessionId:'b'.repeat(32)}
+            :call.name==='pie_status'?{ok:true,phase:'NotPlaying',elapsed:0}
             :call.arguments?.category==='asset' && call.arguments.method==='save'
               ? {success:true,force:call.arguments.args.force ?? false,
                 results:call.arguments.args.assetPaths.map(path=>({path,package:path,wasDirty:true,status:'saved',stillDirty:false})),

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "reviewedOn": "2026-10-26",
-  "coverage": "Thirteen optional specialist operations in four already-selected draft groups. Exact compatibility patches and live markers are mandatory; no unpatched backend is executable. Source-reviewed, mocked tests only; native engine qualification pending.",
+  "coverage": "Fourteen optional specialist operations in four selected groups; native qualification remains scoped to recorded evidence.",
   "operations": [
     {
       "id": "blueprint.compile.memory.asset",
@@ -554,18 +554,17 @@
         "tool": "material_set_param",
         "variant": "material_scalar",
         "fixed": {
-          "nexus_retry_policy": "never"
+          "nexus_retry_policy": "never",
+          "nexus_receipt_version": 2
         }
       },
-      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "requiredCompatibility": "hayba-nexus-material-receipt-v2",
       "postconditions": [
-        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
-        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
-        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
-        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+        "Require the loaded native v2 marker, exact requested/resolved instance identity and the matching parameter.",
+        "Require exact binary32 component readback or exact resolved texture pointer/path, plus confirmed save and clean package. Preserve warnings and partial results; do not retry uncertain work."
       ],
       "example": {
-        "instance_path": "/Game/Materials/MI_Vehicle",
+        "instance_path": "/Game/Materials/MI_Vehicle.MI_Vehicle",
         "param_name": "Roughness",
         "value": 0.5
       }
@@ -614,18 +613,17 @@
         "tool": "material_set_param",
         "variant": "material_vector",
         "fixed": {
-          "nexus_retry_policy": "never"
+          "nexus_retry_policy": "never",
+          "nexus_receipt_version": 2
         }
       },
-      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "requiredCompatibility": "hayba-nexus-material-receipt-v2",
       "postconditions": [
-        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
-        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
-        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
-        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+        "Require the loaded native v2 marker, exact requested/resolved instance identity and the matching parameter.",
+        "Require exact binary32 component readback or exact resolved texture pointer/path, plus confirmed save and clean package. Preserve warnings and partial results; do not retry uncertain work."
       ],
       "example": {
-        "instance_path": "/Game/Materials/MI_Vehicle",
+        "instance_path": "/Game/Materials/MI_Vehicle.MI_Vehicle",
         "param_name": "Tint",
         "value": [
           0.2,
@@ -675,20 +673,61 @@
         "tool": "material_set_param",
         "variant": "material_texture",
         "fixed": {
-          "nexus_retry_policy": "never"
+          "nexus_retry_policy": "never",
+          "nexus_receipt_version": 2
         }
       },
-      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "requiredCompatibility": "hayba-nexus-material-receipt-v2",
       "postconditions": [
-        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
-        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
-        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
-        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+        "Require the loaded native v2 marker, exact requested/resolved instance identity and the matching parameter.",
+        "Require exact binary32 component readback or exact resolved texture pointer/path, plus confirmed save and clean package. Preserve warnings and partial results; do not retry uncertain work."
       ],
       "example": {
-        "instance_path": "/Game/Materials/MI_Vehicle",
+        "instance_path": "/Game/Materials/MI_Vehicle.MI_Vehicle",
         "param_name": "BaseTexture",
-        "value": "/Game/Textures/T_Vehicle"
+        "value": "/Game/Textures/T_Vehicle.T_Vehicle"
+      }
+    },
+    {
+      "id": "blueprint.compile.memory.loaded",
+      "description": "Compile one already-loaded exact Blueprint in memory without session cleanup or package save.",
+      "provider": "claireon",
+      "decision": "blueprint-compile-memory",
+      "effect": "write",
+      "contract": "blueprint.compile.memory.loaded",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "asset_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^/[A-Za-z0-9_]+/[A-Za-z0-9_./]+$"
+          }
+        },
+        "required": [
+          "asset_path"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "bp_compile_loaded",
+        "fixed": {
+          "nexus_exact_no_save": true,
+          "max_count": 1,
+          "remove_unused": false,
+          "failOnWarnings": false
+        }
+      },
+      "requiredCompatibility": "claireon-nexus-compile-loaded-v2",
+      "postconditions": [
+        "Requires the exact Blueprint to be already loaded; no implicit asset load or session cleanup.",
+        "Compile uses SkipSave and reports bounded diagnostics; validate the actual compiler status and preserve warnings."
+      ],
+      "example": {
+        "asset_path": "/Game/Blueprints/BP_Vehicle"
       }
     }
   ],
@@ -697,7 +736,8 @@
       "id": "blueprint-compile",
       "operations": [
         "blueprint.compile.memory.asset",
-        "blueprint.compile.memory.session"
+        "blueprint.compile.memory.session",
+        "blueprint.compile.memory.loaded"
       ],
       "defaultEnabled": false
     },
@@ -737,7 +777,8 @@
       "status": "selected",
       "operations": [
         "blueprint.compile.memory.asset",
-        "blueprint.compile.memory.session"
+        "blueprint.compile.memory.session",
+        "blueprint.compile.memory.loaded"
       ],
       "qualification": "Conditional on exact reviewed Claireon compatibility patch and live marker; native compile status is parsed from status-mode summary plus structured diagnostics, not invented upstream JSON status.",
       "newEvidence": [

@@ -73,12 +73,15 @@ postconditions and whether dispatch actually happened.
 
 **Trigger:** start or stop a workflow-owned viewport play session.
 
-**Use:** `pie.status`, `pie.start.viewport`, `pie.stop`. All three are held
-before dispatch: native start/stop do not establish workflow ownership, and
-status can default missing or malformed phase data to NotPlaying. Reconcile
-existing PIE sessions and machine grants externally; Nexus does not implicitly
-stop PIE or release a grant. Re-enable only after an owner/epoch-bound native
-lifecycle and non-defaulting phase protocol are reviewed and qualified.
+**Observe:** `play.worlds.list` returns currently materialized PIE and Game world contexts, including world paths and instance identifiers. An empty list does not prove a queued start is absent or establish session ownership.
+
+**Use:** `pie.status` reports a queue-aware native phase. `pie.start.viewport`
+starts a session owned by this backend; `pie.stop` stops only that session.
+The v4 UAP patch, native method checks and a unique machine grant are required.
+Record the returned editor epoch and session ID. Status is a point-in-time
+observation, not ownership or a guarantee against a later start. A timeout,
+foreign replacement or unconfirmed release requires external reconciliation;
+Nexus does not automatically retry or release an uncertain grant.
 
 **Preconditions:** intended editor attested; machine lock available; previous
 session ownership known; required packages saved only with user-authorized scope.
@@ -110,7 +113,7 @@ pause through this restricted lifecycle route.
 | Intended view | Canonical route | Required evidence |
 |---|---|---|
 | Current viewport (editor or PIE) | `screenshot.viewport.current` | Actual MCP image block and output dimensions |
-| Exact PIE client including UMG | `screenshot.pie` | Matching world/instance, actual dimensions, successful PNG write |
+| Exact PIE client including UMG | `screenshot.pie` | Matching world/instance, actual dimensions and an MCP image block |
 
 - Current-viewport capture can bring the level-editor tab to the foreground
   when another tab covers it; it is not a focus-neutral observation.
@@ -123,10 +126,11 @@ pause through this restricted lifecycle route.
 - EngineWire editor_viewport mode can show PIE. Inspect the view receipt; require
   reconciled NotPlaying for strict editor-world-only intent. Preserve shaderWait:
   its cap can expire before compilation drains.
-- `screenshot.pie` is held before backend dispatch: the native path-based write
-  does not prove output ownership or prevent link/reparse redirection. A fresh
-  basename or host write grant does not establish the physical target. A reviewed
-  secure native implementation and the applicable live evidence are required.
+- For `screenshot.pie`, use `play.worlds.list` and pass the exact
+  `worldPath` and `pieInstance`. The direct-byte compatibility patch returns
+  one PNG image without writing a screenshot file. The bounded capture may
+  refuse hidden, clipped, resized, or oversized viewports. Nexus correlates the
+  image to a host nonce and rechecks the editor identity after capture.
 - A file path or base64 inside JSON text is not automatically an MCP image.
   Do not say “I inspected the screenshot” unless the image was actually received.
 - Full Slate window, arbitrary scene camera, isolated actor render and live
@@ -139,7 +143,7 @@ pause through this restricted lifecycle route.
 
 `actor.transform.editor` sets location, rotation and/or scale by actor path in the current editor world, dirties its package and does not save. The native transform receipt precedes editor move callbacks; inspect actual state afterward.
 
-`actor.list.editor` discovers matching actors and returns paths and pages in the current editor world. The native handler gathers rows before paging; pagination is not a frozen snapshot, and streaming proxies are excluded by default. Revalidate selected targets before later actions.
+`actor.list.editor` requires the reviewed UE-MCP pagination compatibility patch and its live native marker. It discovers matching actors and returns paths and pages in the current editor world. The native handler gathers rows before paging; pagination is not a frozen snapshot, and streaming proxies are excluded by default. Revalidate selected targets before later actions.
 
 `actor.place.editor` creates one actor in the current editor world without saving. Supply a unique label, class and finite location; optional mesh and material assignments are not verified by the native placement receipt. The receipt does not report the resolved world, actor path or transform: inspect the created actor and world separately. An uncertain dispatch requires reconciliation, not retry.
 
@@ -169,7 +173,7 @@ separate decisions.
 
 **Trigger:** persist explicitly authorized changes.
 
-**Use:** `asset.save.exact`, `level.save.current`.
+**Use:** `asset.save.exact`, `level.current.inspect`, `level.save.current`.
 
 - Prefer a nonempty explicit assetPaths list for known loaded packages. The
   native save reports one row per resolved package, so multiple requested object
@@ -178,15 +182,12 @@ separate decisions.
   further work rather than retrying or assuming an input was omitted.
 - Decide force intentionally: unmarked-dirty edits may need force=true, but
   ordinary save should not silently resave unrelated clean assets.
-- `level.save.current` is held before dispatch: the native handler has no atomic
-  expected-level/world precondition and can mutate landscape before selecting
-  the current level. A prior target check cannot prevent a direct-client race.
-  A future reviewed route must compare the target before any mutation. Loaded
-  external packages are included. The
-  native save may delete dirty, empty external actor/object package files even
-  with commitDeletes=false. It requires explicit trusted-host
-  `allowLevelExternalPackageDeletion: true` in addition to `allowWrites`;
-  obtain authority for those scoped deletions before the host grants it.
+- Inspect the current editing level with `level.current.inspect` and pass its
+  exact `levelPackage` as `expectedLevelPackage` to `level.save.current`.
+  The UE-MCP guarded-save v2 patch checks that package before mutation and
+  refuses dirty empty external packages rather than deleting them. Loaded
+  external packages are included; an uncertain receipt requires reconciliation.
+  The separate legacy deletion grant does not control this guarded route.
 - commitDeletes is fixed false; its true form can sweep every dirty map/content
   package and is not an interchangeable save variant.
 - Inspect each saved/notDirty/failed/skipped/deleted package and disk receipt.
@@ -196,6 +197,9 @@ separate decisions.
 mutation just because saving failed. Preserve dirty in-memory state and receipts.
 
 ## 6. Persisted PCG graph connection — UE-MCP
+
+Use `pcg.graph.inspect` to read the candidate graph node names, pin labels and edges before wiring. Its path is echoed, not independently resolved; its output has no snapshot revision or pagination.
+
 
 **Trigger:** connect one graph edge and persist it.
 
@@ -246,13 +250,24 @@ interpret the timeout as cancellation.
 
 **Trigger:** exercise gameplay at the InputAction layer.
 
-**Use:** `input.action.once`. The `input.action.hold.start`,
-`input.action.hold.update`, and `input.action.hold.stop` routes are held before
-dispatch until native local-only routing and ownership are established. Native
-local hold IDs and remote relay IDs occupy separate registries; an independent
-client can cause update or stop to relay despite a local hold with the same ID.
-A gateway-local registry cannot atomically prevent that collision. Reconcile any
-existing hold externally; the held stop route cannot release it.
+**Use:** `input.action.once`, `input.action.hold.start`,
+`input.action.hold.update`, and `input.action.hold.stop`.
+
+For holds, obtain the exact `world_path` and `pie_instance` from
+`play.worlds.list`, choose the local `client_id` and a unique
+`injection_id`, and supply the InputAction's exact object path. The host
+creates and retains a private native owner token; only that gateway process
+can update or stop its hold. The real-time lease defaults to 300 seconds and
+can be set from 1 to 3600 seconds. Expiry is checked while the editor ticks.
+Stop deliberately and inspect the receipt; one frame already queued may still
+execute. A timeout is not proof of release.
+
+The owned hold uses one-frame injections and does not overwrite or stop the
+shared continuous-input slot. Input from different sources can still combine
+in gameplay. PIE end clears native holds; a process restart does not recover
+the gateway's private ownership map. Reconcile any uncertain or legacy holds
+externally. The token is a routing ownership guard, not a security boundary
+against arbitrary code running inside Unreal.
 
 Require an explicit PIE world and local-player index. These are not the remote
 client relay index or Slate user index. Keep input values finite/in engine-float
@@ -268,20 +283,30 @@ need separate contracts.
 
 **Trigger:** diagnose a Blueprint while preserving an explicit no-save boundary.
 
-**Use:** `blueprint.compile.memory.asset` or `blueprint.compile.memory.session`.
-Both delegate to the fixed bp_compile function via public python_execute, but
+**Use:** `blueprint.compile.memory.loaded` for an already-loaded exact
+Blueprint. It uses a fixed session-free, single-asset batch form with
+`SkipSave`, bounded diagnostics and an editor-wide lock that refuses rather
+than cleaning up expired sessions. The asset must already be loaded; no
+implicit load or folder expansion is performed. The operation can change
+in-memory compiled state and uses Unreal's batch compile mode, which suppresses
+the usual compiled broadcasts.
+
+The broader `blueprint.compile.memory.asset` and
+`blueprint.compile.memory.session` variants both delegate to the fixed bp_compile function via public python_execute, but
 both are held before dispatch. The native session form does not verify session
 ownership; the asset form can reuse another client's same-tool session and
 clean up expired sessions without ownership. Do not implicitly close or alter
 existing sessions; reconcile them externally until a reviewed native ownership
 contract is available.
 
-Use exactly one asset_path or session_id; preserve bounded diagnostics, severity,
-node GUIDs and truncation. Require actual compile status, not Python wrapper
-success. Do not auto-close sessions without checking whether close saves.
+Use exactly one asset_path or session_id; preserve the diagnostics and truncation
+information that the selected form provides. The loaded form reports bounded
+error and warning text, not structured node GUIDs. Require actual compile status,
+not Python wrapper success. Do not auto-close sessions without checking whether
+close saves.
 
-**Required compatibility:** the reviewed no-autosave patch and live
-`nexus_skip_auto_save` parameter. Nexus supplies true on every fixed wrapper,
+**Required compatibility:** the loaded-compile v2 patch for the loaded
+variant, plus the live exact-form schema and `nexus_skip_auto_save` parameter. Nexus supplies true on every fixed wrapper,
 including read-only schema probes. The unmodified outer Python runner can save
 before the inner compile begins; `SkipSave` alone does not establish no-save.
 
@@ -290,36 +315,26 @@ truncated or spilled output leaves an unknown outcome. No model-supplied Python.
 Compile-and-save, batch/folder compile and helpers that reset the undo buffer
 remain distinct.
 
-## 10. Strict material parameter persistence — optional Hayba adapter
+## 10. Strict material parameter persistence - optional Hayba adapter
 
 **Trigger:** change one existing global material-instance parameter and save it.
 
 **Use:** `material.parameter.scalar.persisted`,
 `material.parameter.vector.persisted`, `material.parameter.texture.persisted`.
-These use only the direct typed material_set_param tool. All three material
-operations are held before dispatch: scalar precision, vector text rounding and
-texture path canonicalization are not established by source-backed contracts,
-and the receipt omits the actual material instance path. A reviewed typed
-request/readback and target-identity contract, plus loaded compatibility
-evidence, are required before release.
+The reviewed v2 Hayba patch and fixed read-only native identity marker are required.
+Use exact canonical object paths for both the instance and any texture. Native
+preflight verifies target, parameter type and read-only state before mutation.
 
-Validate instance, declared parameter, type and read-only state before mutation.
-The native material receipt does not report the actual instance path; the
-normalized `instance_path` is the requested value, not independent target proof.
-Corroborate the intended instance separately before claiming it was changed.
-Allow scalar, 3/4-element finite vector or nonempty texture path; enforce float32
-range. Require actual value readback, verified=true and saved=true. If save fails,
-memory may already have changed: retry persistence, not the entire mutation.
+Scalar and vector values are checked as binary32 bits; three-component vectors
+use alpha 1. Texture readback checks the resolved requested object and pointer.
+A result is reported persisted only when readback is verified, save succeeds and
+the package is clean. Preserve native receipts, warnings and partial results.
+If save or readback fails, memory may already have changed; do not repeat the
+mutation automatically.
 
-Layer-associated parameters, undeclared override staging, static switches and
-unsaved sessions remain separate. The inspected public schema does not expose
-the native boolean branch. Verify the typed route exists; via=ts alone does not
-prevent Hayba's legacy fallback. The reviewed compatibility patch adds a required
-`nexus_retry_policy: "never"` marker and removes material mutation from the
-transport-retry path. The host also pins `UE_TCP_PORT`; a private fixed read-only
-identity probe corroborates the editor before each call. Direct material and
-python tools must be preloaded by host settings; Nexus never loads a pack or
-falls back to hayba_invoke on demand.
+Layer-associated parameters, static switches and unsaved sessions remain
+distinct. The host preconfigures Hayba's material pack; Nexus does not invoke
+a generic routing tool or dynamically load a pack to evade a refusal.
 
 ## 11. Strict engine automation — optional Claireon adapter
 

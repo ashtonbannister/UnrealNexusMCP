@@ -88,6 +88,19 @@ function exactAssetPreflightRefusal(payload, args) {
   const first = payload.refused[0];
   return payload.error === `${payload.refused.length} of ${args.assetPaths.length} assetPaths cannot be saved, so nothing was written. The first: '${first.path}' - ${first.reason}`;
 }
+function levelGuardReceipt(payload, expectedArgs) {
+  return payload?.nexusGuardVersion === 1 && payload.expectedLevelPackage === expectedArgs.expectedLevelPackage
+    && payload.levelPackage === expectedArgs.expectedLevelPackage && payload.externalDeletionAllowed === false
+    && payload.deletedCount === 0 && (payload.deleted === undefined || (Array.isArray(payload.deleted) && payload.deleted.length === 0));
+}
+function levelGuardRefusal(payload, expectedArgs) {
+  if (payload?.nexusGuardVersion !== 1 || payload.mutationStarted !== false || !nonempty(payload.error)
+    || payload.expectedLevelPackage !== expectedArgs.expectedLevelPackage || typeof payload.actualLevelPackage !== 'string') return false;
+  return (payload.reason === 'level_mismatch' && payload.actualLevelPackage !== '' && payload.actualLevelPackage !== expectedArgs.expectedLevelPackage)
+    || (payload.reason === 'external_deletion_required' && payload.actualLevelPackage === expectedArgs.expectedLevelPackage)
+    || (payload.reason === 'no_current_level' && payload.actualLevelPackage === '');
+}
+
 function coherentLevelSave(payload, isFailure = false) {
   if (!nonempty(payload.levelName) || !nonempty(payload.levelPath) || !nonempty(payload.levelPackage)
     || typeof payload.usesExternalActors !== 'boolean' || !count(payload.externalPackagesLoaded)
@@ -147,6 +160,31 @@ function viewportImageReceipt(result, expectedArgs) {
   } catch { return false; }
   return true;
 }
+// A direct PIE image must preserve the exact host-generated request identity,
+// target and one validated PNG. The backend socket bounds reassembly first.
+function pieImageReceipt(result, payload, expectedArgs) {
+  if (!record(payload) || result.isError === true || payload.success !== true
+    || payload.nexusCaptureVersion !== 1 || payload.nonce !== expectedArgs.nonce
+    || payload.worldPath !== expectedArgs.worldPath || payload.pieInstance !== expectedArgs.pieInstance
+    || !Number.isSafeInteger(payload.width) || payload.width < 1 || payload.width > 4096
+    || !Number.isSafeInteger(payload.height) || payload.height < 1 || payload.height > 4096
+    || payload.width > Math.floor(4194304 / payload.height)
+    || !Number.isSafeInteger(payload.pngBytes) || payload.pngBytes < 45 || payload.pngBytes > 8 * 1024 * 1024
+    || (payload.paramsNotRead !== undefined && (!Array.isArray(payload.paramsNotRead)
+      || payload.paramsNotRead.some(x => ['nonce','worldPath','pieInstance'].includes(x))))
+    || Object.hasOwn(payload,'pngBase64')) return false;
+  const images = result.content.filter(part => part?.type === 'image');
+  if (images.length !== 1 || images[0].mimeType !== 'image/png' || typeof images[0].data !== 'string') return false;
+  const encoded = images[0].data;
+  if (encoded.length !== 4 * Math.ceil(payload.pngBytes / 3) || !/^[A-Za-z0-9+/]*={0,2}$/u.test(encoded)) return false;
+  const png = Buffer.from(encoded, 'base64');
+  if (png.length !== payload.pngBytes || png.toString('base64') !== encoded) return false;
+  try {
+    validatePngScanlineIntegrity(png,{width:payload.width,height:payload.height,maxEncodedBytes:8 * 1024 * 1024,
+      maxPixels:4194304,maxInflatedBytes:40 * 1024 * 1024,maxDimension:4096,maxChunks:4096});
+  } catch { return false; }
+  return true;
+}
 const levelPieRefusal = payload => Object.keys(payload).length === 2
   && payload.error === 'Play In Editor is running; stop it before saving the level. Saving during PIE is what produced an unexplained failure before.';
 export function normalizeResult(operation, result, expectedArgs = {}) {
@@ -161,8 +199,9 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     policy = 'uap-json-envelope';
     if (payload?.error?.code === 'UE_STATUS_UNVERIFIED') { failed = true; outcomeUnknown = true; }
     if (!payload || typeof payload.ok !== 'boolean' || typeof payload.phase !== 'string' || !payload.phase) failed = true;
-    if (operation.id === 'pie.status' && payload && typeof payload.phase === 'string'
-      && !['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)) {
+    if (operation.id === 'pie.status' && payload?.ok === true
+      && (!['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)
+        || typeof payload.elapsed !== 'number' || !Number.isFinite(payload.elapsed) || payload.elapsed < 0)) {
       failed = true; outcomeUnknown = true;
     }
     if (operation.id === 'pie.start.viewport'
@@ -173,6 +212,8 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     // Native start deadlines return a normal MCP response while queued work can
     // still take effect. Stop can likewise return before teardown is complete.
     outcomeUnknown = !payload
+      || (payload.ok === true && (!/^[0-9a-f]{32}$/iu.test(payload.editorEpoch ?? '')
+        || !/^[0-9a-f]{32}$/iu.test(payload.sessionId ?? '')))
       || typeof payload.phase !== 'string' || !['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)
       || ['UE_CONNECTION_RESET','UE_CROSSED_RESPONSE','PYTHON_RUNTIME','UE_STATUS_UNVERIFIED'].includes(payload.error?.code)
       || (payload.queued === true && payload.confirmed !== true)
@@ -204,6 +245,39 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     const refusal = ueRefusalPrefix && !ueEnvelopes.length && !result.structuredContent;
     if (!refusal) outcomeUnknown = true;
   }
+  if (operation.id.startsWith('input.action.hold.')) {
+    policy = 'require-owned-local-input-hold-receipt';
+    const unread = payload?.paramsNotRead;
+    const unreadUnsafe = unread !== undefined && (!record(unread) || !Array.isArray(unread.params)
+      || unread.params.some(name => ['native_id','owner_token','action_path','world_path','pie_instance','client_id',
+        'lease_seconds','value_x','value_y','value_z'].includes(name)));
+    const base = payload?.success === true && result.isError !== true && payload.nexusHoldVersion === 1
+      && payload.native_id === expectedArgs.native_id && payload.continuousSlotTouched === false
+      && !Object.hasOwn(payload,'owner_token') && !unreadUnsafe;
+    const start = operation.id === 'input.action.hold.start' && payload?.started === true
+      && payload.action === expectedArgs.action_path && payload.world_path === expectedArgs.world_path
+      && payload.pie_instance === expectedArgs.pie_instance && payload.client_id === expectedArgs.client_id
+      && payload.lease_seconds === expectedArgs.lease_seconds && payload.firstFramePending === true;
+    const update = operation.id === 'input.action.hold.update' && payload?.updated === true && count(payload.framesQueued);
+    const stop = operation.id === 'input.action.hold.stop' && payload?.stopped === true
+      && count(payload.framesQueued) && payload.oneFrameMayRemain === true && typeof payload.expiredOrEnded === 'boolean';
+    const expired = operation.id === 'input.action.hold.update' && payload?.success === false
+      && payload.nexusHoldVersion === 1 && payload.native_id === expectedArgs.native_id
+      && payload.reason === 'expired_or_ended' && payload.mutationStarted === false && nonempty(payload.error)
+      && result.isError !== true && !unreadUnsafe;
+    if (!base || !(start || update || stop)) {
+      failed = true;
+      if (!expired) outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'screenshot.pie') {
+    policy = 'require-correlated-direct-pie-image';
+    if (!pieImageReceipt(result,payload,expectedArgs)) {
+      failed = true;
+      // Capture failures can leave a Slate readback queued. Do not retry blindly.
+      outcomeUnknown = true;
+    }
+  }
   if (operation.id === 'screenshot.viewport.current') {
     policy = 'require-inline-current-viewport-image';
     if (!viewportImageReceipt(result,expectedArgs)) {
@@ -213,17 +287,29 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
       outcomeUnknown = true;
     }
   }
+  if (operation.id === 'level.current.inspect' && payload?.success === true
+    && (!nonempty(payload.levelPackage) || !nonempty(payload.worldPath) || !nonempty(payload.levelPath)
+      || typeof payload.isPersistent !== 'boolean')) {
+    failed = true; outcomeUnknown = true;
+  }
+  if (operation.id === 'level.save.current' && payload?.paramsNotRead !== undefined) {
+    const unread=payload.paramsNotRead;
+    if (!record(unread) || !Array.isArray(unread.params)
+      || unread.params.some(name => ['expectedLevelPackage','nexusNoExternalDelete','commitDeletes','includeExternalActors'].includes(name))) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
   if (operation.id === 'asset.save.exact' || operation.id === 'level.save.current') {
     policy = operation.id === 'asset.save.exact' ? 'require-coherent-exact-asset-save-receipt' : 'require-coherent-level-save-receipt';
     if (payload?.success === true && (result.isError === true
-      || !(operation.id === 'asset.save.exact' ? coherentExactAssetSave(payload,expectedArgs) : coherentLevelSave(payload)))) {
+      || !(operation.id === 'asset.save.exact' ? coherentExactAssetSave(payload,expectedArgs) : (levelGuardReceipt(payload,expectedArgs) && coherentLevelSave(payload))))) {
       // A returned but contradictory success cannot establish which work completed.
       failed = true; outcomeUnknown = true;
     }
     if (payload?.success === false) {
       const known = operation.id === 'asset.save.exact'
         ? exactAssetPreflightRefusal(payload,expectedArgs) || coherentExactAssetSave(payload,expectedArgs,true)
-        : levelPieRefusal(payload) || coherentLevelSave(payload,true);
+        : levelPieRefusal(payload) || levelGuardRefusal(payload,expectedArgs) || (levelGuardReceipt(payload,expectedArgs) && coherentLevelSave(payload,true));
       if (!known) outcomeUnknown = true;
     }
   }

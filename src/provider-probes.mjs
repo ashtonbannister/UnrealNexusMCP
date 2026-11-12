@@ -14,12 +14,14 @@ const fail = (message) => { throw new NexusError('IDENTITY_UNPROVEN', message); 
 const validPid = (pid) => Number.isSafeInteger(pid) && pid > 0 && pid <= 0x7fffffff;
 const IO_LIMIT = 1024 * 1024;
 const UE_BRIDGES = new Map([
-  ['editor.capture_screenshot', 'capture_screenshot'], ['level.get_actor_details', 'get_actor_details'],
+  ['editor.capture_screenshot', 'capture_screenshot'], ['editor.nexus_capture_pie_png_v1', 'nexus_capture_pie_png_v1'], ['level.get_actor_details', 'get_actor_details'],
   ['level.place_actor', 'place_actor'], ['level.move_actor', 'move_actor'],
+  ['pcg.read_graph', 'read_pcg_graph'], ['editor.list_pie_instances', 'list_pie_instances'],
   ['level.get_outliner', 'get_world_outliner'],
-  ['level.save', 'save_level'], ['asset.save', 'save_asset'], ['pcg.connect_nodes', 'connect_pcg_nodes'],
+  ['level.save', 'save_level'], ['level.get_current_edit_level', 'get_current_edit_level'], ['asset.save', 'save_asset'], ['pcg.connect_nodes', 'connect_pcg_nodes'],
   ['pcg.execute', 'execute_pcg_graph'], ['pcg.get_generation_state', 'get_pcg_generation_state'],
-  ['pie.inject_input', 'pie_inject_input'], ['pie.inject_input_start', 'pie_inject_input_start'],
+  ['pie.nexus_hold_start_v1', 'pie_nexus_hold_start_v1'], ['pie.nexus_hold_update_v1', 'pie_nexus_hold_update_v1'],
+  ['pie.nexus_hold_stop_v1', 'pie_nexus_hold_stop_v1'], ['pie.inject_input', 'pie_inject_input'], ['pie.inject_input_start', 'pie_inject_input_start'],
   ['pie.inject_input_update', 'pie_inject_input_update'], ['pie.inject_input_stop', 'pie_inject_input_stop'],
 ]);
 
@@ -43,6 +45,23 @@ function commandTokens(commandLine) {
   return [...commandLine.matchAll(/"([^"]*)"|([^\s"]+)/gu)].map((m) => m[1] ?? m[2]);
 }
 
+// A CIM row is bracketed by independent Windows process creation-time reads.
+// CIM rounds to microseconds; .NET retains 100-nanosecond ticks.
+export function windowsProcessEvidence(processId, snapshots) {
+  const before = snapshots?.beforeTicks, after = snapshots?.afterTicks, row = snapshots?.process;
+  const ticks = value => typeof value === 'string' && /^\d{1,19}$/u.test(value);
+  if (!validPid(processId) || !object(row) || row.processId !== processId
+    || !ticks(before) || !ticks(after) || !ticks(row.startTicks) || before !== after
+    || BigInt(before) / 10n !== BigInt(row.startTicks) / 10n
+    || typeof row.executablePath !== 'string' || !row.executablePath
+    || typeof row.commandLine !== 'string' || !row.commandLine) {
+    fail('Cannot establish Windows process creation identity');
+  }
+  return { processId, platform:'win32', executablePath:row.executablePath,
+    commandLine:row.commandLine, argv:commandTokens(row.commandLine),
+    editorInstanceId:`win32:${processId}:${row.startTicks}` };
+}
+
 /** OS evidence, not a configured PID or a PID-alive test. No shell is invoked.
  * Linux /proc and Windows CIM are supported. macOS/remote hosts fail closed.
  * Creation identity is re-read after gathering evidence to catch PID reuse.
@@ -64,25 +83,23 @@ export async function inspectEditorProcess(processId) {
       commandLine: argv.join(' '), editorInstanceId: `linux:${boot.trim()}:${processId}:${before}` };
   }
   if (process.platform === 'win32') {
-    const query = `$procRow = Get-CimInstance Win32_Process -Filter 'ProcessId = ${processId}'; `
+    // One CIM lookup supplies the executable and command line. Two direct
+    // creation-time reads bracket it in the same short-lived PowerShell process.
+    const query = `$before = [System.Diagnostics.Process]::GetProcessById(${processId}).StartTime.ToUniversalTime().Ticks.ToString(); `
+      + `$procRow = Get-CimInstance Win32_Process -Filter 'ProcessId = ${processId}'; `
       + 'if ($null -eq $procRow) { throw "Process missing" }; '
-      + '[pscustomobject]@{processId=[int]$procRow.ProcessId; executablePath=$procRow.ExecutablePath; '
-      + 'commandLine=$procRow.CommandLine; startTicks=$procRow.CreationDate.ToUniversalTime().Ticks.ToString()} | ConvertTo-Json -Compress';
-    const read = async () => JSON.parse((await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', query],
+      + '$process = [pscustomobject]@{processId=[int]$procRow.ProcessId; executablePath=$procRow.ExecutablePath; '
+      + 'commandLine=$procRow.CommandLine; startTicks=$procRow.CreationDate.ToUniversalTime().Ticks.ToString()}; '
+      + `$after = [System.Diagnostics.Process]::GetProcessById(${processId}).StartTime.ToUniversalTime().Ticks.ToString(); `
+      + '[pscustomobject]@{beforeTicks=$before; process=$process; afterTicks=$after} | ConvertTo-Json -Depth 3 -Compress';
+    const snapshots = JSON.parse((await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', query],
       { timeout: 5000, maxBuffer: IO_LIMIT, windowsHide: true })).stdout);
-    const before = await read(), after = await read();
-    if (before.processId !== processId || before.startTicks !== after.startTicks
-      || !/^\d+$/u.test(before.startTicks ?? '') || !before.executablePath || !before.commandLine) {
-      fail('Cannot establish Windows process creation identity');
-    }
-    return { processId, platform: 'win32', executablePath: before.executablePath,
-      commandLine: before.commandLine, argv: commandTokens(before.commandLine),
-      editorInstanceId: `win32:${processId}:${before.startTicks}` };
+    return windowsProcessEvidence(processId,snapshots);
   }
   fail('Live process attestation is currently supported only on Linux and Windows');
 }
 
-function localEndpoint(value) {
+export function localEndpoint(value) {
   let url;
   try { url = new URL(value); } catch { fail('A direct local HTTP endpoint is required'); }
   // Literal IPs avoid DNS rebinding and hostname/proxy ambiguity. HTTPS needs a
@@ -257,7 +274,15 @@ function ueSchemaMatches(description, operation) {
     properties[parameter.name] = summarySchema(parameter);
     if (parameter.required) required.push(parameter.name);
   }
-  const offered = routeSchema(operation);
+  const offered = routeSchema(operation, operation.id === 'screenshot.pie' ? {nonce:'0'.repeat(32)} : {});
+  if (operation.id?.startsWith('input.action.hold.')) {
+    delete offered.properties.injection_id;
+    offered.required = offered.required.filter(name => name !== 'injection_id');
+    offered.properties.native_id = {type:'string'};
+    offered.properties.owner_token = {type:'string'};
+    offered.required.push('native_id','owner_token');
+    if (operation.id === 'input.action.hold.start') offered.required.push('lease_seconds');
+  }
   for (const choice of description.alternatives ?? []) {
     if (choice.required && (!Array.isArray(choice.branches)
       || !choice.branches.some((branch) => Array.isArray(branch) && branch.every((key) => offered.required.includes(key))))) return false;
@@ -357,7 +382,7 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       observed: () => read(async () => { const info = await processInspector(target.processId); requireEditor(info, target); return info; }),
     };
   }
-  async function attestIdentity(options = {}, scope = requestScope(options)) {
+  async function attestIdentity(options = {}, scope = requestScope(options), beforeFinalObservation, listenerBeforeFinal = false) {
     const { call, observed, listener } = scope;
     const before = await observed();
     const expected = await normalizedPath(target.projectRoot, before.platform);
@@ -368,6 +393,16 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       if (native.mode !== 'live' || native.editorConnected !== true || native.answeringPid !== target.processId
         || native.editorTargetMismatch === true || native.pluginStaleSource !== 'parity') fail('UE-MCP does not prove this live editor and registered surface');
       if (native.bridgeProtocol?.mismatch) fail('UE-MCP live bridge protocol mismatch');
+      if (['ue-mcp-nexus-pagination-count-v1','ue-mcp-nexus-guarded-save-v2','ue-mcp-nexus-direct-pie-v1','ue-mcp-nexus-owned-hold-v1'].includes(compatibilityPatch)) {
+        const requiredFeatures = compatibilityPatch === 'ue-mcp-nexus-owned-hold-v1'
+          ? ['nexus-pagination-count-v1','nexus-level-save-guard-v1','nexus-direct-pie-capture-v1','nexus-owned-input-hold-v1']
+          : compatibilityPatch === 'ue-mcp-nexus-direct-pie-v1'
+          ? ['nexus-pagination-count-v1','nexus-level-save-guard-v1','nexus-direct-pie-capture-v1']
+          : compatibilityPatch === 'ue-mcp-nexus-guarded-save-v2'
+            ? ['nexus-pagination-count-v1','nexus-level-save-guard-v1'] : ['nexus-pagination-count-v1'];
+        if (!Array.isArray(native.bridgeProtocol?.features) || requiredFeatures.some(name => !native.bridgeProtocol.features.includes(name)))
+          fail('UE-MCP live compatibility marker is missing');
+      }
       const reported = await normalizedPath(native.editorTarget?.projectPath, before.platform, before.cwd);
       if (reported !== expected) fail('UE-MCP is bound to a different project');
       // get_status projectPath is server configuration, not a native project
@@ -405,10 +440,17 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       await listener(rcEndpoint);
       const status = payload(await call('bridge_status', {}));
       if (status.ok !== true || status.rc_reachable !== true || status.remote_exec_reachable !== true) fail('UAP RC and Python channels are not both live');
-      if (compatibilityPatch === 'uap-nexus-strict-status-v2') {
-        const patch = compatibilityPatches.patches.find(p => p.id === compatibilityPatch && p.provider === provider);
+      if (['uap-nexus-strict-status-v2','uap-nexus-queued-status-v3','uap-nexus-owned-pie-v4'].includes(compatibilityPatch)) {
+        const statusPatch = compatibilityPatch === 'uap-nexus-owned-pie-v4' ? 'uap-nexus-queued-status-v3' : compatibilityPatch;
+        const patch = compatibilityPatches.patches.find(p => p.id === statusPatch && p.provider === provider);
         if (!patch || !isDeepStrictEqual(status.nexus_pie_status_validation,patch.capabilityMarker.value)) {
           fail('UAP live strict-status compatibility marker is absent or mismatched');
+        }
+      }
+      if (compatibilityPatch === 'uap-nexus-owned-pie-v4') {
+        const patch = compatibilityPatches.patches.find(p => p.id === compatibilityPatch && p.provider === provider);
+        if (!patch || !isDeepStrictEqual(status.nexus_pie_ownership,patch.capabilityMarker.value)) {
+          fail('UAP live owned-PIE compatibility marker is absent or mismatched');
         }
       }
       const dispatch = status.nexus_python_dispatch;
@@ -422,7 +464,7 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       }
       const nonce = randomBytes(16).toString('hex');
       native = pythonIdentity(await call('exec_python', { code: identityPython(nonce), context: 'editor' }), nonce);
-      if (compatibilityPatch === 'uap-nexus-strict-status-v2') native.strictStatusPhase = status.pie_phase;
+      if (['uap-nexus-strict-status-v2','uap-nexus-queued-status-v3','uap-nexus-owned-pie-v4'].includes(compatibilityPatch)) native.strictStatusPhase = status.pie_phase;
       if (native.pid !== target.processId || native.role !== 'editor') fail('UAP Python channel reached a different process or role');
       if (await normalizedPath(native.project, before.platform, before.cwd) !== expected) fail('UAP Python channel reached a different project');
     } else if (provider === 'claireon') {
@@ -440,26 +482,41 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
         fail('Hayba native endpoint must match its explicit local UE_TCP_PORT binding');
       }
       await listener(nativeEndpoint);
-      const schema = tool('python_run')?.inputSchema;
-      if (!covers(schema, { type: 'object', properties: {
-        script: { type: 'string', minLength: 1 }, read_only: { type: 'boolean', enum: [true] },
-        transaction: { type: 'boolean', enum: [false] },
-      }, required: ['script', 'read_only', 'transaction'] })) fail('Hayba fixed read-only identity form is not directly advertised');
       const nonce = randomBytes(16).toString('hex');
-      const result = await call('python_run', { script: identityPython(nonce, false), read_only: true, transaction: false });
-      const facts = payload(result);
-      if (facts.read_only_declared !== true || facts.output_complete !== true || facts.output_truncated !== false
-        || facts.stdout_truncated !== false || facts.stderr_truncated !== false) fail('Hayba identity output is not complete and read-only');
-      native = pythonIdentity(result, nonce);
+      if (compatibilityPatch === 'hayba-nexus-material-receipt-v2') {
+        const schema = tool('material_nexus_identity')?.inputSchema;
+        if (!covers(schema, {type:'object',properties:{nonce:{type:'string',enum:[nonce]}},required:['nonce']}))
+          fail('Hayba fixed native identity form is not directly advertised');
+        native = payload(await call('material_nexus_identity',{nonce}));
+        if (native.nonce !== nonce || native.read_only !== true || native.nexus_material_receipt_version !== 2)
+          fail('Hayba native identity or material receipt marker is invalid');
+      } else {
+        const schema = tool('python_run')?.inputSchema;
+        if (!covers(schema, { type: 'object', properties: {
+          script: { type: 'string', minLength: 1 }, read_only: { type: 'boolean', enum: [true] },
+          transaction: { type: 'boolean', enum: [false] },
+        }, required: ['script', 'read_only', 'transaction'] })) fail('Hayba fixed read-only identity form is not directly advertised');
+        const result = await call('python_run', { script: identityPython(nonce, false), read_only: true, transaction: false });
+        const facts = payload(result);
+        if (facts.read_only_declared !== true || facts.output_complete !== true || facts.output_truncated !== false
+          || facts.stdout_truncated !== false || facts.stderr_truncated !== false) fail('Hayba identity output is not complete and read-only');
+        native = pythonIdentity(result, nonce);
+      }
       if (native.pid !== target.processId || native.role !== 'editor') fail('Hayba native channel reached a different process or role');
       if (await normalizedPath(native.project, before.platform, before.cwd) !== expected) fail('Hayba native channel reached a different project');
     } else {
       fail('No qualified identity probe exists for this optional provider');
     }
+    // Fixed read-only UE action discovery can share this identity bracket.
+    // The final OS observation still happens after every native read.
+    if (beforeFinalObservation) await beforeFinalObservation(native);
+    // For combined UAP discovery, bracket both native channels and reflection
+    // with listener checks and finish with a fresh OS process observation.
+    if (listenerBeforeFinal && provider === 'unrealagentplayer') await listener(rcEndpoint);
     const after = await observed();
     if (after.editorInstanceId !== before.editorInstanceId) fail('Editor restarted during native identity probe');
     if (provider === 'enginewire' || provider === 'claireon') await listener(endpointUrl);
-    if (provider === 'unrealagentplayer') await listener(rcEndpoint);
+    if (provider === 'unrealagentplayer' && !listenerBeforeFinal) await listener(rcEndpoint);
     if (provider === 'hayba') await listener(nativeEndpoint);
     scope.identified = { native, process: after, projectRoot: expected };
     return { identityVerified: true, target: { ...target }, evidence: {
@@ -468,7 +525,9 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       proof: provider === 'ue-mcp' ? 'native-handshake-pid+os-project-argument'
         : provider === 'enginewire' ? 'direct-listener-owner+native-project-settings+os-project-argument'
           : provider === 'claireon' ? 'direct-listener-owner+os-project-argument'
-            : provider === 'hayba' ? 'native-python-pid-project+fixed-tcp-listener-owner+os-process-epoch'
+            : provider === 'hayba' ? (compatibilityPatch === 'hayba-nexus-material-receipt-v2'
+              ? 'native-fixed-identity+fixed-tcp-listener-owner+os-process-epoch'
+              : 'native-python-pid-project+fixed-tcp-listener-owner+os-process-epoch')
               : 'native-python-pid-project+rc-listener-owner',
       sourceRevisionProven: false,
     } };
@@ -478,14 +537,14 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
     if (operation?.provider !== provider) return false;
     const scope = requestScope(options);
     const { call, observed, listener } = scope;
-    await attestIdentity(options, scope);
-    const identity = scope.identified;
-    if (provider === 'ue-mcp' && operation.route.kind === 'ue-micro') {
+    const isUe = provider === 'ue-mcp' && operation.route.kind === 'ue-micro';
+    let ueSupported = false;
+    const discoverUe = isUe ? async (native) => {
       const description = payload(await call('tools', { action: 'describe', category: operation.route.category, method: operation.route.method }));
       const key = `${operation.route.category}.${operation.route.method}`;
       const expectedBridge = reviewedUeBridgeFor(operation.route.category, operation.route.method);
       if (key !== 'pcg.wait_for_generation' && (!expectedBridge || description.bridge !== expectedBridge)) return false;
-      if (description.bridge && identity.native.deployedPlugin?.handlerSpecDrift?.includes(description.bridge)) return false;
+      if (description.bridge && native.deployedPlugin?.handlerSpecDrift?.includes(description.bridge)) return false;
       if (!ueSchemaMatches(description, operation)) return false;
       if (key === 'pcg.wait_for_generation') {
         // This Node-local waiter indirectly calls a native PCG method. Its own
@@ -494,14 +553,47 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
         if (description.local !== true || description.bridge !== undefined) return false;
         const dependency = payload(await call('tools', { action: 'describe', category: 'pcg', method: 'get_generation_state' }));
         if (dependency.bridge !== 'get_pcg_generation_state'
-          || identity.native.deployedPlugin?.handlerSpecDrift?.includes(dependency.bridge)) return false;
+          || native.deployedPlugin?.handlerSpecDrift?.includes(dependency.bridge)) return false;
         const selector = { route: { kind: 'ue-micro', category: 'pcg', method: 'get_generation_state', fixed: {} },
           parameters: { type: 'object', properties: {
             actorPath: operation.parameters.properties.actorPath, componentName: operation.parameters.properties.componentName,
           }, required: ['actorPath', 'componentName'] } };
         if (!ueSchemaMatches(dependency, selector)) return false;
       }
-    } else if (provider === 'enginewire' && operation.route.kind === 'enginewire') {
+      return true;
+    } : undefined;
+    const isUap = provider === 'unrealagentplayer' && operation.route.kind === 'direct';
+    let uapSupported = false;
+    const discoverUap = isUap ? async (native) => {
+      if (['uap-nexus-strict-status-v2','uap-nexus-queued-status-v3','uap-nexus-owned-pie-v4'].includes(compatibilityPatch)
+        && !['NotPlaying','Starting','Playing','Paused','Ending'].includes(native.strictStatusPhase)) return false;
+      const names = new Set(['pie_start', 'pie_stop', 'pie_status']);
+      if (!names.has(operation.route.tool) || !covers(tool(operation.route.tool)?.inputSchema, routeSchema(operation))) return false;
+      if (compatibilityPatch !== 'uap-nexus-owned-pie-v4'
+        && ((operation.route.tool === 'pie_start' && native.start !== true)
+          || (operation.route.tool === 'pie_stop' && native.stop !== true))) return false;
+      const reflected = await scope.read(() => readPreset(rcEndpoint, fetchImpl, Math.min(timeoutMs, scope.remaining()), scope.signal));
+      // These are the precise native functions used by the pinned status /
+      // start / stop polling paths. Version strings alone prove none of this.
+      for (const name of [['uap-nexus-queued-status-v3','uap-nexus-owned-pie-v4'].includes(compatibilityPatch) ? 'GetNexusPIEPhaseV1' : 'GetPIEPhase', 'GetPIEElapsedSeconds']) {
+        const fn = reflected.get(name);
+        if (!fn || !Array.isArray(fn.Arguments) || fn.Arguments.length !== 0) return false;
+      }
+      if (compatibilityPatch === 'uap-nexus-owned-pie-v4') {
+        for (const name of ['NexusBeginOwnedPIE','NexusOwnedPIEStatus','NexusStopOwnedPIE','NexusReleaseEndedPIE']) {
+          const fn = reflected.get(name);
+          if (!fn || !Array.isArray(fn.Arguments) || fn.Arguments.length !== 1
+            || fn.Arguments[0]?.Name !== 'OwnerToken' || fn.Arguments[0]?.Type !== 'FString') return false;
+        }
+      }
+      return true;
+    } : undefined;
+    const discover = discoverUe ? async native => {ueSupported = await discoverUe(native);}
+      : discoverUap ? async native => {uapSupported = await discoverUap(native);} : undefined;
+    await attestIdentity(options, scope, discover, isUap);
+    if (isUe) return ueSupported;
+    if (isUap) return uapSupported;
+    if (provider === 'enginewire' && operation.route.kind === 'enginewire') {
       const description = payload(await call('unreal', { operation: 'describe', tool: operation.route.tool, action: operation.route.action }));
       if (description.operation !== 'describe' || description.availability?.status !== 'available'
         || !Array.isArray(description.availability.requiredPlugins) || description.availability.requiredPlugins.length
@@ -509,21 +601,6 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
         || !['edit', 'pie', 'simulate'].every((state) => description.availability.editorStates.includes(state))
         || !description.legacyIds?.some((id) => id.tool === operation.route.tool && id.action === operation.route.action)
         || !covers(description.inputSchema, routeSchema(operation))) return false;
-    } else if (provider === 'unrealagentplayer' && operation.route.kind === 'direct') {
-      if (compatibilityPatch === 'uap-nexus-strict-status-v2'
-        && !['NotPlaying','Starting','Playing','Paused','Ending'].includes(identity.native.strictStatusPhase)) return false;
-      const names = new Set(['pie_start', 'pie_stop', 'pie_status']);
-      if (!names.has(operation.route.tool) || !covers(tool(operation.route.tool)?.inputSchema, routeSchema(operation))) return false;
-      if ((operation.route.tool === 'pie_start' && identity.native.start !== true)
-        || (operation.route.tool === 'pie_stop' && identity.native.stop !== true)) return false;
-      const reflected = await scope.read(() => readPreset(rcEndpoint, fetchImpl, Math.min(timeoutMs, scope.remaining()), scope.signal));
-      // These are the precise native functions used by the pinned status /
-      // start / stop polling paths. Version strings alone prove none of this.
-      for (const name of ['GetPIEPhase', 'GetPIEElapsedSeconds']) {
-        const fn = reflected.get(name);
-        if (!fn || !Array.isArray(fn.Arguments) || fn.Arguments.length !== 0) return false;
-      }
-      await listener(rcEndpoint);
     } else return false;
     // Discovery could span a process exit, too. This does not eliminate a race
     // with another direct client; native guards remain responsible at dispatch.

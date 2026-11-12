@@ -31,7 +31,7 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
   const sourcePaths=new Map(), groupPaths=new Map(), groupCounts=new Map();
   // Existing rows without a surface belong to their provider's original
   // static subset. Explicit Claireon and UE snapshot surfaces are retained.
-  const baselineSurfaces = {enginewire:['legacy-default'], 'ue-mcp':['legacy-default','recorded-epic-catalog'],
+  const baselineSurfaces = {enginewire:['legacy-default'], 'ue-mcp':['legacy-default','recorded-epic-catalog','recorded-epic-catalog-5.9'],
     unrealagentplayer:['legacy-default'], hayba:['legacy-default'], 'ivan-unreal-mcp':['legacy-default'],
     claireon:['internal-tool-static-declaration','mcp-visible-name-filter']};
   for (const provider of providers) {
@@ -118,7 +118,7 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
     sourcePaths.set(provider,paths);
   }
   const counts=new Map(providers.map(p=>[p,0])), keys=new Set(), selected=[];
-  let epicCount=0;
+  const epicCounts=new Map([['recorded-epic-catalog',0],['recorded-epic-catalog-5.9',0]]);
   for (const entry of ledger.entries) {
     if (!object(entry) || !Object.hasOwn(ledger.sources,entry.provider) || !nonempty(entry.sourceEntry)
       || !nonempty(entry.reviewOwnerTask)) fail('invalid source record');
@@ -129,7 +129,7 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
     const key=JSON.stringify([entry.provider,surface,entry.sourceEntry]);
     if (keys.has(key)) fail('duplicate source record for ' + entry.provider + ': ' + entry.sourceEntry);
     keys.add(key);
-    const isEpic=entry.provider==='ue-mcp' && surface==='recorded-epic-catalog';
+    const isEpic=entry.provider==='ue-mcp' && epicCounts.has(surface);
     if (group) {
       if (!group.fileSet.has(entry.sourcePath) || group.unmatched.has(entry.sourcePath)) fail('unknown group record source for ' + entry.provider);
       if (surface==='internal-automation-trace-declaration' && (!nonempty(entry.category)
@@ -143,12 +143,21 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
         || group.supporting.get(entry.registryPath)!=='static descriptor registration index')) fail('invalid custom handler evidence for ' + entry.provider);
       group.represented.add(entry.sourcePath);
       groupCounts.set(groupKey,groupCounts.get(groupKey)+1);
-    } else if (isEpic) epicCount++; else counts.set(entry.provider,counts.get(entry.provider)+1);
+    } else if (isEpic) epicCounts.set(surface,epicCounts.get(surface)+1); else counts.set(entry.provider,counts.get(entry.provider)+1);
     if (entry.sourcePath !== undefined && !sourcePaths.get(entry.provider).has(entry.sourcePath)) fail('unknown source path for ' + entry.provider);
     const refs=entry.canonicalRouteReferences ?? [];
     if (!Array.isArray(refs) || new Set(refs).size !== refs.length) fail('invalid route references for ' + entry.sourceEntry);
     if (!['unreviewed','blocked','selected-route-slice-other-semantics-unreviewed'].includes(entry.disposition)) fail('unsupported disposition for ' + entry.sourceEntry);
     if ((entry.disposition==='selected-route-slice-other-semantics-unreviewed') !== (refs.length>0)) fail('disposition/route mismatch for ' + entry.sourceEntry);
+    if (entry.historicalSourceReview !== undefined) {
+      const prior=entry.historicalSourceReview;
+      if (!['unreviewed','selected-route-slice-other-semantics-unreviewed'].includes(entry.disposition) || !object(prior) || !/^[a-f0-9]{40}$/.test(prior.revision ?? '')
+        || prior.revision===lock.sources[entry.provider].commit || !nonempty(prior.blockReason) || !nonempty(prior.reopeningCondition)
+        || !Array.isArray(prior.sourceEvidence) || !prior.sourceEvidence.length
+        || !prior.sourceEvidence.every(e=>object(e) && e.commit===prior.revision && pathOk(e.path)
+          && Array.isArray(e.lines) && e.lines.length===2 && Number.isSafeInteger(e.lines[0])
+          && Number.isSafeInteger(e.lines[1]) && e.lines[0]>0 && e.lines[1]>=e.lines[0])) fail('invalid historical evidence for '+entry.sourceEntry);
+    }
     if (entry.disposition==='blocked') {
       if (!nonempty(entry.blockReason) || !nonempty(entry.reopeningCondition)
         || !Array.isArray(entry.sourceEvidence) || !entry.sourceEvidence.length
@@ -181,8 +190,10 @@ export function validateCapabilityCoverage({ledger=coverage,lock=upstreams,summa
     if (groupCounts.get(key)!==group.expected) fail('additional source group count mismatch');
     if ([...group.fileSet].some(file=>!group.unmatched.has(file) && !group.represented.has(file))) fail('unaccounted group source');
   }
-  const epic=ledger.sources['ue-mcp']?.additionalSnapshots?.['recorded-epic-catalog'];
-  if (!epic || epicCount!==epic.recordedTools) fail('recorded Epic snapshot count mismatch');
+  for (const [surface,count] of epicCounts) {
+    const epic=ledger.sources['ue-mcp']?.additionalSnapshots?.[surface];
+    if (!epic || count!==epic.recordedTools) fail('recorded Epic snapshot count mismatch');
+  }
   return {status:'partial-unreviewed', records:ledger.entries.length, selectedRouteReferences:selected.length,
     limitation:'Local metadata consistency only; source bytes, semantic dispositions, live registration and native qualification are not verified.'};
 }

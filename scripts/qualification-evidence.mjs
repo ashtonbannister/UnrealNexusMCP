@@ -77,9 +77,13 @@ export function validateQualificationManifest(manifest, {catalog = loadCatalog()
         requireField(Boolean(patch) && item.patch_sha256===patch.sha256,prefix+'.patch_sha256 must match the selected compatibility patch');
         // These are assertions only; no live marker or loaded binary is checked.
         requireField(Boolean(patch) && isDeepStrictEqual(item.live_marker,patch.capabilityMarker),prefix+'.live_marker must match the selected compatibility marker');
-        if (actual==='uap-nexus-strict-status-v2') {
+        if (['uap-nexus-strict-status-v2','uap-nexus-queued-status-v3','uap-nexus-owned-pie-v4'].includes(actual)) {
           const v1=compatibility.patches.find(p=>p.id==='uap-nexus-no-replay-v1' && p.provider===operation.provider);
           requireField(Boolean(v1) && isDeepStrictEqual(item.no_replay_marker,v1.capabilityMarker),prefix+'.no_replay_marker must match the v1 no-replay marker');
+        }
+        if (actual==='uap-nexus-owned-pie-v4') {
+          const v3=compatibility.patches.find(p=>p.id==='uap-nexus-queued-status-v3' && p.provider===operation.provider);
+          requireField(Boolean(v3) && isDeepStrictEqual(item.strict_status_marker,v3.capabilityMarker),prefix+'.strict_status_marker must match the v3 marker');
         }
       }
       requireField(Array.isArray(profile.providers) && profile.providers.includes(item.provider),prefix+'.provider must be declared in profile');

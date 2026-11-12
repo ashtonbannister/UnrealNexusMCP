@@ -16,7 +16,9 @@
         "asset.save.exact",
         "pcg.graph.connect.persisted",
         "pcg.generation.execute",
-        "pcg.generation.wait"
+        "pcg.generation.wait",
+        "pcg.graph.inspect",
+        "level.current.inspect"
       ]
     },
     {
@@ -39,10 +41,11 @@
         "input.action.once",
         "input.action.hold.start",
         "input.action.hold.update",
-        "input.action.hold.stop"
+        "input.action.hold.stop",
+        "play.worlds.list"
       ],
       "requiredCompatibility": {
-        "unrealagentplayer": "uap-nexus-no-replay-v1"
+        "unrealagentplayer": "uap-nexus-owned-pie-v4"
       }
     },
     {
@@ -52,9 +55,10 @@
       "provider": "claireon",
       "operations": [
         "blueprint.compile.memory.asset",
-        "blueprint.compile.memory.session"
+        "blueprint.compile.memory.session",
+        "blueprint.compile.memory.loaded"
       ],
-      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
+      "requiredCompatibility": "claireon-nexus-compile-loaded-v2"
     },
     {
       "id": "material-strict",
@@ -66,7 +70,7 @@
         "material.parameter.vector.persisted",
         "material.parameter.texture.persisted"
       ],
-      "requiredCompatibility": "hayba-nexus-no-retry-v1"
+      "requiredCompatibility": "hayba-nexus-material-receipt-v2"
     },
     {
       "id": "automation-tests",

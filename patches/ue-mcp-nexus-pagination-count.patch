@@ -1,0 +1,59 @@
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
+index 6c42c28ee5546cccc34b832140cca46e9b616e27..33270d106864bf68cc2421a9b0dfe54675452743 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
+@@ -652,6 +652,7 @@ TSharedPtr<FJsonObject> FMCPBridgeServer::BuildCapabilitiesPayload()
+ 		TEXT("frame-reassembly"),
+ 		TEXT("control-frames"),
+ 		TEXT("capability-handshake"),
++		TEXT("nexus-pagination-count-v1"),
+ 		TEXT("exclusive-port-claim"),
+ 		TEXT("owned-port-record"),
+ 		// #817. Both are always compiled in and always advertised: a caller has
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
+index 15ce9c765f4303fad7c91bb75c0fd17034fc63c7..0a1a9704f618e652d75c228ea45a61d1fba4c183 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
+@@ -387,7 +387,10 @@ namespace MCPPagination
+ 			Result->SetBoolField(TEXT("totalKnown"), false);
+ 		}
+ 
+-		if (!bChanged) return;
++		// Rows after the anchor may have changed while the anchor stayed put.
++		const bool bTotalChanged = Request.bResumed && bRowsAreComplete
++			&& Request.TotalAtIssue != INDEX_NONE && Request.TotalAtIssue != Rows.Num();
++		if (!bChanged && !bTotalChanged) return;
+ 
+ 		Result->SetBoolField(TEXT("collectionChanged"), true);
+ 		Result->SetNumberField(TEXT("shiftedBy"), ShiftedBy);
+@@ -410,9 +413,17 @@ namespace MCPPagination
+ 				TEXT("skipped or returned twice. Call again with no 'cursor' if you need an exact enumeration."),
+ 				*Request.ResumeAnchor, ShiftedBy, FMath::Abs(ShiftedBy)));
+ 		}
+-		if (Request.TotalAtIssue != INDEX_NONE && bRowsAreComplete && Request.TotalAtIssue != Rows.Num())
++		else if (bTotalChanged)
+ 		{
++			Result->SetStringField(TEXT("cursorNote"), TEXT(
++				"The collection count changed since this cursor was issued. The anchor remains in place, "
++				"but the pages do not form a consistent snapshot. Call again with no cursor if needed."));
++		}
++		if (bTotalChanged)
++		{
++			// Preserve the old field and clarify that the count is from the issuing page.
+ 			Result->SetNumberField(TEXT("totalAtFirstPage"), Request.TotalAtIssue);
++			Result->SetNumberField(TEXT("totalAtCursor"), Request.TotalAtIssue);
+ 		}
+ 	}
+ }
+diff --git a/src/tools/project/sessions.ts b/src/tools/project/sessions.ts
+index 9cb3fca1b0bb1cfe32b27d2c091d93af6f747dd7..0a5cf1d69971c017b4a014784e17b8cf88cd3b63 100644
+--- a/src/tools/project/sessions.ts
++++ b/src/tools/project/sessions.ts
+@@ -197,6 +197,7 @@ export const sessionActions: Record<string, ActionSpec> = {
+               client: CLIENT_PROTOCOL_VERSION,
+               builtAt: ctx.bridge.capabilities.builtAt,
+               actionCount: ctx.bridge.capabilities.actionCount,
++              features: ctx.bridge.capabilities.features,
+               mismatch: describeProtocolMismatch(ctx.bridge.capabilities) ?? undefined,
+             }
+           : undefined,

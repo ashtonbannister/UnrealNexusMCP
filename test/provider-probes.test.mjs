@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProviderProbe, inspectEditorProcess, inspectListenerOwner } from '../src/provider-probes.mjs';
+import { createProviderProbe, inspectEditorProcess, inspectListenerOwner, windowsProcessEvidence } from '../src/provider-probes.mjs';
 
 const operations = JSON.parse(await readFile(new URL('../catalog/operations.json', import.meta.url))).operations;
 const op = (id) => operations.find((item) => item.id === id);
@@ -21,18 +21,27 @@ const actor = [str('actorLabel'), str('actorPath')];
 const inputValues = [num('value_x'), num('value_y'), num('value_z')];
 const inputTargets = [int('client_id', 0), int('pie_instance', 0), int('client', 0)];
 const ueFacts = {
+  'editor.list_pie_instances': ['list_pie_instances', []],
   'editor.capture_screenshot': ['capture_screenshot', [str('filename', true), str('target'), num('pieInstance'), str('worldPath')]],
+  'editor.nexus_capture_pie_png_v1': ['nexus_capture_pie_png_v1', [num('pieInstance',true), str('worldPath',true), str('nonce',true)]],
   'level.get_outliner': ['get_world_outliner', [str('nameFilter'), str('classFilter'), bool('exactClass'), str('folderPath'), str('folderPathPrefix'), bool('editorHidden'), bool('includeStreaming'), int('limit'), str('cursor'), str('world')]],
   'level.move_actor': ['move_actor', [str('actorPath'),str('actorLabel'),{name:'location',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}},{name:'rotation',type:'object',required:false,properties:{pitch:{type:'number',required:true},yaw:{type:'number',required:true},roll:{type:'number',required:true}}},{name:'scale',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}},str('world')]],
   'level.place_actor': ['place_actor', [str('actorClass', true), str('label'), str('onConflict'), {name:'location',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}}, {name:'rotation',type:'object',required:false,properties:{pitch:{type:'number',required:true},yaw:{type:'number',required:true},roll:{type:'number',required:true}}}, {name:'scale',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}}, str('staticMesh'), str('material'), str('world')]],
   'level.get_actor_details': ['get_actor_details', [...actor, bool('includeProperties'), str('propertyName'), str('world'), int('pieInstance')]],
-  'level.save': ['save_level', [bool('force'), bool('includeExternalActors'), bool('commitDeletes')]],
+  'level.save': ['save_level', [bool('force'), bool('includeExternalActors'), bool('commitDeletes'), str('expectedLevelPackage'), bool('nexusNoExternalDelete')]],
+  'level.get_current_edit_level': ['get_current_edit_level', []],
   'asset.save': ['save_asset', [str('assetPath'), { name: 'assetPaths', type: 'string[]', required: false,
     items: { type: 'string', required: true } }, bool('force')]],
+  'pcg.read_graph': ['read_pcg_graph', [str('assetPath', true)]],
   'pcg.connect_nodes': ['connect_pcg_nodes', [str('assetPath', true), str('sourceNode', true), str('sourcePin'), str('targetNode', true), str('targetPin')]],
   'pcg.execute': ['execute_pcg_graph', [...actor, int('seed'), bool('wait'), num('timeoutSeconds')]],
   'pcg.wait_for_generation': [undefined, [...actor, str('componentName'), num('runId'), num('timeoutSeconds'), num('graceSeconds')]],
   'pcg.get_generation_state': ['get_pcg_generation_state', [...actor, str('componentName')]],
+  'pie.nexus_hold_start_v1': ['pie_nexus_hold_start_v1', [str('native_id',true),str('owner_token',true),
+    str('action_path',true),str('world_path',true),{name:'pie_instance',type:'integer',required:true,minimum:0},
+    {name:'client_id',type:'integer',required:true,minimum:0},{name:'lease_seconds',type:'number',required:true,minimum:1,maximum:3600},...inputValues]],
+  'pie.nexus_hold_update_v1': ['pie_nexus_hold_update_v1',[str('native_id',true),str('owner_token',true),...inputValues]],
+  'pie.nexus_hold_stop_v1': ['pie_nexus_hold_stop_v1',[str('native_id',true),str('owner_token',true)]],
   'pie.inject_input': ['pie_inject_input', [str('action_path', true), ...inputValues, ...inputTargets]],
   'pie.inject_input_start': ['pie_inject_input_start', [str('action_path', true), ...inputValues, str('injection_id'), ...inputTargets]],
   'pie.inject_input_update': ['pie_inject_input_update', [str('injection_id', true), ...inputValues]],
@@ -418,4 +427,153 @@ test('EngineWire accepts only a coherent migrated project identity receipt', asy
     f.state.engineReceipt={...receipt,...change};
     await assert.rejects(f.probe.attestIdentity(), {code:'IDENTITY_UNPROVEN'});
   }
+});
+
+
+test('UE pagination compatibility requires its live native feature marker', async (t) => {
+  const f = await fixture(t, 'ue-mcp');
+  const probe = createProviderProbe({...f.options, compatibilityPatch:'ue-mcp-nexus-pagination-count-v1'});
+  await assert.rejects(probe.attestIdentity(), /compatibility marker/u);
+  f.state.status.bridgeProtocol.features = ['nexus-pagination-count-v1'];
+  assert.equal((await probe.attestIdentity()).identityVerified, true);
+  f.state.status.bridgeProtocol.features = ['unrelated'];
+  await assert.rejects(probe.attestIdentity(), /compatibility marker/u);
+  f.state.status.bridgeProtocol.features = 'nexus-pagination-count-v1';
+  await assert.rejects(probe.attestIdentity(), /compatibility marker/u);
+});
+
+
+test('UAP v3 requires its queued-aware marker and reflected native status method', async (t) => {
+  const f=await fixture(t,'unrealagentplayer');
+  const v3=createProviderProbe({...f.options,compatibilityPatch:'uap-nexus-queued-status-v3'});
+  f.state.bridgeStatus.nexus_pie_status_validation={version:3,phase:'native_queued_aware_v1',transport:'native_preset',discovery_interface:'optional_ipv4',discovery:'exact_node_match',elapsed:'finite_nonnegative',missing_or_invalid:'error'};
+  f.state.bridgeStatus.pie_phase='Starting';
+  assert.equal(await v3.supports(op('pie.status')),false,'native method must be reflected');
+  f.state.reflection.Preset.Groups[0].ExposedFunctions.push({UnderlyingFunction:{Name:'GetNexusPIEPhaseV1',Arguments:[]}});
+  assert.equal(await v3.supports(op('pie.status')),true);
+  f.state.bridgeStatus.pie_phase=null;
+  assert.equal(await v3.supports(op('pie.status')),false,'unknown phase is not accepted');
+});
+
+
+test('UAP v4 requires all owned lifecycle methods and markers',async(t)=>{
+  const f=await fixture(t,'unrealagentplayer');
+  const v4=createProviderProbe({...f.options,compatibilityPatch:'uap-nexus-owned-pie-v4'});
+  f.state.bridgeStatus.nexus_pie_status_validation={version:3,phase:'native_queued_aware_v1',transport:'native_preset',discovery_interface:'optional_ipv4',discovery:'exact_node_match',elapsed:'finite_nonnegative',missing_or_invalid:'error'};
+  f.state.bridgeStatus.nexus_pie_ownership={version:1,native:'request_identity_v1',machine:'exclusive_owner_release_v1',grant_ttl:'long_lived',grant_check:'before_dispatch'};
+  f.state.bridgeStatus.pie_phase='NotPlaying';
+  const funcs=f.state.reflection.Preset.Groups[0].ExposedFunctions;
+  funcs.push({UnderlyingFunction:{Name:'GetNexusPIEPhaseV1',Arguments:[]}});
+  assert.equal(await v4.supports(op('pie.start.viewport')),false);
+  for(const Name of ['NexusBeginOwnedPIE','NexusOwnedPIEStatus','NexusStopOwnedPIE','NexusReleaseEndedPIE'])
+    funcs.push({UnderlyingFunction:{Name,Arguments:[{Name:'OwnerToken',Type:'FString'}]}});
+  assert.equal(await v4.supports(op('pie.start.viewport')),true);
+  f.state.bridgeStatus.nexus_pie_ownership.machine='wrong';
+  await assert.rejects(v4.attestIdentity(),/owned-PIE/u);
+});
+
+
+test('Hayba v2 requires a fresh fixed native identity and material marker',async(t)=>{
+  const f=await fixture(t,'hayba',{tools:[{name:'material_nexus_identity',inputSchema:{type:'object',properties:{nonce:{type:'string',pattern:'^[0-9a-f]{32}$'}},required:['nonce'],additionalProperties:false}}]});
+  const probe=createProviderProbe({...f.options,compatibilityPatch:'hayba-nexus-material-receipt-v2'});
+  f.state.call=async(name,args)=>result({nonce:args.nonce,pid:f.state.target.processId,project:f.state.target.projectRoot,role:'editor',read_only:true,nexus_material_receipt_version:2});
+  assert.equal((await probe.attestIdentity()).identityVerified,true);
+  f.state.call=async(name,args)=>result({nonce:args.nonce,pid:f.state.target.processId,project:f.state.target.projectRoot,role:'editor',read_only:true,nexus_material_receipt_version:1});
+  await assert.rejects(probe.attestIdentity(),/material receipt marker/u);
+  f.state.call=async(name,args)=>result({nonce:'wrong',pid:f.state.target.processId,project:f.state.target.projectRoot,role:'editor',read_only:true,nexus_material_receipt_version:2});
+  await assert.rejects(probe.attestIdentity(),/identity or material receipt/u);
+});
+
+
+test('UE guarded save requires both native compatibility features',async(t)=>{
+  const f=await fixture(t,'ue-mcp');
+  const probe=createProviderProbe({...f.options,compatibilityPatch:'ue-mcp-nexus-guarded-save-v2'});
+  f.state.status.bridgeProtocol.features=['nexus-pagination-count-v1'];
+  await assert.rejects(probe.attestIdentity(),/compatibility marker/u);
+  f.state.status.bridgeProtocol.features.push('nexus-level-save-guard-v1');
+  assert.equal((await probe.attestIdentity()).identityVerified,true);
+});
+
+test('UE direct PIE compatibility requires all three native feature markers',async(t)=>{
+  const f=await fixture(t,'ue-mcp');
+  const probe=createProviderProbe({...f.options,compatibilityPatch:'ue-mcp-nexus-direct-pie-v1'});
+  f.state.status.bridgeProtocol.features=['nexus-pagination-count-v1','nexus-level-save-guard-v1'];
+  await assert.rejects(probe.attestIdentity(),/compatibility marker/u);
+  f.state.status.bridgeProtocol.features.push('nexus-direct-pie-capture-v1');
+  assert.equal((await probe.attestIdentity()).identityVerified,true);
+  assert.equal(await probe.supports(op('screenshot.pie')),true);
+});
+
+test('UE owned-hold patch requires all live markers and fixed hold schemas',async(t)=>{
+  const f=await fixture(t,'ue-mcp');
+  const probe=createProviderProbe({...f.options,compatibilityPatch:'ue-mcp-nexus-owned-hold-v1'});
+  f.state.status.bridgeProtocol.features=['nexus-pagination-count-v1','nexus-level-save-guard-v1','nexus-direct-pie-capture-v1'];
+  await assert.rejects(probe.attestIdentity(),/compatibility marker/u);
+  f.state.status.bridgeProtocol.features.push('nexus-owned-input-hold-v1');
+  for (const id of ['input.action.hold.start','input.action.hold.update','input.action.hold.stop'])
+    assert.equal(await probe.supports(op(id)),true);
+});
+
+
+
+test('Windows process evidence brackets CIM with matching high-resolution epochs',()=>{
+  const row={processId:1234,startTicks:'638123456789000000',
+    executablePath:'C:\\Engine\\UnrealEditor.exe',commandLine:'"C:\\Engine\\UnrealEditor.exe" "D:\\Demo\\Game.uproject"'};
+  const snapshots={beforeTicks:'638123456789000009',process:row,afterTicks:'638123456789000009'};
+  assert.equal(windowsProcessEvidence(1234,snapshots).editorInstanceId,'win32:1234:638123456789000000');
+  for (const changed of [
+    {...snapshots,afterTicks:'638123456789000008'},
+    {...snapshots,process:{...row,processId:1235}},
+    {...snapshots,process:{...row,startTicks:'638123456789000010'}},
+    {...snapshots,process:{...row,executablePath:''}},
+    {...snapshots,process:{...row,commandLine:''}},
+    {...snapshots,beforeTicks:''},
+    {...snapshots,beforeTicks:'9'.repeat(20)},
+  ]) assert.throws(()=>windowsProcessEvidence(1234,changed),{code:'IDENTITY_UNPROVEN'});
+  assert.throws(()=>windowsProcessEvidence(1234,{process:row}),{code:'IDENTITY_UNPROVEN'});
+});
+
+
+test('UE identity and action discovery share an epoch bracket without caching',async(t)=>{
+  const f=await fixture(t,'ue-mcp'),events=[];
+  const connection={callTool:async(name,args,options)=>{
+    events.push(args.action==='describe'?'describe':'status');
+    return f.options.connection.callTool(name,args,options);
+  }};
+  const probe=createProviderProbe({...f.options,connection,processInspector:async()=>{
+    events.push('process');return f.state.processInfo;
+  }});
+  assert.equal(await probe.supports(op('level.save.current')),true);
+  assert.deepEqual(events,['process','status','describe','process']);
+  events.length=0;
+  assert.equal(await probe.supports(op('level.save.current')),true);
+  assert.deepEqual(events,['process','status','describe','process']);
+  let reads=0;
+  const replaced=createProviderProbe({...f.options,connection,processInspector:async()=>({
+    ...f.state.processInfo,editorInstanceId:++reads===1?f.state.target.editorInstanceId:'replacement',
+  })});
+  await assert.rejects(replaced.supports(op('level.save.current')),/attested Unreal editor/u);
+});
+
+
+test('UAP identity and reflection share fresh listener and process brackets',async(t)=>{
+  const f=await fixture(t,'unrealagentplayer'),events=[];
+  const connection={callTool:async(name,args,options)=>{
+    events.push(name);return f.options.connection.callTool(name,args,options);
+  }};
+  const options={...f.options,connection,
+    processInspector:async()=>{events.push('process');return f.state.processInfo;},
+    listenerInspector:async()=>{events.push('listener');return {processId:f.state.target.processId};},
+    fetchImpl:async(url,init)=>{events.push('reflection');return f.options.fetchImpl(url,init);},
+  };
+  const probe=createProviderProbe(options);
+  assert.equal(await probe.supports(op('pie.start.viewport')),true);
+  assert.deepEqual(events,['process','listener','bridge_status','exec_python','reflection','listener','process']);
+  events.length=0;let listeners=0;
+  const replaced=createProviderProbe({...options,listenerInspector:async()=>{
+    events.push('listener');if(++listeners===2)throw new Error('listener mismatch');
+    return {processId:f.state.target.processId};
+  }});
+  await assert.rejects(replaced.supports(op('pie.start.viewport')),/listener mismatch/u);
+  assert.equal(listeners,2);
 });

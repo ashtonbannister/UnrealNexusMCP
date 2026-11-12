@@ -50,12 +50,14 @@ git -C <UPSTREAMS>\<name> checkout <commit>
 For providers required by the selected profile, apply their reviewed patches (check first, then apply). Omit commands for unused providers:
 
 ```
+git -C <UPSTREAMS>\ue-mcp apply --check <NEXUS_ROOT>\patches\ue-mcp-nexus-pagination-count.patch
+git -C <UPSTREAMS>\ue-mcp apply <NEXUS_ROOT>\patches\ue-mcp-nexus-pagination-count.patch
 git -C <UPSTREAMS>\claireon apply --check <NEXUS_ROOT>\patches\claireon-nexus-no-autosave.patch
 git -C <UPSTREAMS>\claireon apply <NEXUS_ROOT>\patches\claireon-nexus-no-autosave.patch
-git -C <UPSTREAMS>\hayba apply --check <NEXUS_ROOT>\patches\hayba-nexus-no-retry.patch
-git -C <UPSTREAMS>\hayba apply <NEXUS_ROOT>\patches\hayba-nexus-no-retry.patch
-git -C <UPSTREAMS>\unrealagentplayer apply --check <NEXUS_ROOT>\patches\uap-nexus-no-replay.patch
-git -C <UPSTREAMS>\unrealagentplayer apply <NEXUS_ROOT>\patches\uap-nexus-no-replay.patch
+git -C <UPSTREAMS>\hayba apply --check <NEXUS_ROOT>\patches\hayba-nexus-material-receipt-v2.patch
+git -C <UPSTREAMS>\hayba apply <NEXUS_ROOT>\patches\hayba-nexus-material-receipt-v2.patch
+git -C <UPSTREAMS>\unrealagentplayer apply --check <NEXUS_ROOT>\patches\uap-nexus-owned-pie-v4.patch
+git -C <UPSTREAMS>\unrealagentplayer apply <NEXUS_ROOT>\patches\uap-nexus-owned-pie-v4.patch
 ```
 
 Do not commit inside the upstream checkouts. The patched working tree is intentional.
@@ -147,7 +149,7 @@ Register it with the agent client as a stdio server whose command is `cmd.exe` w
 2. **UE-MCP:** a read-only `actor.inspect.editor` on a path that does not exist should return "No actor at …" from the editor. That response proves the round trip.
 3. **EngineWire:** `POST` to its `/mcp` with the header `X-MCP-Capability-Token` returns `initialize`; without it, 401.
 4. **UAP:** for an enabled UAP profile, use the gateway identity checks and inspect their diagnostics; do not bypass a refusal with direct Python or arbitrary provider calls.
-5. **Nexus `pie.status`:** the current gateway holds this operation pending native ownership and strict status evidence. Do not treat a backend status as qualification.
+5. **Nexus `pie.status`:** requires the queued-aware patch and live native method. Owned start/stop require v4, an available unique machine grant and the same running backend; a status observation alone does not establish ownership.
 
 Apply only checks relevant to the selected profile. Enable writes only with task-appropriate authorization and after the applicable identity and qualification checks; held operations remain unavailable.
 

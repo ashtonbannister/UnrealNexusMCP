@@ -1,6 +1,6 @@
 # Native qualification plan
 
-Part of the [master roadmap](../MASTER_ROADMAP.md); baseline `c543959`. The [integration acceptance checklist](INTEGRATION_ACCEPTANCE.md) remains the required behavior matrix. This document supplies execution tasks and evidence rows. **All native rows below are not-run.** No installed engine, native build or live result is claimed.
+Part of the [master roadmap](../MASTER_ROADMAP.md); baseline `c543959`. The [integration acceptance checklist](INTEGRATION_ACCEPTANCE.md) remains the required behavior matrix. This document supplies execution tasks and evidence rows. The original baseline was not run; subsequent isolated Windows/UE 5.8.4 evidence is linked in the qualification records. A partial check does not qualify an entire provider or release.
 
 ## Environment and profile policy
 
@@ -20,7 +20,7 @@ Native execution in this plan is future work within an assigned integration task
 
 **Dependencies:** Native host availability; no prior task.
 
-Initial target lane: Windows x64 on an interactive desktop. The user has not selected a project or editor and requested source/fixture work first; native qualification remains blocked on that target. Discover the actual Windows version, exact Unreal patch/build, compiler/SDK, Node/Python versions, project revision and .uproject. Do not infer an engine version from a catalog snapshot or upgrade the user's engine implicitly.
+Initial target lane: Windows x64 on an interactive desktop. The user supplied the Henday Heat project and an installed UE 5.8.4 editor. The editor was later closed; isolated-host evidence and project-specific evidence remain distinct. Discover the actual Windows version, exact Unreal patch/build, compiler/SDK, Node/Python versions, project revision and .uproject. Do not infer an engine version from a catalog snapshot or upgrade the user's engine implicitly.
 
 **Done when:** An environment manifest reconciles build/runtime requirements for the selected pinned providers and names the enabled operation profile. Record actual editor PID/start epoch per run. Incompatible combinations and missing tools have precise blockers. Linux Node 24.22.1 remains the fixture-tested baseline; Node 22 and Windows runtime support require their own evidence.
 
@@ -50,9 +50,9 @@ Inventory enabled native and Nexus listeners: owning process, bind address, endp
 
 **Dependencies:** [ENV-01](#env-01).
 
-Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [32-operation harness design](qualification/HARNESS_DESIGN.md) and an offline structural evidence validator with fixture tests are available; executable native fixture verification still needs ENV-01.
+Prepare a reproducible test project with duplicate actor labels, editor/PIE identities, valid/broken Blueprints, material types, PCG graph/run cases, save failures, input holds, automation outcomes and trace capture. A [34-operation harness design](qualification/HARNESS_DESIGN.md) and an offline structural evidence validator with fixture tests are available; executable native fixture verification still needs ENV-01.
 
-**Done when:** Each of the 32 rows below has setup, exact inputs, expected effects/state, applicable failure cases, cleanup and artifact requirements. Known setup dependencies are explicit. Tests can establish native fixture state outside Nexus, but that setup is not counted as a gateway capability. Secret-free evidence templates and a repeatable project revision exist.
+**Done when:** The test environment and cleanup are reproducible, with a representative read and write for each applicable provider through Nexus. The user confirmed upstream MCPs are already tested and does not require individual live testing of every command. Add targeted checks for a specific changed contract, observed failure or unresolved integration risk; the rows below remain a tracking aid, not a mandate to exercise every row. Record what was actually checked without inferring that an untested operation was individually verified.
 
 
 ## Evidence contract
@@ -165,25 +165,28 @@ This is the exact current allowlist, not proposed capability names. Every row al
 
 | Canonical operation | Selected provider | Required positive evidence | Required edge/failure evidence | Native result |
 | --- | --- | --- | --- | --- |
-| `pie.start.viewport` | unrealagentplayer | Confirmed playing phase and owned session | Queued start, timeout/loss after send, retained grant | not-run |
-| `pie.stop` | unrealagentplayer | Owned session stopped and phase NotPlaying | Queued teardown, unowned session, uncertain release | not-run |
-| `pie.status` | unrealagentplayer | Actual current phase and reflected/native identity | Missing/malformed RC fields, wrong process | not-run |
+| `pie.start.viewport` | unrealagentplayer | Confirmed playing phase and owned session | Queued start, timeout/loss after send, retained grant | partial: isolated owned start |
+| `pie.stop` | unrealagentplayer | Owned session stopped and phase NotPlaying | Queued teardown, unowned session, uncertain release | partial: isolated owned stop |
+| `pie.status` | unrealagentplayer | Actual current phase and reflected/native identity | Missing/malformed RC fields, wrong process | partial: isolated idle response |
 | `screenshot.viewport.current` | enginewire | Real MCP image, dimensions, view and shaderWait | Missing image, view mismatch, unsupported headless intent | not-run |
-| `screenshot.pie` | ue-mcp | Exact client, dimensions and fresh successful PNG write | Existing/stale file, wrong instance, failed write; path is not viewed pixels | not-run |
+| `play.worlds.list` | ue-mcp | Observe current PIE/Game world contexts and instance IDs | Empty or changing contexts; no ownership claim | partial: isolated empty response |
+| `screenshot.pie` | ue-mcp | Exact client, dimensions and MCP image from disposable PIE | Offscreen baseline observed through Nexus; visual fidelity and loaded-byte attestation remain pending | partial |
 | `actor.list.editor` | ue-mcp | Matching editor actors, paths, filters and pagination | Wrong world, truncation, streaming exclusions and changing pages | not-run |
 | `actor.transform.editor` | ue-mcp | Exact path and independent post-callback transform readback | Missing target, wrong world, uncertain dispatch and no implicit save | not-run |
 | `actor.place.editor` | ue-mcp | Created actor in current editor world; requested label/class and independent position/mesh inspection | Duplicate label, invalid class or mesh, world change, partial/unknown dispatch | not-run |
 | `actor.inspect.editor` | ue-mcp | Exact editor actor identity/properties; disclosed truncation | Repeated labels, wrong path and stale epoch | not-run |
 | `actor.inspect.pie` | ue-mcp | Requested PIE world/instance actor identity | Editor duplicate, unavailable/ambiguous instance | not-run |
-| `level.save.current` | ue-mcp | Intended current map/external packages and per-package disk receipts | PIE refusal, wrong current map preflight, partial/read-only save | not-run |
+| `level.save.current` | ue-mcp | Intended current map/external packages and per-package disk receipts | Wrong current map refusal and disposable force save observed; other cases source/fixture only | partial |
 | `asset.save.exact` | ue-mcp | Only explicit loaded asset set, actual files and reload | Empty/invalid scope, missing/read-only/partial save; malformed receipt | not-run |
+| `pcg.graph.inspect` | ue-mcp | Graph node names, pin labels and edges | Missing graph, partial output and changed graph state | not-run |
 | `pcg.graph.connect.persisted` | ue-mcp | Actual named edge and checked save; existing edge no-op | Wrong/stale node or pin, failed save, no destructive inverse on no-op | not-run |
 | `pcg.generation.execute` | ue-mcp | Intended first component; returned actor/component/run | Multiple-component intent mismatch, failure after start, no replay | not-run |
 | `pcg.generation.wait` | ue-mcp | Generated for exact requested run and matching lastRun | Cancelled/idle/not_started/stale/timed-out state is not success | not-run |
 | `input.action.once` | ue-mcp | Explicit action/world/local-player and observed gameplay effect | Missing action, wrong player/world, nonfinite input | not-run |
-| `input.action.hold.start` | ue-mcp | Unique owned ID and sustained observed effect | Foreign/conflicting hold, timeout after native start | not-run |
-| `input.action.hold.update` | ue-mcp | Same owned hold and changed observed effect | Foreign/stale hold and invalid values | not-run |
-| `input.action.hold.stop` | ue-mcp | Stopped/already-stopped receipt and no owned residual hold | Timeout/loss is not confirmed release | not-run |
+| `input.action.hold.start` | ue-mcp | Exact owned local input and gameplay effect | Disposable coordinator start and native coexistence observed; gameplay effect pending | partial |
+| `input.action.hold.update` | ue-mcp | Same owned hold and changed gameplay effect | Disposable coordinator update and foreign-token refusal observed; gameplay effect pending | partial |
+| `input.action.hold.stop` | ue-mcp | Explicit owned stop and no continuing owned injector | Disposable coordinator stop observed; one queued frame may remain | partial |
+| `blueprint.compile.memory.loaded` | claireon | Exact loaded asset, bounded compiler receipt and unchanged disk | Disposable clean fixture passed; dirty state and session contention remain unqualified | partial |
 | `blueprint.compile.memory.asset` | claireon | Actual compiler status/diagnostics and unchanged disk | Broken/warning/truncated diagnostics; both autosave sites | not-run |
 | `blueprint.compile.memory.session` | claireon | Exact session compile and no unintended save | Foreign/stale session; explicit setup and close semantics | not-run |
 | `automation.tests.run` | claireon | Accepted exact expected set with owned run identity | Missing tests, disallowed skips, second active run, uncertain start | not-run |
@@ -194,7 +197,7 @@ This is the exact current allowlist, not proposed capability names. Every row al
 | `insights.trace.scopes` | claireon | Actual bounded scope rows and timing/channel metadata | Foreign handle, inverted range, absent GPU and truncation | not-run |
 | `insights.trace.frames` | claireon | Actual bounded frames with disclosed page statistics | Foreign handle, null/unterminated frames, false CPU/percentile claims | not-run |
 | `insights.trace.close` | claireon | Exact owned reader closed | Foreign/already-lost handle; reader close does not stop capture | not-run |
-| `material.parameter.scalar.persisted` | hayba | Declared scalar, exact readback and checked save | Wrong/missing parameter, float overflow, save/readback failure | not-run |
+| `material.parameter.scalar.persisted` | hayba | Declared scalar, exact readback and checked save | Wrong/missing parameter, float overflow, save/readback failure | partial: isolated scalar write |
 | `material.parameter.vector.persisted` | hayba | Declared RGB/RGBA, actual value and save | 1/2-element or invalid vector, wrong type, partial persistence | not-run |
 | `material.parameter.texture.persisted` | hayba | Loaded intended texture, observed value and save | Invalid texture, wrong type, read-only or failed save | not-run |
 

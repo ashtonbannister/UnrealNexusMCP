@@ -19,7 +19,7 @@ function rewritePngCrc(bytes,offset) {
 function mutatedPng(mutate) {const bytes=Buffer.from(png,'base64');mutate(bytes);return bytes.toString('base64');}
 
 const assetReceipt=(paths,force=false)=>({success:true,force,results:paths.map(path=>({path,package:path,wasDirty:true,status:'saved',stillDirty:false})),savedCount:paths.length,notDirtyCount:0,failedCount:0,updated:true,rollbackPossible:false,rollbackNote:'A save has no inverse.'});
-const levelReceipt=()=>({success:true,levelName:'Demo',levelPath:'/Game/Demo.Demo',levelPackage:'/Game/Demo',usesExternalActors:false,externalPackagesLoaded:0,landscapesMerged:0,savedCount:0,failedCount:0,skippedCount:1,deletedCount:0,saved:[],skipped:[{package:'/Game/Demo',saved:false,skipped:true}]});
+const levelReceipt=()=>({success:true,levelName:'Demo',levelPath:'/Game/Demo.Demo',levelPackage:'/Game/Demo',nexusGuardVersion:1,expectedLevelPackage:'/Game/Demo',externalDeletionAllowed:false,usesExternalActors:false,externalPackagesLoaded:0,landscapesMerged:0,savedCount:0,failedCount:0,skippedCount:1,deletedCount:0,saved:[],skipped:[{package:'/Game/Demo',saved:false,skipped:true}]});
 function fixture(options={}) {
   const starts=[],calls=[],closes=[];
   const surfaces={
@@ -35,8 +35,8 @@ function fixture(options={}) {
         calls.push({provider,call});
         if(options.reply) return options.reply(provider,call);
         if(provider==='enginewire') return screenshot();
-        if(call.name==='pie_start') return json({ok:true,playing:true,phase:'Playing'});
-        if(call.name==='pie_stop') return json({ok:true,stopped:true,phase:'NotPlaying'});
+        if(call.name==='pie_start') return json({ok:true,playing:true,phase:'Playing',editorEpoch:'a'.repeat(32),sessionId:'b'.repeat(32)});
+        if(call.name==='pie_stop') return json({ok:true,stopped:true,phase:'NotPlaying',editorEpoch:'a'.repeat(32),sessionId:'b'.repeat(32)});
         if(call.name==='pie_status') return json({ok:true,phase:'NotPlaying',elapsed:0});
         if(call.arguments?.category==='asset' && call.arguments.method==='save') return json(assetReceipt(call.arguments.args.assetPaths,call.arguments.args.force ?? false));
         if(call.arguments?.category==='level' && call.arguments.method==='save') return json(levelReceipt());
@@ -292,20 +292,24 @@ test('backend contract refusal reports failed cleanup on shutdown',async()=>{
 });
 
 
-test('current-level save stays held regardless of the separate host deletion grant',async()=>{
+test('guarded current-level save requires an exact target and never requests deletion',async()=>{
+  const args={expectedLevelPackage:'/Game/Demo'};
   for(const grant of [false,true]) {
     const {gateway:g,starts,calls}=fixture({config:{enabledCapabilities:['level.save.current'],allowLevelExternalPackageDeletion:grant}});
-    assert.equal(g.plan('level.save.current',{}).dispatched,false);
-    await assert.rejects(g.execute('level.save.current',{}),{code:'LEVEL_SAVE_TARGET_UNVERIFIED'});
-    assert.equal(g.status().allowLevelExternalPackageDeletion,grant);
-    assert.deepEqual(g.status().heldCapabilities,[{id:'level.save.current',reason:'native save cannot atomically verify the intended current level before mutation'}]);
-    assert.throws(()=>g.plan('level.save.current',{allowOverride:true}),{code:'INVALID_ARGUMENTS'});
-    assert.deepEqual(starts,[]);assert.deepEqual(calls,[]);await g.close();
+    const plan=g.plan('level.save.current',args);
+    assert.equal(plan.dispatched,false);
+    assert.equal(plan.call.arguments.args.nexusNoExternalDelete,true);
+    assert.equal(plan.call.arguments.args.commitDeletes,false);
+    assert.notEqual((await g.execute('level.save.current',args)).isError,true);
+    assert.equal(calls.length,1);assert.equal(starts.length,1);
+    assert.throws(()=>g.plan('level.save.current',{...args,nexusNoExternalDelete:false}),{code:'INVALID_ARGUMENTS'});
+    await g.close();
   }
-  const readOnly=fixture({config:{enabledCapabilities:['level.save.current'],allowWrites:false,allowLevelExternalPackageDeletion:true}});
-  await assert.rejects(readOnly.gateway.execute('level.save.current',{}),{code:'WRITES_DISABLED'});
+  const readOnly=fixture({config:{enabledCapabilities:['level.save.current'],allowWrites:false}});
+  await assert.rejects(readOnly.gateway.execute('level.save.current',args),{code:'WRITES_DISABLED'});
   assert.deepEqual(readOnly.starts,[]);await readOnly.gateway.close();
 });
+
 test('persisted PCG connection requires verified edge and explicit successful save receipt',async()=>{
   const args={assetPath:'/Game/PCG/Graph',sourceNode:'A',sourcePin:'Out',targetNode:'B',targetPin:'In'};
   const identity={assetPath:args.assetPath,sourceNodeName:args.sourceNode,targetNodeName:args.targetNode,
@@ -439,15 +443,30 @@ test('malformed or contradictory PCG success shapes fence despite matched identi
 });
 
 
-test('PIE capture is held before backend startup even with write authority',async()=>{
-  const args={filename:'nexus-frame.png',pieInstance:1};
-  const {gateway:g,starts,calls}=fixture({config:{enabledCapabilities:['screenshot.pie'],allowWrites:true}});
-  assert.equal(g.plan('screenshot.pie',args).dispatched,false);
-  assert.deepEqual(g.status().heldCapabilities,[{id:'screenshot.pie',reason:'native output ownership and target identity unverified'}]);
-  await assert.rejects(g.execute('screenshot.pie',args),{code:'PIE_SCREENSHOT_OUTPUT_UNVERIFIED'});
-  assert.deepEqual(starts,[]);assert.deepEqual(calls,[]);
-  assert.throws(()=>g.plan('screenshot.pie',{...args,allowPieScreenshotOverwrite:true}),{code:'INVALID_ARGUMENTS'});
+test('PIE capture forwards a host nonce and validates the exact image receipt',async()=>{
+  const args={pieInstance:0,worldPath:'/Game/UEDPIE_0_Map.Map'};
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:['screenshot.pie'],allowWrites:false},
+    reply:(_provider,call)=>{
+      const nonce=call.arguments.args.nonce;
+      return {content:[{type:'text',text:JSON.stringify({success:true,nexusCaptureVersion:1,nonce,...args,width:1,height:1,pngBytes:70})},
+        {type:'image',mimeType:'image/png',data:png}]};
+    }});
+  const result=await g.execute('screenshot.pie',args);
+  assert.equal(result.isError,undefined);
+  assert.match(calls[0].call.arguments.args.nonce,/^[a-f0-9]{32}$/u);
+  assert.equal(result.content.filter(part=>part.type==='image').length,1);
+  assert.throws(()=>g.plan('screenshot.pie',{...args,nonce:'a'.repeat(32)}),{code:'INVALID_ARGUMENTS'});
   await g.close();
+});
+test('PIE capture fences a crossed world or invalid image',async()=>{
+  const args={pieInstance:0,worldPath:'/Game/UEDPIE_0_Map.Map'};
+  const {gateway:g}=fixture({config:{enabledCapabilities:['screenshot.pie']},reply:(_p,call)=>({
+    content:[{type:'text',text:JSON.stringify({success:true,nexusCaptureVersion:1,nonce:call.arguments.args.nonce,
+      ...args,worldPath:'/Game/Wrong',width:1,height:1,pngBytes:70})},{type:'image',mimeType:'image/png',data:png}]
+  })});
+  const result=await g.execute('screenshot.pie',args);
+  assert.equal(result.isError,true);assert.equal(result._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+  assert.equal(g.status().queue.blocked,true);await g.close();
 });
 
 
@@ -494,51 +513,44 @@ function saveReceiptQueue(id,args,reply) {
     {effect:'write',timeoutMs:1000,operation:id,isUncertain:out=>out._meta['unreal-nexus/result-policy'].outcomeUnknown})};
 }
 
-test('current-level save requires coherent counts and package receipt rows',async()=>{
-  const valid={...levelReceipt(),deletedCount:1,deleted:[{package:'/Game/Demo/__ExternalActors__/A',emptyPackage:true,deleted:true}],rollbackPossible:false,rollbackNote:'The previous package files cannot be restored.'};
-  const ok=saveReceiptQueue('level.save.current',{},json(valid));
+test('guarded level save requires exact target, no deletions and coherent rows',async()=>{
+  const args={expectedLevelPackage:'/Game/Demo'};
+  const valid=levelReceipt();
+  const ok=saveReceiptQueue('level.save.current',args,json(valid));
   assert.notEqual((await ok.run()).isError,true);assert.equal(ok.queue.status.blocked,false);
-  const neverOnDisk={...valid,deleted:[{package:'/Game/Demo/__ExternalActors__/A',emptyPackage:true,deleted:false,neverOnDisk:true}]};
-  const clean=saveReceiptQueue('level.save.current',{},json(neverOnDisk));
-  assert.notEqual((await clean.run()).isError,true);assert.equal(clean.queue.status.blocked,false);
   const written={...levelReceipt(),saved:[{package:'/Game/Demo',saved:true}],savedCount:1,skipped:undefined,skippedCount:0,rollbackPossible:false,rollbackNote:'The previous package files cannot be restored.'};
-  const saved=saveReceiptQueue('level.save.current',{},json(written));
-  assert.notEqual((await saved.run()).isError,true);assert.equal(saved.queue.status.blocked,false);
+  assert.notEqual((await saveReceiptQueue('level.save.current',args,json(written)).run()).isError,true);
   for(const body of [
-    {success:true},
-    {...valid,levelPackage:undefined},
-    {...valid,failedCount:1},
-    {...valid,deletedCount:2},
-    {...valid,deleted:[{package:'/Game/A',deleted:true}]},
-    {...valid,deleted:[{package:'/Game/A',emptyPackage:true,deleted:false}]},
-    {...valid,skipped:[],skippedCount:0},
-    {...valid,error:'contradictory error'},
-    {...valid,rollbackPossible:true},
-    {...valid,rollbackNote:undefined},
-    {...levelReceipt(),rollbackPossible:false,rollbackNote:'unexpected'},
+    {success:true}, {...valid,levelPackage:'/Game/Other'}, {...valid,expectedLevelPackage:'/Game/Other'},
+    {...valid,nexusGuardVersion:0}, {...valid,externalDeletionAllowed:true},
+    {...valid,paramsNotRead:{params:['nexusNoExternalDelete'],note:'not read'}},
+    {...valid,deletedCount:1,deleted:[{package:'/Game/Demo/__ExternalActors__/A',emptyPackage:true,deleted:true}]},
+    {...valid,failedCount:1}, {...valid,skipped:[],skippedCount:0}, {...valid,error:'contradictory'},
     {...valid,saved:[{package:'/Game/A',saved:true}],savedCount:0},
-    {...valid,saved:[{package:'/Game/Demo/__ExternalActors__/A',saved:true}],savedCount:1},
   ]) {
     const reply={...json(body),_meta:{'fixture/original':'preserved'}};
-    const {queue,calls,run}=saveReceiptQueue('level.save.current',{},reply);
-    const out=await run();
-    assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);
-    assert.equal(out._meta['fixture/original'],'preserved');
+    const {queue,calls,run}=saveReceiptQueue('level.save.current',args,reply);
+    const out=await run();assert.equal(out.isError,true);assert.deepEqual(out.content,reply.content);
     assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
-    await assert.rejects(run(),{code:'EDITOR_OUTCOME_UNKNOWN'});
-    assert.equal(calls.length,1);
+    await assert.rejects(run(),{code:'EDITOR_OUTCOME_UNKNOWN'});assert.equal(calls.length,1);
   }
-  const contradictory={...json(valid),isError:true};
-  const conflict=saveReceiptQueue('level.save.current',{},contradictory);
-  const out=await conflict.run();
-  assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
-  assert.equal(conflict.queue.status.blocked,true);
+  for(const [reason,actual] of [['level_mismatch','/Game/Other'],['external_deletion_required','/Game/Demo'],['no_current_level','']]) {
+    const refusal={success:false,mutationStarted:false,nexusGuardVersion:1,reason,expectedLevelPackage:args.expectedLevelPackage,actualLevelPackage:actual,error:'Refused before mutation'};
+    const out=await saveReceiptQueue('level.save.current',args,json(refusal)).run();
+    assert.equal(out.isError,true);assert.equal(out._meta['unreal-nexus/result-policy'].outcomeUnknown,false);
+  }
+});
+
+test('current edit-level inspection preserves exact package and world',async()=>{
+  const {gateway:g}=fixture({config:{enabledCapabilities:['level.current.inspect']},
+    reply:()=>json({success:true,levelPath:'/Game/Demo.Demo',levelPackage:'/Game/Demo',worldPath:'/Game/Demo.Demo',isPersistent:true})});
+  assert.notEqual((await g.execute('level.current.inspect',{})).isError,true);await g.close();
 });
 
 test('reported native partial save failures stay visible as failures without retry',async()=>{
   for(const [id,args,body] of [
     ['asset.save.exact',{assetPaths:['/Game/A']},{success:false,force:false,results:[{path:'/Game/A',package:'/Game/A',wasDirty:true,status:'failed',stillDirty:true,reason:'read only'}],savedCount:0,notDirtyCount:0,failedCount:1,updated:false,unchanged:true,rollbackPossible:false,rollbackNote:'A save has no inverse.',error:'1 of 1 packages did not reach disk. The first: /Game/A: read only'}],
-    ['level.save.current',{}, {...levelReceipt(),success:false,skipped:undefined,skippedCount:0,failedCount:1,failed:[{package:'/Game/Demo',saved:false,error:'read only'}],error:'read only'}],
+    ['level.save.current',{expectedLevelPackage:'/Game/Demo'}, {...levelReceipt(),success:false,skipped:undefined,skippedCount:0,failedCount:1,failed:[{package:'/Game/Demo',saved:false,error:'read only'}],error:'read only'}],
   ]) {
     const reply={...json(body),_meta:{'fixture/original':'preserved'}};
     const {queue,calls,run}=saveReceiptQueue(id,args,reply);
@@ -555,7 +567,7 @@ test('source-shaped save preflight refusals remain known failures',async()=>{
   const path='/Game/A';
   for (const [id,args,body] of [
     ['asset.save.exact',{assetPaths:[path]},{success:false,error:"1 of 1 assetPaths cannot be saved, so nothing was written. The first: '/Game/A' - not loaded",refused:[{path,status:'refused',reason:'not loaded'}]}],
-    ['level.save.current',{},{success:false,error:'Play In Editor is running; stop it before saving the level. Saving during PIE is what produced an unexplained failure before.'}],
+    ['level.save.current',{expectedLevelPackage:'/Game/Demo'},{success:false,error:'Play In Editor is running; stop it before saving the level. Saving during PIE is what produced an unexplained failure before.'}],
   ]) {
     const {queue,calls,run}=saveReceiptQueue(id,args,json(body));
     const out=await run();
@@ -571,9 +583,9 @@ test('unrecognized or contradictory save failures fence subsequent editor work',
     ['asset.save.exact',{assetPaths:['/Game/A']},{success:false,error:"1 of 1 assetPaths cannot be saved, so nothing was written. The first: '/Game/Other' - wrong reason",refused:[{path:'/Game/A',status:'refused',reason:'not loaded'}]}],
     ['asset.save.exact',{assetPaths:['/Game/A']},{success:false,force:false,results:[{path:'/Game/B',package:'/Game/B',wasDirty:true,status:'failed',stillDirty:true,reason:'read only'}],savedCount:0,notDirtyCount:0,failedCount:1,error:'save failed'}],
     ['asset.save.exact',{assetPaths:['/Game/A']},{success:false,force:false,results:[{path:'/Game/A',package:'/Game/A',wasDirty:true,status:'failed',stillDirty:true,reason:'read only'}],savedCount:0,notDirtyCount:0,failedCount:1,updated:false,unchanged:true,rollbackPossible:false,rollbackNote:'A save has no inverse.',error:'wrong package detail'}],
-    ['level.save.current',{}, {...levelReceipt(),success:false,skipped:undefined,skippedCount:0,failedCount:1,failed:[{package:'/Game/Demo',saved:false,error:'read only'}],error:'wrong detail'}],
-    ['level.save.current',{},{success:false,error:'The editor world has no current level to save'}],
-    ['level.save.current',{}, {...levelReceipt(),success:false,failedCount:1,failed:[{package:'/Game/Demo',saved:false,error:'read only'}],error:'save failed'}],
+    ['level.save.current',{expectedLevelPackage:'/Game/Demo'}, {...levelReceipt(),success:false,skipped:undefined,skippedCount:0,failedCount:1,failed:[{package:'/Game/Demo',saved:false,error:'read only'}],error:'wrong detail'}],
+    ['level.save.current',{expectedLevelPackage:'/Game/Demo'},{success:false,error:'The editor world has no current level to save'}],
+    ['level.save.current',{expectedLevelPackage:'/Game/Demo'}, {...levelReceipt(),success:false,failedCount:1,failed:[{package:'/Game/Demo',saved:false,error:'read only'}],error:'save failed'}],
   ]) {
     const reply={...json(body),_meta:{'fixture/original':'preserved'}};
     const {queue,calls,run}=saveReceiptQueue(id,args,reply);
@@ -585,6 +597,14 @@ test('unrecognized or contradictory save failures fence subsequent editor work',
   }
 });
 
+
+test('PCG graph inspection preserves native node pins and fixed routing',async()=>{
+  const args={assetPath:'/Game/PCG/Test.Test'};
+  const graph={success:true,path:args.assetPath,name:'Test',nodes:[{name:'Sampler',title:'Sampler',inputPins:['In'],outputPins:['Out']}],nodeCount:1,edges:[],edgeCount:0};
+  const f=fixture({config:{enabledCapabilities:['pcg.graph.inspect']},reply:()=>json(graph)});
+  const out=await f.gateway.execute('pcg.graph.inspect',args);assert.notEqual(out.isError,true);assert.deepEqual(out.content,json(graph).content);
+  assert.deepEqual(f.calls[0].call.arguments,{action:'call',category:'pcg',method:'read_graph',args});await f.gateway.close();
+});
 
 test('actor transform requires a change and preserves the editor target',async()=>{
   const args={actorPath:'/Game/Map.Map:PersistentLevel.Actor',location:{x:1,y:2,z:3}};
@@ -804,25 +824,39 @@ test('PCG execute correlates the acknowledged actor, component, run and seed bef
 });
 
 
-test('native hold routes refuse before startup until local ownership is established',async()=>{
-  const argsById={
-    'input.action.hold.start':{action_path:'/Game/Input/IA_Move.IA_Move',client_id:0,pie_instance:1,injection_id:'hold-1'},
-    'input.action.hold.update':{injection_id:'hold-1',value_x:0,value_y:1,value_z:0},
-    'input.action.hold.stop':{injection_id:'hold-1'},
-  };
-  const ids=Object.keys(argsById);
-  const {gateway:g,starts,calls}=fixture({config:{enabledCapabilities:ids,allowWrites:true}});
-  for(const id of ids) {
-    assert.equal(g.plan(id,argsById[id]).dispatched,false);
-    await assert.rejects(g.execute(id,argsById[id]),{code:'INPUT_HOLD_OWNERSHIP_UNVERIFIED'});
-    assert.throws(()=>g.plan(id,{...argsById[id],allowOverride:true}),{code:'INVALID_ARGUMENTS'});
-  }
-  assert.deepEqual(starts,[]);assert.deepEqual(calls,[]);
-  const held=g.status().heldCapabilities;
-  assert.equal(held.length,ids.length);
-  assert.deepEqual(new Set(held.map(item=>item.id)),new Set(ids));
-  assert.ok(held.every(item=>item.reason==='native hold ownership and local-only routing unverified'));
-  await g.close();
+test('owned input holds keep private tokens and reject foreign handles',async()=>{
+  const ids=['input.action.hold.start','input.action.hold.update','input.action.hold.stop'];
+  const start={action_path:'/Game/Input/IA_Move.IA_Move',world_path:'/Game/UEDPIE_0_Map.Map',
+    client_id:0,pie_instance:1,injection_id:'hold-1'};
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:ids},reply:(_provider,call)=>{
+    const a=call.arguments.args,common={success:true,nexusHoldVersion:1,native_id:a.native_id,continuousSlotTouched:false};
+    if(call.arguments.method==='nexus_hold_start_v1') return json({...common,started:true,action:a.action_path,
+      world_path:a.world_path,pie_instance:a.pie_instance,client_id:a.client_id,lease_seconds:a.lease_seconds,firstFramePending:true});
+    if(call.arguments.method==='nexus_hold_update_v1') return json({...common,updated:true,framesQueued:1});
+    return json({...common,stopped:true,expiredOrEnded:false,framesQueued:2,oneFrameMayRemain:true});
+  }});
+  await assert.rejects(g.execute('input.action.hold.stop',{injection_id:'foreign'}),{code:'HOLD_NOT_OWNED'});
+  const plan=g.plan(ids[0],start);assert.equal(plan.call.arguments.args.owner_token,'<private host token>');
+  assert.notEqual((await g.execute(ids[0],start)).isError,true);
+  assert.deepEqual(g.status().ownedInputHolds,[{id:'hold-1',state:'active'}]);
+  await assert.rejects(g.execute(ids[0],start),{code:'HOLD_ID_UNAVAILABLE'});
+  assert.notEqual((await g.execute(ids[1],{injection_id:'hold-1',value_x:0,value_y:1,value_z:0})).isError,true);
+  assert.notEqual((await g.execute(ids[2],{injection_id:'hold-1'})).isError,true);
+  assert.deepEqual(g.status().ownedInputHolds,[]);
+  const args=calls.map(c=>c.call.arguments.args);
+  assert.match(args[0].native_id,/^[a-f0-9]{32}$/u);assert.match(args[0].owner_token,/^[a-f0-9]{32}$/u);
+  assert.ok(args.every(a=>a.native_id===args[0].native_id && a.owner_token===args[0].owner_token));
+  assert.ok(args.every(a=>!Object.hasOwn(a,'injection_id')));await g.close();
+});
+
+test('uncertain owned hold start fences and retains pending ownership',async()=>{
+  const start={action_path:'/Game/Input/IA_Move.IA_Move',world_path:'/Game/UEDPIE_0_Map.Map',
+    client_id:0,pie_instance:1,injection_id:'hold-1'};
+  const {gateway:g}=fixture({config:{enabledCapabilities:['input.action.hold.start']},
+    reply:()=>json({success:true,native_id:'crossed'})});
+  const result=await g.execute('input.action.hold.start',start);
+  assert.equal(result.isError,true);assert.equal(g.status().queue.blocked,true);
+  assert.deepEqual(g.status().ownedInputHolds,[{id:'hold-1',state:'pending'}]);await g.close();
 });
 
 test('one-shot input requires a correlated local native receipt and fences uncertain responses',async()=>{
@@ -853,17 +887,7 @@ test('one-shot input requires a correlated local native receipt and fences uncer
 });
 
 
-test('material vector mutation stays held without a correlatable native receipt',async()=>{
-  let starts=0;
-  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:['material.parameter.vector.persisted'],
-    backendFactories:new Map([['hayba',async()=>{starts++;throw new Error('must not start');}]])});
-  const args=catalog.get('material.parameter.vector.persisted').example;
-  assert.equal(g.plan('material.parameter.vector.persisted',args).dispatched,false);
-  await assert.rejects(g.execute('material.parameter.vector.persisted',args),{code:'MATERIAL_VECTOR_RECEIPT_UNVERIFIED'});
-  assert.equal(starts,0);
-  assert.equal(g.status().heldCapabilities[0].id,'material.parameter.vector.persisted');
-  await g.close();
-});
+
 
 
 test('automation start and trace capture routes stay held before backend startup',async()=>{
@@ -922,19 +946,14 @@ test('both Blueprint compile forms stay held before backend startup',async()=>{
 });
 
 
-test('PIE lifecycle and status stay held before provider startup',async()=>{
-  let starts=0;
-  const ids=['pie.start.viewport','pie.stop','pie.status'];
-  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:ids,
-    backendFactories:new Map([['unrealagentplayer',async()=>{starts++;throw new Error('must not start');}]])});
-  for(const id of ids) {
-    const args=catalog.get(id).example;
-    assert.equal(g.plan(id,args).dispatched,false);
-    await assert.rejects(g.execute(id,args),{code:'PIE_LIFECYCLE_OWNERSHIP_UNVERIFIED'});
-    assert.throws(()=>g.plan(id,{...args,allowOverride:true}),{code:'INVALID_ARGUMENTS'});
-  }
-  assert.equal(starts,0);
-  assert.deepEqual(new Set(g.status().heldCapabilities.map(item=>item.id)),new Set(ids));
+test('owned PIE lifecycle preserves correlated receipts',async()=>{
+  const {gateway:g,calls}=fixture({config:{enabledCapabilities:['pie.start.viewport','pie.stop']}});
+  const start=await g.execute('pie.start.viewport',{});
+  const stop=await g.execute('pie.stop',{});
+  assert.notEqual(start.isError,true);assert.notEqual(stop.isError,true);
+  assert.equal(calls.length,2);
+  const invalid=normalizeResult(catalog.get('pie.start.viewport'),json({ok:true,playing:true,phase:'Playing'}));
+  assert.equal(invalid.isError,true);assert.equal(invalid._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
   await g.close();
 });
 
@@ -951,38 +970,19 @@ test('UAP Ending and unrecognized Stopping phases both remain uncertain',()=>{
   const status=normalizeResult(catalog.get('pie.status'),json({ok:true,phase:'Stopping'}));
   assert.equal(status.isError,true);
   assert.equal(status._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
-  assert.notEqual(normalizeResult(catalog.get('pie.status'),json({ok:true,phase:'Ending'})).isError,true);
+  assert.notEqual(normalizeResult(catalog.get('pie.status'),json({ok:true,phase:'Ending',elapsed:0})).isError,true);
+  for(const body of [{ok:true,phase:'NotPlaying'},{ok:true,phase:'NotPlaying',elapsed:-1},{ok:true,elapsed:0}]) {
+    const invalid=normalizeResult(catalog.get('pie.status'),json(body));
+    assert.equal(invalid.isError,true);
+    assert.equal(invalid._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
+  }
 });
 
 
-test('material scalar mutation stays held without source-backed readback identity',async()=>{
-  let starts=0;
-  const id='material.parameter.scalar.persisted';
-  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:[id],
-    backendFactories:new Map([['hayba',async()=>{starts++;throw new Error('must not start');}]])});
-  const args=catalog.get(id).example;
-  assert.equal(g.plan(id,args).dispatched,false);
-  await assert.rejects(g.execute(id,args),{code:'MATERIAL_SCALAR_RECEIPT_UNVERIFIED'});
-  assert.throws(()=>g.plan(id,{...args,allowOverride:true}),{code:'INVALID_ARGUMENTS'});
-  assert.equal(starts,0);
-  assert.equal(g.status().heldCapabilities[0].id,id);
-  await g.close();
-});
 
 
-test('material texture mutation stays held without source-backed target and readback identity',async()=>{
-  let starts=0;
-  const id='material.parameter.texture.persisted';
-  const g=new Gateway(catalog,{target,allowWrites:true,enabledCapabilities:[id],
-    backendFactories:new Map([['hayba',async()=>{starts++;throw new Error('must not start');}]])});
-  const args=catalog.get(id).example;
-  assert.equal(g.plan(id,args).dispatched,false);
-  await assert.rejects(g.execute(id,args),{code:'MATERIAL_TEXTURE_RECEIPT_UNVERIFIED'});
-  assert.throws(()=>g.plan(id,{...args,allowOverride:true}),{code:'INVALID_ARGUMENTS'});
-  assert.equal(starts,0);
-  assert.equal(g.status().heldCapabilities[0].id,id);
-  await g.close();
-});
+
+
 
 
 test('asset preflight refusal preserves normalized input multiplicity',async()=>{
@@ -1005,4 +1005,76 @@ test('asset preflight refusal preserves normalized input multiplicity',async()=>
   const ambiguous=await unicode.gateway.execute('asset.save.exact',{assetPaths:['/Game/A\u00a0']});
   assert.equal(ambiguous._meta['unreal-nexus/result-policy'].outcomeUnknown,true);
   assert.equal(unicode.gateway.status().queue.blocked,true);await unicode.gateway.close();
+});
+
+
+test('material plans select the fixed v2 receipt and reject caller overrides',async()=>{
+  const ids=['material.parameter.scalar.persisted','material.parameter.vector.persisted','material.parameter.texture.persisted'];
+  const {gateway:g,starts}=fixture({config:{enabledCapabilities:ids}});
+  for(const id of ids) {
+    const args=catalog.get(id).example;const plan=g.plan(id,args);
+    assert.equal(plan.call.arguments.nexus_receipt_version,2);
+    assert.throws(()=>g.plan(id,{...args,nexus_receipt_version:1}),{code:'INVALID_ARGUMENTS'});
+  }
+  assert.deepEqual(starts,[]);await g.close();
+});
+
+
+test('PIE capture fences and preserves a receipt if post-capture identity changes',async()=>{
+  const args={pieInstance:0,worldPath:'/Game/UEDPIE_0_Map.Map'};
+  let probes=0;
+  const {gateway:g}=fixture({config:{enabledCapabilities:['screenshot.pie']},modifyFactories:factories=>{
+    const original=factories.get('ue-mcp');
+    factories.set('ue-mcp',async options=>{
+      const backend=await original(options);
+      backend.supports=async()=>++probes===1;
+      backend.call=async call=>({content:[
+        {type:'text',text:JSON.stringify({success:true,nexusCaptureVersion:1,nonce:call.arguments.args.nonce,...args,width:1,height:1,pngBytes:70})},
+        {type:'image',mimeType:'image/png',data:png}]});
+      return backend;
+    });
+  }});
+  await assert.rejects(g.execute('screenshot.pie',args),error=>{
+    assert.equal(error.code,'EDITOR_OUTCOME_UNKNOWN');
+    assert.equal(error.backendResult.content.filter(p=>p.type==='image').length,1);
+    return true;
+  });
+  assert.equal(g.status().queue.blocked,true);await g.close();
+});
+
+test('confirmed expired hold can be explicitly released without fencing',async()=>{
+  const start={action_path:'/Game/Input/IA_Move.IA_Move',world_path:'/Game/UEDPIE_0_Map.Map',
+    client_id:0,pie_instance:1,injection_id:'hold-1',lease_seconds:1};
+  const {gateway:g}=fixture({config:{enabledCapabilities:['input.action.hold.start','input.action.hold.update','input.action.hold.stop']},
+    reply:(_provider,call)=>{
+      const a=call.arguments.args,base={nexusHoldVersion:1,native_id:a.native_id};
+      if(call.arguments.method==='nexus_hold_start_v1') return json({...base,success:true,continuousSlotTouched:false,
+        started:true,action:a.action_path,world_path:a.world_path,pie_instance:a.pie_instance,client_id:a.client_id,
+        lease_seconds:a.lease_seconds,firstFramePending:true});
+      if(call.arguments.method==='nexus_hold_update_v1') return json({...base,success:false,
+        reason:'expired_or_ended',mutationStarted:false,error:'Owned input hold has expired or its PIE target ended'});
+      return json({...base,success:true,continuousSlotTouched:false,stopped:true,expiredOrEnded:true,
+        framesQueued:3,oneFrameMayRemain:true});
+    }});
+  assert.notEqual((await g.execute('input.action.hold.start',start)).isError,true);
+  const expired=await g.execute('input.action.hold.update',{injection_id:'hold-1',value_x:0,value_y:0,value_z:0});
+  assert.equal(expired.isError,true);assert.equal(g.status().queue.blocked,false);
+  assert.notEqual((await g.execute('input.action.hold.stop',{injection_id:'hold-1'})).isError,true);
+  assert.deepEqual(g.status().ownedInputHolds,[]);await g.close();
+});
+
+test('a backend that echoes a hold token is redacted and fenced',async()=>{
+  const start={action_path:'/Game/Input/IA_Move.IA_Move',world_path:'/Game/UEDPIE_0_Map.Map',
+    client_id:0,pie_instance:1,injection_id:'hold-1'};
+  let token;
+  const {gateway:g}=fixture({config:{enabledCapabilities:['input.action.hold.start']},reply:(_p,call)=>{
+    const a=call.arguments.args;token=a.owner_token;
+    return json({success:true,nexusHoldVersion:1,native_id:a.native_id,owner_token:token,started:true,
+      action:a.action_path,world_path:a.world_path,pie_instance:a.pie_instance,client_id:a.client_id,
+      lease_seconds:a.lease_seconds,firstFramePending:true,continuousSlotTouched:false});
+  }});
+  const out=await g.execute('input.action.hold.start',start);
+  assert.equal(out.isError,true);assert.equal(g.status().queue.blocked,true);
+  assert.ok(!JSON.stringify(out).includes(token));assert.match(JSON.stringify(out),/redacted/);
+  await g.close();
 });

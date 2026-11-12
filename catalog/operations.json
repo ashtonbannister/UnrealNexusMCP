@@ -5,7 +5,7 @@
   "operations": [
     {
       "id": "pie.start.viewport",
-      "description": "Held before dispatch: native PIE start does not establish workflow ownership or an epoch-bound lifecycle.",
+      "description": "Start an owned in-process PIE session in the active level viewport and wait for confirmation.",
       "provider": "unrealagentplayer",
       "decision": "pie-lifecycle",
       "effect": "lifecycle",
@@ -32,18 +32,17 @@
         }
       },
       "postconditions": [
-        "Require parsed ok=true and playing=true; keep phase and warnings.",
-        "On queued timeout use explicit stop/reconciliation; never assume editor idle.",
-        "Only stop a session owned by this workflow. Remote Control responses still require live qualification."
+        "Require confirmed Playing or Paused and retain the returned editor epoch and session ID.",
+        "The native request identity and machine grant belong to this backend instance. A timeout or conflict requires external reconciliation; do not retry."
       ],
       "example": {
         "timeout": 60
       },
-      "requiredCompatibility": "uap-nexus-no-replay-v1"
+      "requiredCompatibility": "uap-nexus-owned-pie-v4"
     },
     {
       "id": "pie.stop",
-      "description": "Held before dispatch: native PIE stop does not establish ownership of the current session or grant.",
+      "description": "Stop only the PIE session started by this backend and confirm teardown and grant release.",
       "provider": "unrealagentplayer",
       "decision": "pie-lifecycle",
       "effect": "lifecycle",
@@ -60,15 +59,15 @@
         "fixed": {}
       },
       "postconditions": [
-        "Require parsed ok=true, stopped=true and phase=NotPlaying.",
-        "The upstream schema has no timeout argument; preserve machine-hold semantics."
+        "Require stopped=true, phase=NotPlaying and the same native editor epoch and session ID.",
+        "A changed owner, foreign request, timeout or failed release is uncertain and requires external reconciliation."
       ],
       "example": {},
-      "requiredCompatibility": "uap-nexus-no-replay-v1"
+      "requiredCompatibility": "uap-nexus-owned-pie-v4"
     },
     {
       "id": "pie.status",
-      "description": "Held before dispatch: native PIE status can default malformed or missing phase data to NotPlaying.",
+      "description": "Observe the queue-aware native PIE phase and elapsed time; this does not establish ownership.",
       "provider": "unrealagentplayer",
       "decision": "pie-lifecycle",
       "effect": "read",
@@ -85,10 +84,11 @@
         "fixed": {}
       },
       "postconditions": [
-        "Inspect phase and full result. Missing Remote Control fields can be defaulted by upstream; qualify that path before live reliance."
+        "Preserve phase and elapsed. A queued start reports Starting; an inconsistent or unverified phase is an error.",
+        "This is a point-in-time observation and does not grant ownership or rule out later starts."
       ],
       "example": {},
-      "requiredCompatibility": "uap-nexus-no-replay-v1"
+      "requiredCompatibility": "uap-nexus-queued-status-v3"
     },
     {
       "id": "screenshot.viewport.current",
@@ -134,21 +134,14 @@
     },
     {
       "id": "screenshot.pie",
-      "description": "Selected PIE viewport capture to a PNG path is held: the native write does not prove output ownership or prevent link/reparse redirection. No dispatch until a reviewed secure native implementation is available.",
+      "description": "Capture one exact PIE viewport as an in-memory PNG; no screenshot file is written.",
       "provider": "ue-mcp",
       "decision": "pie-screenshot",
-      "effect": "write",
+      "effect": "read",
       "contract": "screenshot.pie",
       "parameters": {
         "type": "object",
         "properties": {
-          "filename": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 124,
-            "description": "Use a fresh unique basename; upstream can overwrite an existing file.",
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,119}\\.png$"
-          },
           "pieInstance": {
             "type": "integer",
             "minimum": 0,
@@ -159,33 +152,31 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1024,
-            "description": "Optional additional exact PIE world path.",
+            "description": "Exact PIE world object path from play.worlds.list.",
             "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$"
           }
         },
         "required": [
-          "filename",
-          "pieInstance"
+          "pieInstance",
+          "worldPath"
         ],
         "additionalProperties": false
       },
       "route": {
         "kind": "ue-micro",
         "category": "editor",
-        "method": "capture_screenshot",
-        "fixed": {
-          "target": "pie"
-        }
+        "method": "nexus_capture_pie_png_v1",
+        "fixed": {}
       },
       "postconditions": [
-        "Check reported world/instance, actual dimensions and successful file write.",
-        "The filename restriction is a Nexus policy, not an atomic no-overwrite guarantee.",
-        "A returned path is not evidence that the assistant received or viewed the image."
+        "Require one bounded valid PNG and a nonce-correlated exact PIE world and instance receipt.",
+        "The capture is point-in-time and may redraw Slate; it does not prove visual correctness or world ownership."
       ],
       "example": {
-        "filename": "nexus-frame-unique-0001.png",
-        "pieInstance": 1
-      }
+        "pieInstance": 0,
+        "worldPath": "/Game/Maps/UEDPIE_0_Example.Example"
+      },
+      "requiredCompatibility": "ue-mcp-nexus-direct-pie-v1"
     },
     {
       "id": "actor.place.editor",
@@ -410,7 +401,8 @@
       "example": {
         "nameFilter": "NexusTest_",
         "limit": 10
-      }
+      },
+      "requiredCompatibility": "ue-mcp-nexus-pagination-count-v1"
     },
     {
       "id": "actor.transform.editor",
@@ -643,7 +635,7 @@
     },
     {
       "id": "level.save.current",
-      "description": "Held before dispatch: the native save cannot atomically verify the intended current level before mutating; it can delete dirty empty external packages.",
+      "description": "Save the exact current edit-level package and loaded external packages without deleting external packages.",
       "provider": "ue-mcp",
       "decision": "level-save",
       "effect": "write",
@@ -654,9 +646,18 @@
           "force": {
             "type": "boolean",
             "description": "Explicitly write even clean packages; default false."
+          },
+          "expectedLevelPackage": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$",
+            "description": "Exact current edit-level package name from level.current.inspect."
           }
         },
-        "required": [],
+        "required": [
+          "expectedLevelPackage"
+        ],
         "additionalProperties": false
       },
       "route": {
@@ -665,15 +666,18 @@
         "method": "save",
         "fixed": {
           "commitDeletes": false,
-          "includeExternalActors": true
+          "includeExternalActors": true,
+          "nexusNoExternalDelete": true
         }
       },
       "postconditions": [
-        "Confirm the intended level is current before dispatch; this call does not take a level path.",
-        "Inspect saved, failed, skipped and deleted package receipts; any failed package is not full success.",
-        "PIE must be stopped. Do not broaden to save-all to work around a refusal."
+        "Require the native guard marker and exact current edit-level package; dirty empty external packages are refused rather than deleted.",
+        "Inspect saved, skipped and failed package receipts. A partial save is not rollback; do not retry an uncertain dispatch."
       ],
-      "example": {}
+      "example": {
+        "expectedLevelPackage": "/Game/Maps/Example"
+      },
+      "requiredCompatibility": "ue-mcp-nexus-guarded-save-v2"
     },
     {
       "id": "asset.save.exact",
@@ -724,6 +728,45 @@
           "/Game/Blueprints/BP_Demo"
         ],
         "force": true
+      }
+    },
+    {
+      "id": "pcg.graph.inspect",
+      "description": "Read a PCG graph with node names, pin labels and edges.",
+      "provider": "ue-mcp",
+      "decision": "pcg-graph-inspection",
+      "effect": "read",
+      "contract": "pcg.graph.inspect",
+      "guidanceSections": [
+        6
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "assetPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$",
+            "description": "PCG graph asset path."
+          }
+        },
+        "required": [
+          "assetPath"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "pcg",
+        "method": "read_graph",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Preserve native nodes, input and output pin labels, edges and counts. The returned path echoes the request rather than independently proving resolved identity. Native enumeration is not paginated or bounded by the coordinator and does not provide an immutable revision; revalidate before editing."
+      ],
+      "example": {
+        "assetPath": "/Game/PCG/PCG_Test.PCG_Test"
       }
     },
     {
@@ -976,7 +1019,7 @@
     },
     {
       "id": "input.action.hold.start",
-      "description": "Enhanced Input hold start is held: native hold ownership and local-only routing cannot be established.",
+      "description": "Start a finite owned local PIE input hold using independent per-frame injection.",
       "provider": "ue-mcp",
       "decision": "enhanced-input",
       "effect": "write",
@@ -1027,37 +1070,53 @@
             "maxLength": 100,
             "description": "Unique workflow-owned hold ID.",
             "pattern": "^[A-Za-z0-9_-]{1,100}$"
+          },
+          "world_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$",
+            "description": "Exact PIE world object path from play.worlds.list."
+          },
+          "lease_seconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 3600,
+            "description": "Real-time lease, default 300 seconds; expires while the editor is ticking."
           }
         },
         "required": [
           "action_path",
           "client_id",
           "pie_instance",
-          "injection_id"
+          "injection_id",
+          "world_path"
         ],
         "additionalProperties": false
       },
       "route": {
         "kind": "ue-micro",
         "category": "pie",
-        "method": "inject_input_start",
+        "method": "nexus_hold_start_v1",
         "fixed": {}
       },
       "postconditions": [
-        "Record the returned hold ID and observed gameplay.",
-        "Always release the hold in workflow cleanup; starting a hold is not a one-shot action."
+        "Hold is scoped to the exact PIE world and local player. It injects frames independently of other continuous holds.",
+        "Explicitly stop the hold; its finite lease bounds abandoned input. A queued input frame can remain after stopping."
       ],
       "example": {
         "action_path": "/Game/Input/IA_Move.IA_Move",
         "value_x": 1,
         "client_id": 0,
         "pie_instance": 1,
-        "injection_id": "workflow-move-1"
-      }
+        "injection_id": "workflow-move-1",
+        "world_path": "/Game/Maps/UEDPIE_0_Example.Example"
+      },
+      "requiredCompatibility": "ue-mcp-nexus-owned-hold-v1"
     },
     {
       "id": "input.action.hold.update",
-      "description": "Enhanced Input hold update is held: native hold ownership and local-only routing cannot be established.",
+      "description": "Update a hold owned by this Nexus gateway.",
       "provider": "ue-mcp",
       "decision": "enhanced-input",
       "effect": "write",
@@ -1101,7 +1160,7 @@
       "route": {
         "kind": "ue-micro",
         "category": "pie",
-        "method": "inject_input_update",
+        "method": "nexus_hold_update_v1",
         "fixed": {}
       },
       "postconditions": [
@@ -1112,11 +1171,12 @@
         "value_x": 0,
         "value_y": 1,
         "value_z": 0
-      }
+      },
+      "requiredCompatibility": "ue-mcp-nexus-owned-hold-v1"
     },
     {
       "id": "input.action.hold.stop",
-      "description": "Enhanced Input hold stop is held: native hold ownership and local-only routing cannot be established; reconcile any existing holds externally.",
+      "description": "Stop a hold owned by this Nexus gateway; one already queued frame may remain.",
       "provider": "ue-mcp",
       "decision": "enhanced-input",
       "effect": "write",
@@ -1139,16 +1199,17 @@
       "route": {
         "kind": "ue-micro",
         "category": "pie",
-        "method": "inject_input_stop",
+        "method": "nexus_hold_stop_v1",
         "fixed": {}
       },
       "postconditions": [
-        "Confirm stopped/already-stopped, and ensure no owned holds remain at workflow end.",
-        "A transport timeout is not a confirmed release."
+        "Confirm stopped for the same gateway-owned handle. One previously queued input frame may still execute.",
+        "A timeout or lost response is not a confirmed release."
       ],
       "example": {
         "injection_id": "workflow-move-1"
-      }
+      },
+      "requiredCompatibility": "ue-mcp-nexus-owned-hold-v1"
     },
     {
       "id": "blueprint.compile.memory.asset",
@@ -1664,7 +1725,7 @@
     },
     {
       "id": "material.parameter.scalar.persisted",
-      "description": "Held before dispatch: native scalar readback precision and target identity cannot be independently verified against the requested mutation.",
+      "description": "native scalar readback precision and target identity cannot be independently verified against the requested mutation.",
       "provider": "hayba",
       "decision": "material-parameter-strict",
       "effect": "write",
@@ -1701,25 +1762,24 @@
         "tool": "material_set_param",
         "variant": "material_scalar",
         "fixed": {
-          "nexus_retry_policy": "never"
+          "nexus_retry_policy": "never",
+          "nexus_receipt_version": 2
         }
       },
-      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "requiredCompatibility": "hayba-nexus-material-receipt-v2",
       "postconditions": [
-        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
-        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
-        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
-        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+        "Require the loaded native v2 marker, exact requested/resolved instance identity and the matching parameter.",
+        "Require exact binary32 component readback or exact resolved texture pointer/path, plus confirmed save and clean package. Preserve warnings and partial results; do not retry uncertain work."
       ],
       "example": {
-        "instance_path": "/Game/Materials/MI_Vehicle",
+        "instance_path": "/Game/Materials/MI_Vehicle.MI_Vehicle",
         "param_name": "Roughness",
         "value": 0.5
       }
     },
     {
       "id": "material.parameter.vector.persisted",
-      "description": "Held before dispatch: native vector receipt cannot reliably correlate the requested components; source-backed typed echo and qualification are required.",
+      "description": "native vector receipt cannot reliably correlate the requested components; source-backed typed echo and qualification are required.",
       "provider": "hayba",
       "decision": "material-parameter-strict",
       "effect": "write",
@@ -1761,18 +1821,17 @@
         "tool": "material_set_param",
         "variant": "material_vector",
         "fixed": {
-          "nexus_retry_policy": "never"
+          "nexus_retry_policy": "never",
+          "nexus_receipt_version": 2
         }
       },
-      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "requiredCompatibility": "hayba-nexus-material-receipt-v2",
       "postconditions": [
-        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
-        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
-        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
-        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+        "Require the loaded native v2 marker, exact requested/resolved instance identity and the matching parameter.",
+        "Require exact binary32 component readback or exact resolved texture pointer/path, plus confirmed save and clean package. Preserve warnings and partial results; do not retry uncertain work."
       ],
       "example": {
-        "instance_path": "/Game/Materials/MI_Vehicle",
+        "instance_path": "/Game/Materials/MI_Vehicle.MI_Vehicle",
         "param_name": "Tint",
         "value": [
           0.2,
@@ -1784,7 +1843,7 @@
     },
     {
       "id": "material.parameter.texture.persisted",
-      "description": "Held before dispatch: native texture readback cannot independently correlate the requested asset and material target.",
+      "description": "native texture readback cannot independently correlate the requested asset and material target.",
       "provider": "hayba",
       "decision": "material-parameter-strict",
       "effect": "write",
@@ -1822,20 +1881,116 @@
         "tool": "material_set_param",
         "variant": "material_texture",
         "fixed": {
-          "nexus_retry_policy": "never"
+          "nexus_retry_policy": "never",
+          "nexus_receipt_version": 2
         }
       },
-      "requiredCompatibility": "hayba-nexus-no-retry-v1",
+      "requiredCompatibility": "hayba-nexus-material-receipt-v2",
       "postconditions": [
-        "Require direct material_set_param advertised with required nexus_retry_policy='never' marker and exact reviewed no-retry compatibility patch. Never call hayba_invoke or auto-load a pack.",
-        "Native preflight enforces existing global parameter/type/read-only state. Reject arbitrary bool/static-switch/layer-associated parameters.",
-        "Require verified=true, saved=true, actual observed_value and matching param. Preserve dirty state, save_error, warnings and failed readback; save failure can leave modified memory.",
-        "Do not retry the mutation after save/readback/transport failure; explicit persistence reconciliation is a separate workflow."
+        "Require the loaded native v2 marker, exact requested/resolved instance identity and the matching parameter.",
+        "Require exact binary32 component readback or exact resolved texture pointer/path, plus confirmed save and clean package. Preserve warnings and partial results; do not retry uncertain work."
       ],
       "example": {
-        "instance_path": "/Game/Materials/MI_Vehicle",
+        "instance_path": "/Game/Materials/MI_Vehicle.MI_Vehicle",
         "param_name": "BaseTexture",
-        "value": "/Game/Textures/T_Vehicle"
+        "value": "/Game/Textures/T_Vehicle.T_Vehicle"
+      }
+    },
+    {
+      "id": "play.worlds.list",
+      "description": "List currently observed PIE and game world contexts with instance identifiers.",
+      "provider": "ue-mcp",
+      "decision": "play-world-discovery",
+      "effect": "read",
+      "contract": "play.worlds.list",
+      "guidanceSections": [
+        2
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "editor",
+        "method": "list_pie_instances",
+        "fixed": {}
+      },
+      "postconditions": [
+        "Preserve each native world path, instance, net mode, viewport and player count. Results include PIE and Game world contexts, are a point-in-time observation and do not prove lifecycle phase, ownership, or that a queued start cannot occur."
+      ],
+      "example": {}
+    },
+    {
+      "id": "level.current.inspect",
+      "description": "Inspect the current editor edit-level package and world.",
+      "provider": "ue-mcp",
+      "decision": "level-current-inspection",
+      "effect": "read",
+      "contract": "level.current.inspect",
+      "guidanceSections": [
+        5
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "get_current_edit_level",
+        "fixed": {}
+      },
+      "requiredCompatibility": "ue-mcp-nexus-guarded-save-v2",
+      "postconditions": [
+        "Use the returned levelPackage as the expected target for guarded save; the level can change after this observation."
+      ],
+      "example": {}
+    },
+    {
+      "id": "blueprint.compile.memory.loaded",
+      "description": "Compile one already-loaded exact Blueprint in memory without session cleanup or package save.",
+      "provider": "claireon",
+      "decision": "blueprint-compile-memory",
+      "effect": "write",
+      "contract": "blueprint.compile.memory.loaded",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "asset_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^/[A-Za-z0-9_]+/[A-Za-z0-9_./]+$"
+          }
+        },
+        "required": [
+          "asset_path"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "claireon-specialist",
+        "tool": "python_execute",
+        "variant": "bp_compile_loaded",
+        "fixed": {
+          "nexus_exact_no_save": true,
+          "max_count": 1,
+          "remove_unused": false,
+          "failOnWarnings": false
+        }
+      },
+      "requiredCompatibility": "claireon-nexus-compile-loaded-v2",
+      "postconditions": [
+        "Requires the exact Blueprint to be already loaded; no implicit asset load or session cleanup.",
+        "Compile uses SkipSave and reports bounded diagnostics; validate the actual compiler status and preserve warnings."
+      ],
+      "example": {
+        "asset_path": "/Game/Blueprints/BP_Vehicle"
       }
     }
   ]

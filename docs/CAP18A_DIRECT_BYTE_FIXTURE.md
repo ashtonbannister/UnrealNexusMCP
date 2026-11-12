@@ -1,6 +1,6 @@
 # CAP-18A direct-byte protocol: fixture-stage exploration
 
-Status: **direct bounded bytes selected by the owner on 2026-10-28; candidate fixture only**. This is not a native patch, a selected executable route, a provider promotion, or live qualification. The current path-writing `screenshot.pie` remains held. The existing [transport evidence](CAP18A_TRANSPORT_DECISION_EVIDENCE.md) and [source transport review](CAP18A_SOURCE_TRANSPORT.md) describe why neither a path-based preflight nor the current response framing proves a safe boundary.
+Status: **historical candidate fixture**, superseded for routing by the [direct PIE implementation and evidence](qualification/UE_DIRECT_PIE_CAPTURE_WIP_20261112.md). This is not a native patch, a selected executable route, a provider promotion, or live qualification. The former path-writing `screenshot.pie` route was held at the time of this fixture. The existing [transport evidence](CAP18A_TRANSPORT_DECISION_EVIDENCE.md) and [source transport review](CAP18A_SOURCE_TRANSPORT.md) describe why neither a path-based preflight nor the current response framing proves a safe boundary.
 
 ## Candidate fixture and trust boundaries
 

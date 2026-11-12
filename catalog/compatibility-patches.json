@@ -170,6 +170,532 @@
         "Requires both v1 single-dispatch marker and exact v2 strict-status marker; marker is not proof of an individual read.",
         "No native Unreal or loaded-artifact qualification; PIE holds remain in force."
       ]
+    },
+    {
+      "id": "ue-mcp-nexus-pagination-count-v1",
+      "provider": "ue-mcp",
+      "baseCommit": "da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8",
+      "file": "patches/ue-mcp-nexus-pagination-count.patch",
+      "sha256": "f30d5337b26451bc4b28a3a1f5e98101f0969435b3049e1349b3443b66304bcd",
+      "capabilityMarker": {
+        "tool": "tools",
+        "category": "project",
+        "method": "get_status",
+        "responseField": "bridgeProtocol.features",
+        "contains": "nexus-pagination-count-v1"
+      },
+      "files": [
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h",
+          "beforeSha256": "513228e3b9de2513a87acef65f5b1530faddd5c1108b1bac9f23a627917ddbff",
+          "afterSha256": "5d52a098c34b979a9aed0242ee3e6f6e8da708833f8ede1daa2d26b4428d3fbc"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp",
+          "beforeSha256": "1d15bd5191328ab31a5f07943b30a67f0ea4a6eb60849eafe641bbbaf6350fe3",
+          "afterSha256": "8a5cddd3f2c4d508d57a2b3b4ce1943a22cb03896ae16d7eadfce7d6c9bc539f"
+        },
+        {
+          "path": "src/tools/project/sessions.ts",
+          "beforeSha256": "5f072686401593c13e9c87b3e87e1b5dc07b6f2ab74785dc886f2ec80e434ed6",
+          "afterSha256": "41595ec8d0060645d35f24c4764680227890e54d295d0fd573cd745ff88f4105"
+        }
+      ],
+      "notes": [
+        "Reports count changes even with a stationary cursor anchor; equal counts do not prove a consistent snapshot.",
+        "Requires rebuilding both the native bridge and TypeScript server; the native feature marker is checked live."
+      ]
+    },
+    {
+      "id": "uap-nexus-queued-status-v3",
+      "provider": "unrealagentplayer",
+      "baseCommit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+      "file": "patches/uap-nexus-queued-status-v3.patch",
+      "sha256": "54462a35f8e72ba3af58f09d95d12194e045ae1a3d103267ba461a6243f5049e",
+      "capabilityMarker": {
+        "tool": "bridge_status",
+        "responseField": "nexus_pie_status_validation",
+        "value": {
+          "version": 3,
+          "phase": "native_queued_aware_v1",
+          "elapsed": "finite_nonnegative",
+          "missing_or_invalid": "error",
+          "transport": "native_preset",
+          "discovery_interface": "optional_ipv4",
+          "discovery": "exact_node_match"
+        }
+      },
+      "files": [
+        {
+          "path": "Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp",
+          "beforeSha256": "e972df59d723d1628a4d162a024a0909b0f635cb93c58f39a05a0f32ec49c2a1",
+          "afterSha256": "0082327607833e8db8680e12b13e8ba22e8b088eef233a37bc14c8afd913150d"
+        },
+        {
+          "path": "Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h",
+          "beforeSha256": "8890358f40383d62a9de4a74220a5e18102cf1092e5cf76e0a373331e8813aac",
+          "afterSha256": "c31be6e08bf3a1e821cea6d6147b26d65cf03e0a38d4540aad53c58e52ee5cbf"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/errors.py",
+          "beforeSha256": "2b509a2c23fc59b9afb7668ae0438448ebbc37fdd5931fdde72286018db7f67e",
+          "afterSha256": "7ce19c1ba3386c7af197fb97d67d8380031e976bc3c85f3073d21b489e74a503"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/server.py",
+          "beforeSha256": "85de28d1969291baffbe7ad3d0cc53802ddf1d249a472d892938c84c2224a79e",
+          "afterSha256": "5457511a021f3f9c573d0c62efddc8ee2dac7936ed3ec76745aa13b9b6cbe5e8"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+          "beforeSha256": "923ded7d04c606cee171b8255cc9280c8e2f1be37a0f872bc4113d245a961b09",
+          "afterSha256": "6fad42cf619724897e3783ee7efa280eb761ea0e8f79db9ea5434d19c9914a1d"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/python_exec.py",
+          "beforeSha256": "3ae4add23e722e5b8b5b364b232a7762585218e706d2cd01f6ffd93b9fb6276e",
+          "afterSha256": "067200d7a81a06c55e2e2898d05eaa0388f3daab3b624bc85407ddf5c6836299"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/status.py",
+          "beforeSha256": "6dc3c5d57abcf1fe1fa6b5d0b77355d8d23ed2832dab1fb985b1b591950a0968",
+          "afterSha256": "05f18e72250665dd63d642fc710da365a166157d28aa3c3aafb91478cc42ffe0"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/transport.py",
+          "beforeSha256": "679f823812f742b08ce47d12f0dc3a529cc1300bf18a02567a6a8c4323db5c09",
+          "afterSha256": "09da4e23eec8512f421688e5319ac2bbf7a75050f28e3c2b25e8a77cc08a9007"
+        }
+      ],
+      "notes": [
+        "Includes v1 no-replay and explicit client binding and v2 strict parsing.",
+        "Native phase checks queued play requests and refuses inconsistent state; status is an observation, not ownership.",
+        "Uses fixed native preset calls and exact project/editor discovery; an optional host-specified IPv4 interface controls multicast binding."
+      ]
+    },
+    {
+      "id": "uap-nexus-owned-pie-v4",
+      "provider": "unrealagentplayer",
+      "baseCommit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",
+      "file": "patches/uap-nexus-owned-pie-v4.patch",
+      "sha256": "cc11432be648d643fe68a4e9b22ec94004c1ce1956e13bacdcc0951f4ab2502c",
+      "capabilityMarker": {
+        "tool": "bridge_status",
+        "responseField": "nexus_pie_ownership",
+        "value": {
+          "version": 1,
+          "native": "request_identity_v1",
+          "machine": "exclusive_owner_release_v1",
+          "grant_ttl": "long_lived",
+          "grant_check": "before_dispatch"
+        }
+      },
+      "files": [
+        {
+          "path": "Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp",
+          "beforeSha256": "e972df59d723d1628a4d162a024a0909b0f635cb93c58f39a05a0f32ec49c2a1",
+          "afterSha256": "6f1fde1be39b0de4a7de4bcab863d779a88870060a761679e1b5bf7ba427bfbe"
+        },
+        {
+          "path": "Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h",
+          "beforeSha256": "8890358f40383d62a9de4a74220a5e18102cf1092e5cf76e0a373331e8813aac",
+          "afterSha256": "9b49e79f27b9505a25806ddc5cebdd5a463678a97bddae9e62e99dac24c862d1"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/coordination.py",
+          "beforeSha256": "1e636f9920be6bd17971bde8e5cfbfbc2cb0548c93b066c272239dd1fe06d185",
+          "afterSha256": "df73d9121b5b2321a793aaa5da4e1ebf6df4c47727fa5b001951a3f766bbe944"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/errors.py",
+          "beforeSha256": "2b509a2c23fc59b9afb7668ae0438448ebbc37fdd5931fdde72286018db7f67e",
+          "afterSha256": "7ce19c1ba3386c7af197fb97d67d8380031e976bc3c85f3073d21b489e74a503"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/server.py",
+          "beforeSha256": "85de28d1969291baffbe7ad3d0cc53802ddf1d249a472d892938c84c2224a79e",
+          "afterSha256": "1eb8c91fe2c96bfcb783ddc8c8c18622830d2b68ebb03364a12f759fffcab036"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/machine.py",
+          "beforeSha256": "8f69fba28d099cdd6c55764847901d5c338da519e584a8031352ac5aa6d31c6f",
+          "afterSha256": "bb21f2bdcb272089f4589a9df53c1a1253bd1d64c47d7c66e8409d54e5924798"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+          "beforeSha256": "923ded7d04c606cee171b8255cc9280c8e2f1be37a0f872bc4113d245a961b09",
+          "afterSha256": "0b4bac760f27ead21e01a882481975ff1ebd7f640ae0c7af45d4c0185f33f04e"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/python_exec.py",
+          "beforeSha256": "3ae4add23e722e5b8b5b364b232a7762585218e706d2cd01f6ffd93b9fb6276e",
+          "afterSha256": "067200d7a81a06c55e2e2898d05eaa0388f3daab3b624bc85407ddf5c6836299"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/tools/status.py",
+          "beforeSha256": "6dc3c5d57abcf1fe1fa6b5d0b77355d8d23ed2832dab1fb985b1b591950a0968",
+          "afterSha256": "2a9113a7a066ecb6b898db4aa5a15a7f23faf79fc9dc7649529c938965637fcd"
+        },
+        {
+          "path": "mcp-server/src/unreal_agent_player/transport.py",
+          "beforeSha256": "679f823812f742b08ce47d12f0dc3a529cc1300bf18a02567a6a8c4323db5c09",
+          "afterSha256": "a9ff26b63b3da282d56240bf9ede51e6f0713d6041100ded98ae9ea0277c3a65"
+        }
+      ],
+      "notes": [
+        "Includes v3 queue-aware status, fixed preset discovery and single-dispatch binding.",
+        "Native ownership correlates the queued and active request settings; the server retains a private token and a unique machine grant."
+      ]
+    },
+    {
+      "id": "hayba-nexus-material-receipt-v2",
+      "provider": "hayba",
+      "baseCommit": "b69ed11011f89aed3c444a50bd2331b99551c777",
+      "file": "patches/hayba-nexus-material-receipt-v2.patch",
+      "sha256": "26fcc993736bd496c4d14ff91ec0c2b4043e85f0165ef342ac3b5ad9dcac04e9",
+      "capabilityMarker": {
+        "tool": "material_nexus_identity",
+        "responseField": "nexus_material_receipt_version",
+        "value": 2
+      },
+      "files": [
+        {
+          "path": "mcp-tools/hayba-mcp/src/tools/index.ts",
+          "beforeSha256": "71c5833bf97f50be9cc56c1d8313bb1261287656918e1696d74f2df45343ed59",
+          "afterSha256": "f5cc83dd7c17f2454ecce14c0ffc872d87774b752d44fd47051c0249f91da978"
+        },
+        {
+          "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts",
+          "beforeSha256": "7b9b5d08371cdffdc1d7f734a57a229d0f8a0bba329362e647dd564c06f5726e",
+          "afterSha256": "0245c64c60ec834a3e667fc0691923d384bc7cfe5a564104dd751dd3e4eb9d70"
+        },
+        {
+          "path": "mcp-tools/hayba-mcp/src/tools/tool-executor.ts",
+          "beforeSha256": "78af1004a65ba5d08f4c987dafcfe3849dd6ce2919193db91485cece80a8214e",
+          "afterSha256": "de044e731def922dadf84b4305786794f46462fbd5662697b2a502ca2073e169"
+        },
+        {
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/HaybaMCPCommandSets.h",
+          "beforeSha256": "79413062f067ded91887501d46fadd8b55840deebd3153247611185c6f0f3f4b",
+          "afterSha256": "2053babb975bc9d491d47777476fbc1bfc1bd66f31effc3adb6fd08f89f7f52f"
+        },
+        {
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPMaterialHandler.cpp",
+          "beforeSha256": "cb58d6c09497fb6afedf7d9a073d2cfe85a3b5395febab79bc266af403db86e6",
+          "afterSha256": "efb5b108b8fea4e23f91834ace48b56159a05d1840d411e2d56dbd5824924474"
+        }
+      ],
+      "notes": [
+        "Includes the v1 no-retry behavior and adds an optional native receipt selector.",
+        "Exact binary32 readback and exact resolved object paths are verified; v1 direct semantics remain when the selector is omitted."
+      ]
+    },
+    {
+      "id": "ue-mcp-nexus-guarded-save-v2",
+      "provider": "ue-mcp",
+      "baseCommit": "da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8",
+      "file": "patches/ue-mcp-nexus-guarded-save-v2.patch",
+      "sha256": "c4346aa9349d9950347762be28bda8b20f2a17f0aea5d6cd288a2eb8a8b5040d",
+      "capabilityMarker": {
+        "tool": "tools",
+        "category": "project",
+        "method": "get_status",
+        "responseField": "bridgeProtocol.features",
+        "containsAll": [
+          "nexus-pagination-count-v1",
+          "nexus-level-save-guard-v1"
+        ]
+      },
+      "files": [
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp",
+          "beforeSha256": "1d15bd5191328ab31a5f07943b30a67f0ea4a6eb60849eafe641bbbaf6350fe3",
+          "afterSha256": "f497dae6b6f1610791d2ade07c2316c65d6314d26066f72256d143d906dd8337"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "beforeSha256": "c04ea480d71190ea720885d6adcaf960ec7a6042e3c4beb471608e1a32827ea3",
+          "afterSha256": "105c61cd7ed911de8f9e017ed3e6f3817de0f933189e494df9c551e6b1a31464"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "beforeSha256": "817cb9fca518426af9a51c095d0f5a09a6c3f2707299ccc21d7406e201398e81",
+          "afterSha256": "b92f261a7c1e499d74e1cf0d6dd8d1cd514777590967da6dcf832027a2263020"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp",
+          "beforeSha256": "484c986163635c0470508c2cf0841be6e3989ea1c5e9595e2413f98f70e5bdc5",
+          "afterSha256": "6dde0bc56837f5653afed1c6325ac6e4b9dbbe3d4e1cfe052e452f39a8edc3b0"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h",
+          "beforeSha256": "513228e3b9de2513a87acef65f5b1530faddd5c1108b1bac9f23a627917ddbff",
+          "afterSha256": "5d52a098c34b979a9aed0242ee3e6f6e8da708833f8ede1daa2d26b4428d3fbc"
+        },
+        {
+          "path": "src/tools/project/sessions.ts",
+          "beforeSha256": "5f072686401593c13e9c87b3e87e1b5dc07b6f2ab74785dc886f2ec80e434ed6",
+          "afterSha256": "41595ec8d0060645d35f24c4764680227890e54d295d0fd573cd745ff88f4105"
+        },
+        {
+          "path": "src/tools/specs/level.generated.ts",
+          "beforeSha256": "46d58f92c1da9a71cc150ffbe7957ea5314361f25e9c774abff655821baa69c6",
+          "afterSha256": "5aafaba305aaf767b4ede6af1e48d45683ab3bf944bf66b065b9a032f0afefc4"
+        },
+        {
+          "path": "tests/golden/handler-specs.json",
+          "beforeSha256": "04dbf5ecaf14c7450eee39a4e08bfc04f4f478f07053d49f9bdaa90d6e3aeec7",
+          "afterSha256": "28edb7b955c9ac644a10d436b88eff14aa24481c9473b6f4741b80a8ae9812ed"
+        }
+      ],
+      "notes": [
+        "Includes pagination v1. Guarded level save checks the exact current package before mutation and does not call external-package deletion.",
+        "Requires rebuilding the native plugin and TypeScript server; ordinary save behavior remains when guard fields are omitted."
+      ]
+    },
+    {
+      "id": "ue-mcp-nexus-direct-pie-v1",
+      "provider": "ue-mcp",
+      "baseCommit": "da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8",
+      "file": "patches/ue-mcp-nexus-direct-pie-v1.patch",
+      "sha256": "c5a4fdc73eb1f13dff65e42e8b1ce9af2a003e749bdf706728065d0a9a45a535",
+      "capabilityMarker": {
+        "tool": "tools",
+        "responseField": "bridgeProtocol.features",
+        "containsAll": [
+          "nexus-pagination-count-v1",
+          "nexus-level-save-guard-v1",
+          "nexus-direct-pie-capture-v1"
+        ]
+      },
+      "files": [
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp",
+          "beforeSha256": "1d15bd5191328ab31a5f07943b30a67f0ea4a6eb60849eafe641bbbaf6350fe3",
+          "afterSha256": "98ff7e477f039b4d66ecc9c5517bd79583a8ee79ef40d6907955710add3d0147"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "beforeSha256": "23cfaffa1e319875d423190b65321026a3043d3e13703e1db00c01e66e8a9dc4",
+          "afterSha256": "f7b3fcec3cf9b40fe13f8ea907b09346fdc2da43fad500a97f4a65ddf3fa1d1d"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.h",
+          "beforeSha256": "4e6580a4d2efe188f2b7b089959961c93054ed899bfbc6c4dd494171b1a09636",
+          "afterSha256": "b87ebb61cb5860607367c1c5dc68f4d4325917680946db93b128edbd84aadb6a"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "beforeSha256": "c04ea480d71190ea720885d6adcaf960ec7a6042e3c4beb471608e1a32827ea3",
+          "afterSha256": "105c61cd7ed911de8f9e017ed3e6f3817de0f933189e494df9c551e6b1a31464"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "beforeSha256": "817cb9fca518426af9a51c095d0f5a09a6c3f2707299ccc21d7406e201398e81",
+          "afterSha256": "b92f261a7c1e499d74e1cf0d6dd8d1cd514777590967da6dcf832027a2263020"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp",
+          "beforeSha256": "484c986163635c0470508c2cf0841be6e3989ea1c5e9595e2413f98f70e5bdc5",
+          "afterSha256": "6dde0bc56837f5653afed1c6325ac6e4b9dbbe3d4e1cfe052e452f39a8edc3b0"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h",
+          "beforeSha256": "513228e3b9de2513a87acef65f5b1530faddd5c1108b1bac9f23a627917ddbff",
+          "afterSha256": "5d52a098c34b979a9aed0242ee3e6f6e8da708833f8ede1daa2d26b4428d3fbc"
+        },
+        {
+          "path": "src/bridge/bridge.ts",
+          "beforeSha256": "2ea80cbcc903f8db3b6be079ac7c62f42e1f0aeed7e3b79d1210a32ec4ad16f6",
+          "afterSha256": "cb43b0508f5343d00419c9268301edf8c15f7b4df26e129118a49fd0d847d8f8"
+        },
+        {
+          "path": "src/tools/editor.ts",
+          "beforeSha256": "b230c0a5153ecf1d56cdc2b2e1a144e9669fe55e59821b1d154ca481ed135b73",
+          "afterSha256": "411660c1f13f5dc6c9cba5a6afec53e6200e3af8b0dd34329feae61d1bcea348"
+        },
+        {
+          "path": "src/tools/project/sessions.ts",
+          "beforeSha256": "5f072686401593c13e9c87b3e87e1b5dc07b6f2ab74785dc886f2ec80e434ed6",
+          "afterSha256": "41595ec8d0060645d35f24c4764680227890e54d295d0fd573cd745ff88f4105"
+        },
+        {
+          "path": "src/tools/specs/editor.generated.ts",
+          "beforeSha256": "c0ea5496c537d56fdb12ccf7b5cc34eedc568a584ec1e36572be1c0d1a22021f",
+          "afterSha256": "63a29ff0d1d685a68075660cfd681728344b090a7b880515d83dc7d3ab0b0157"
+        },
+        {
+          "path": "src/tools/specs/level.generated.ts",
+          "beforeSha256": "46d58f92c1da9a71cc150ffbe7957ea5314361f25e9c774abff655821baa69c6",
+          "afterSha256": "5aafaba305aaf767b4ede6af1e48d45683ab3bf944bf66b065b9a032f0afefc4"
+        },
+        {
+          "path": "tests/golden/handler-specs.json",
+          "beforeSha256": "04dbf5ecaf14c7450eee39a4e08bfc04f4f478f07053d49f9bdaa90d6e3aeec7",
+          "afterSha256": "bfa21064725069f6734c9017ee4b9ddcae5b2ae30e68b37d07795f69f11bc54b"
+        }
+      ],
+      "notes": [
+        "Includes guarded level save and pagination. Screenshot capture uses a bounded dedicated websocket and returns an MCP image.",
+        "Requires rebuilding both native plugin and TypeScript server; source checks do not attest loaded artifacts."
+      ]
+    },
+    {
+      "id": "ue-mcp-nexus-owned-hold-v1",
+      "provider": "ue-mcp",
+      "baseCommit": "da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8",
+      "file": "patches/ue-mcp-nexus-owned-hold-v1.patch",
+      "sha256": "199a0b9822aaa5afb8e7f3fe31e1922373bd66cb21eac44f5c89cdb48ede7941",
+      "capabilityMarker": {
+        "tool": "tools",
+        "responseField": "bridgeProtocol.features",
+        "containsAll": [
+          "nexus-pagination-count-v1",
+          "nexus-level-save-guard-v1",
+          "nexus-direct-pie-capture-v1",
+          "nexus-owned-input-hold-v1"
+        ]
+      },
+      "files": [
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp",
+          "beforeSha256": "1d15bd5191328ab31a5f07943b30a67f0ea4a6eb60849eafe641bbbaf6350fe3",
+          "afterSha256": "eaae484ffe543e6f0bd5b7aecd36ed7201ad273d01192f28bd71322088a8ad15"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "beforeSha256": "23cfaffa1e319875d423190b65321026a3043d3e13703e1db00c01e66e8a9dc4",
+          "afterSha256": "f7b3fcec3cf9b40fe13f8ea907b09346fdc2da43fad500a97f4a65ddf3fa1d1d"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.h",
+          "beforeSha256": "4e6580a4d2efe188f2b7b089959961c93054ed899bfbc6c4dd494171b1a09636",
+          "afterSha256": "b87ebb61cb5860607367c1c5dc68f4d4325917680946db93b128edbd84aadb6a"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "beforeSha256": "c04ea480d71190ea720885d6adcaf960ec7a6042e3c4beb471608e1a32827ea3",
+          "afterSha256": "105c61cd7ed911de8f9e017ed3e6f3817de0f933189e494df9c551e6b1a31464"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "beforeSha256": "817cb9fca518426af9a51c095d0f5a09a6c3f2707299ccc21d7406e201398e81",
+          "afterSha256": "b92f261a7c1e499d74e1cf0d6dd8d1cd514777590967da6dcf832027a2263020"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp",
+          "beforeSha256": "484c986163635c0470508c2cf0841be6e3989ea1c5e9595e2413f98f70e5bdc5",
+          "afterSha256": "6dde0bc56837f5653afed1c6325ac6e4b9dbbe3d4e1cfe052e452f39a8edc3b0"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers.cpp",
+          "beforeSha256": "27911fd8b79db9ce5b92d54838cc121e8995d248a113295c09ca259d527dcb7f",
+          "afterSha256": "05776582b7280ddc2b5766725a1c689512eed68d74b94700f3cbc27f9f4c04b2"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp",
+          "beforeSha256": "ce834b0b695da854b4cd594836ebfe3c11d1030af230357ca13e89d5992f04b6",
+          "afterSha256": "34099e89315ec9374af52d5247d3262b40570492b897f4e66ff373fd1097b7fb"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h",
+          "beforeSha256": "513228e3b9de2513a87acef65f5b1530faddd5c1108b1bac9f23a627917ddbff",
+          "afterSha256": "5d52a098c34b979a9aed0242ee3e6f6e8da708833f8ede1daa2d26b4428d3fbc"
+        },
+        {
+          "path": "src/bridge/bridge.ts",
+          "beforeSha256": "2ea80cbcc903f8db3b6be079ac7c62f42e1f0aeed7e3b79d1210a32ec4ad16f6",
+          "afterSha256": "cb43b0508f5343d00419c9268301edf8c15f7b4df26e129118a49fd0d847d8f8"
+        },
+        {
+          "path": "src/tools/editor.ts",
+          "beforeSha256": "b230c0a5153ecf1d56cdc2b2e1a144e9669fe55e59821b1d154ca481ed135b73",
+          "afterSha256": "411660c1f13f5dc6c9cba5a6afec53e6200e3af8b0dd34329feae61d1bcea348"
+        },
+        {
+          "path": "src/tools/pie.ts",
+          "beforeSha256": "8f7cdb896deec4e0e1cd27136167e411970b78038e495667ddce00d88c23275e",
+          "afterSha256": "46ef9b7f13b7e7017c15d6016567727a1ccb1b279a0dd1dc182760cc05ea6a9b"
+        },
+        {
+          "path": "src/tools/project/sessions.ts",
+          "beforeSha256": "5f072686401593c13e9c87b3e87e1b5dc07b6f2ab74785dc886f2ec80e434ed6",
+          "afterSha256": "41595ec8d0060645d35f24c4764680227890e54d295d0fd573cd745ff88f4105"
+        },
+        {
+          "path": "src/tools/specs/editor.generated.ts",
+          "beforeSha256": "c0ea5496c537d56fdb12ccf7b5cc34eedc568a584ec1e36572be1c0d1a22021f",
+          "afterSha256": "63a29ff0d1d685a68075660cfd681728344b090a7b880515d83dc7d3ab0b0157"
+        },
+        {
+          "path": "src/tools/specs/level.generated.ts",
+          "beforeSha256": "46d58f92c1da9a71cc150ffbe7957ea5314361f25e9c774abff655821baa69c6",
+          "afterSha256": "5aafaba305aaf767b4ede6af1e48d45683ab3bf944bf66b065b9a032f0afefc4"
+        },
+        {
+          "path": "src/tools/specs/pie.generated.ts",
+          "beforeSha256": "92c5ff95e741672ec4c14977edb32f9f08a5cdd335f9431ab45b6e14bf2ad5f0",
+          "afterSha256": "b10bb8b608ccf7fe7adf1336e890b46ca1341c0756691811353697b66c80163f"
+        },
+        {
+          "path": "tests/golden/handler-specs.json",
+          "beforeSha256": "04dbf5ecaf14c7450eee39a4e08bfc04f4f478f07053d49f9bdaa90d6e3aeec7",
+          "afterSha256": "6cc0932a95d1821bc267661e8118e15f023344d372159e07be3b6159d5dcc494"
+        }
+      ],
+      "notes": [
+        "Includes direct PIE screenshot, guarded level save and pagination. Independent per-frame hold injection avoids modifying shared continuous slots.",
+        "Requires rebuilt native plugin and TypeScript server. The finite real-time hold lease is checked while the editor ticks."
+      ]
+    },
+    {
+      "id": "claireon-nexus-compile-loaded-v2",
+      "provider": "claireon",
+      "baseCommit": "89bee2f4c62d1df625cca71ae66e7c81a415a009",
+      "file": "patches/claireon-nexus-compile-loaded-v2.patch",
+      "sha256": "13f1b66c03638338b4179e78a344ae8cba2623a7a54b3f5881c8cb528e23fc31",
+      "capabilityMarker": {
+        "tool": "tool_search",
+        "innerTool": "bp_compile_batch",
+        "parameter": "nexus_exact_no_save",
+        "type": "boolean"
+      },
+      "files": [
+        {
+          "path": "Source/Claireon/Private/ClaireonBridge.cpp",
+          "beforeSha256": "c3c3bb4ea7ec583db110c5b6dd75fdc700485daef7b7aa470374bdc5d0c56428",
+          "afterSha256": "3b6ab09ad2e6b2cbcd087400153b246fd0ac8153b721f8055e54c326218ef0a7"
+        },
+        {
+          "path": "Source/Claireon/Private/ClaireonSessionManager.cpp",
+          "beforeSha256": "52f0a25f7cc6f1ed7174a57d754b2b0ff119477cf204a82ac566d3fc737ce736",
+          "afterSha256": "e98dcfd8a3a74ee5b942c98c4c26ed8dfca0edd394d99540435e3bc009445964"
+        },
+        {
+          "path": "Source/Claireon/Private/Tests/ClaireonTestTypes.h",
+          "beforeSha256": "5831c8ac2c0d78d5f058403945a68e27c5076cff3e26fab811829a778cf3f474",
+          "afterSha256": "1aa3d62aff5de28df07e2c84fa2df63c2f26a71d21b020dd2424e518c5032ecd"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_BlueprintCompileBatch.cpp",
+          "beforeSha256": "88e7def15c7d4a7d1e2dc6d6345911c871d0b60cd04690e6b1efdf3d7d1a493e",
+          "afterSha256": "52e3c0903877e04a21623ee485c258dfe9c58f08e8d1b8acc7b050e8f7324d85"
+        },
+        {
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp",
+          "beforeSha256": "fe1882f87c619fbd0c51c80e56b5ba13833cb6462974652f1162b0008a171e2c",
+          "afterSha256": "e1a3e354e83f9e68f9ed6eb89effdf55e9230c2f8798e6239b257086f0041abe"
+        },
+        {
+          "path": "Source/Claireon/Public/ClaireonSessionManager.h",
+          "beforeSha256": "e93c19bbccc4170c98c6a4cbcb95d60ca7a1c85d20c1e3be6fbbdc7bdd33e9aa",
+          "afterSha256": "e7a7ba0beb5f8b148edfe101e39c33c71a8f5014ddc9b56497e4ae0340549053"
+        }
+      ],
+      "notes": [
+        "Includes the no-autosave python wrapper. The exact loaded compile form refuses folder expansion and expired-session cleanup and uses SkipSave.",
+        "Requires rebuilding the Claireon native plugin; loaded artifact provenance remains separate."
+      ]
     }
   ]
 }

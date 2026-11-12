@@ -7,6 +7,18 @@ import { createRuntime } from './runtime.mjs';
 import { createNexusServer } from './mcp-server.mjs';
 import { startHttpServer } from './http-server.mjs';
 import { inspectEditorProcess } from './provider-probes.mjs';
+import { boundedCleanup, markCleanupIncomplete } from './errors.mjs';
+
+// An endpoint failure must not prevent the runtime and its owned processes
+// from closing. Preserve the first failure and mark any later cleanup failure.
+export async function closeServices(endpoint, runtime, timeoutMs = 5000) {
+  let failure;
+  try {await boundedCleanup(() => endpoint?.close(),timeoutMs);} catch (error) {failure=error;}
+  try {await runtime.close();} catch (error) {
+    failure = failure ? markCleanupIncomplete(failure) : markCleanupIncomplete(error);
+  }
+  if (failure) throw failure;
+}
 
 export async function main(args = process.argv.slice(2)) {
   if (args.length === 1 && ['--help','-h'].includes(args[0])) {
@@ -22,7 +34,7 @@ export async function main(args = process.argv.slice(2)) {
   const runtime = await createRuntime(config);
   let endpoint, closing;
   const close = () => {
-    if (!closing) closing = (async () => {await endpoint?.close();await runtime.close();})();
+    if (!closing) closing = closeServices(endpoint,runtime);
     return closing;
   };
   try {
@@ -39,11 +51,17 @@ export async function main(args = process.argv.slice(2)) {
       });});
     }
     for (const signal of ['SIGINT','SIGTERM']) process.once(signal,() => {
-      const timeout = setTimeout(() => process.exit(1),5000);timeout.unref();
+      const timeout = setTimeout(() => process.exit(1),20000);timeout.unref();
       void close().then(() => {clearTimeout(timeout);process.exitCode=0;},() => {process.exitCode=1;});
     });
     return {runtime,endpoint,close};
-  } catch (error) { await close(); throw error; }
+  } catch (error) {
+    try {await close();} catch {
+      if (typeof error === 'object' && error !== null) markCleanupIncomplete(error);
+      process.stderr.write('Unreal Nexus backend cleanup was not confirmed.\n');
+    }
+    throw error;
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

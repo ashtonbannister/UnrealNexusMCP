@@ -7,8 +7,8 @@ import decisions from '../catalog/decisions.json' with {type:'json'};
 import {buildCall} from '../src/routing.mjs';
 
 const catalog=loadCatalog();
-test('all 32 exposed operations have a selected decision, source pin and valid example',()=>{
-  assert.equal(catalog.size,32);
+test('all 36 exposed operations have a selected decision, source pin and valid example',()=>{
+  assert.equal(catalog.size,36);
   for(const op of catalog.list()) {
     assert.equal(catalog.validate(op.id,op.example),op);
     assert.match(catalog.describe(op.id).source.commit,/^[a-f0-9]{40}$/);
@@ -39,7 +39,7 @@ test('fixed selectors, aliases and arbitrary provider/function fields are reject
 });
 test('explicit world, player, pin and run identity are required',()=>{
   for(const [id,args] of [
-    ['screenshot.pie',{filename:'a.png'}],
+    ['screenshot.pie',{pieInstance:0}],
     ['actor.inspect.pie',{actorPath:'/Game/A'}],
     ['input.action.once',{action_path:'/Game/Input'}],
     ['pcg.generation.wait',{actorPath:'/Game/A',componentName:'PCG',timeoutSeconds:30}],
@@ -51,7 +51,7 @@ test('numeric arguments reject nonfinite, coerced, fractional world and out-of-r
     assert.throws(()=>catalog.validate('pie.start.viewport',{timeout}),{code:'INVALID_ARGUMENTS'});
   }
   for(const pieInstance of [-1,0.5,'1',Infinity]) {
-    assert.throws(()=>catalog.validate('screenshot.pie',{filename:'a.png',pieInstance}),{code:'INVALID_ARGUMENTS'});
+    assert.throws(()=>catalog.validate('screenshot.pie',{worldPath:'/Game/UEDPIE_0_Map.Map',pieInstance}),{code:'INVALID_ARGUMENTS'});
   }
 });
 test('native envelopes select exactly the pinned reviewed public surface',()=>{

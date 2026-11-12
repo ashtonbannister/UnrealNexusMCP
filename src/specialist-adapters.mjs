@@ -8,6 +8,7 @@ import { NexusError } from './errors.mjs';
 // the host factory. A live schema marker alone cannot attest installed source.
 const RECIPES = Object.freeze({
   'blueprint.compile.memory.asset': ['claireon', 'bp_compile_asset', 'bp_compile'],
+  'blueprint.compile.memory.loaded': ['claireon', 'bp_compile_loaded', 'bp_compile_batch'],
   'blueprint.compile.memory.session': ['claireon', 'bp_compile_session', 'bp_compile'],
   'automation.tests.run': ['claireon', 'test_run', 'test_run'],
   'automation.tests.poll': ['claireon', 'test_poll', 'test_poll'],
@@ -75,8 +76,10 @@ function validateArguments(id, args) {
 
 function pythonRequest(spec, args, nonce, probe = false) {
   const recipe = RECIPES[spec.id];
+  const nativeArgs = spec.id === 'blueprint.compile.memory.loaded'
+    ? {paths:[args.asset_path],...spec.route.fixed} : {...args,...spec.route.fixed};
   const payload = {version:1,id:spec.id,nonce,probe,
-    args:probe ? {} : {...args,...spec.route.fixed}};
+    args:probe ? {} : nativeArgs};
   const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
   // No caller text, paths or tool names are interpolated into Python syntax.
   // Only the hardcoded recipe selects the callable; arguments are encoded JSON.
@@ -128,7 +131,7 @@ export function buildSpecialistCall(operation, args) {
   const copiedArgs = structuredClone(args);
   const nonce = randomBytes(16).toString('hex');
   const request = spec.provider === 'claireon' ? pythonRequest(spec, copiedArgs, nonce)
-    : {name:'material_set_param',arguments:{...copiedArgs,nexus_retry_policy:'never'}};
+    : {name:'material_set_param',arguments:{...copiedArgs,...spec.route.fixed}};
   return {...request,nexusSpecialist:{id:spec.id,args:copiedArgs,nonce}};
 }
 
@@ -205,6 +208,7 @@ function shapeMatches(actual, expected) {
 const s = {type:'string'}, b = {type:'boolean'}, n = {type:'number'}, i = {type:'integer'};
 const NATIVE_SHAPES = {
   bp_compile:{session_id:s,asset_path:s,response_mode:s},
+  bp_compile_batch:{paths:{type:'array',items:s},max_count:i,remove_unused:b,failOnWarnings:b,nexus_exact_no_save:b},
   test_run:{testFilter:s,noTimeout:b,strict:b,expected_tests:{type:'array',items:s},allowed_skips:{type:'array',items:{type:'object'}}},
   test_poll:{run_id:s,cancel:b},
   pie_trace_start:{filename:s,channels:s},pie_trace_stop:{},trace_open:{filePath:s},
@@ -224,6 +228,11 @@ function hasMaterialCompatibility(tools) {
   const marker = schema.properties.nexus_retry_policy;
   if (!record(marker) || marker.type !== 'string'
     || !(marker.const === 'never' || same(marker.enum,['never']))) return false;
+  const receipt = schema.properties.nexus_receipt_version;
+  const identity = tools.get('material_nexus_identity')?.inputSchema;
+  if (!record(receipt) || !['number','integer'].includes(receipt.type)
+    || !(receipt.const === 2 || same(receipt.enum,[2]))
+    || !schemaFields(identity,{nonce:s},['nonce']) || !identity.required?.includes('nonce')) return false;
   const variants = schema.properties.value?.anyOf ?? schema.properties.value?.oneOf;
   return Array.isArray(variants) && variants.length === 3
     && variants.some((v) => v.type === 'number') && variants.some((v) => v.type === 'string')
@@ -283,7 +292,7 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
     }
     validateArguments(spec.id,envelope.args);
     const request = provider === 'claireon' ? pythonRequest(spec,envelope.args,envelope.nonce)
-      : {name:'material_set_param',arguments:{...envelope.args,nexus_retry_policy:'never'}};
+      : {name:'material_set_param',arguments:{...envelope.args,...spec.route.fixed}};
     if (call.name !== request.name || !same(call.arguments,request.arguments)) {
       refusal('SPECIALIST_ROUTE_REFUSED', 'The planned fixed request was altered.');
     }
@@ -303,6 +312,8 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
       uncertain('Automation cancellation, timeout or in-progress work requires external reconciliation.', result);
     }
     if (!frame.ok) {
+      if (spec.id === 'blueprint.compile.memory.loaded')
+        uncertain('Loaded Blueprint compile did not return a complete native receipt.', result);
       if (spec.id === 'automation.tests.poll') {
         const expectedPrefix = `Tool 'test_poll' failed: Strict run FAILED for filter '${activeRun.testFilter}' (`;
         const listFields = ['failed','not_run','in_process','unreported','unexpected_skips','skipped','unused_allowed_skips'];
@@ -337,6 +348,34 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
         return normalized(result,native,{ok:false,phase:'failed',run_id:args.run_id,gateReleased:true},frame.error);
       }
       return normalized(result,native,{ok:false,phase:'native-error'},frame.error);
+    }
+    if (spec.id === 'blueprint.compile.memory.loaded') {
+      if (data.total !== 1 || !count(data.succeeded) || !count(data.failed)
+        || data.succeeded + data.failed !== 1 || !Array.isArray(data.results) || data.results.length !== 1)
+        uncertain('Loaded Blueprint compile has no exact single-result receipt.', result);
+      const row = data.results[0];
+      if (!record(row) || assetIdentity(row.blueprint_path ?? '') !== assetIdentity(args.asset_path))
+        uncertain('Loaded Blueprint compile target does not match the requested asset.', result);
+      if (row.status === 'busy') uncertain('Blueprint was busy; reconcile the compile state before retrying.', result);
+      if (row.nexusCompileVersion !== 1 || row.skip_save !== true || row.cleanup_expired !== false
+        || row.source_cleanup !== false || assetIdentity(row.resolved_object_path ?? '') !== assetIdentity(args.asset_path)
+        || !Array.isArray(row.errors) || !Array.isArray(row.warnings)
+        || !row.errors.every(text) || !row.warnings.every(text)
+        || row.errors.length + row.warnings.length > 100
+        || !count(row.total_errors) || !count(row.total_warnings)
+        || typeof row.diagnostics_truncated !== 'boolean' || typeof row.synthetic_error !== 'boolean'
+        || row.errors.length > row.total_errors + (row.synthetic_error ? 1 : 0)
+        || row.warnings.length > row.total_warnings
+        || (!row.diagnostics_truncated && (row.errors.length !== row.total_errors + (row.synthetic_error ? 1 : 0)
+          || row.warnings.length !== row.total_warnings)))
+        uncertain('Loaded Blueprint compile receipt lacks bounded no-save diagnostics.', result);
+      const ok = row.status === 'succeeded' && data.succeeded === 1
+        && ['up_to_date','warnings'].includes(row.compiler_status) && row.total_errors === 0 && !row.synthetic_error;
+      const failed = row.status === 'failed' && data.failed === 1 && row.compiler_status === 'error'
+        && (row.total_errors > 0 || row.synthetic_error);
+      if (!ok && !failed) uncertain('Loaded Blueprint compile status is not conclusive.', result);
+      return normalized(result,native,{ok,phase:ok?'compiled-memory-only':'compile-failed',
+        asset_path:row.resolved_object_path,saved:false});
     }
     if (spec.id.startsWith('blueprint.compile.memory.')) {
       if (!text(data.session_id) || !text(data.asset_path) || !Array.isArray(data.compile_log)
@@ -490,23 +529,53 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
     }
     if (payloads.length !== 1) uncertain('Missing/ambiguous typed material JSON receipt.', result);
     const data = payloads[0];
-    if (data.param !== args.param_name || typeof data.verified !== 'boolean' || typeof data.saved !== 'boolean'
-      || typeof data.dirty !== 'boolean' || !Object.hasOwn(data,'observed_value')
-      || (spec.id.includes('.scalar.') && (!finite(data.observed_value) || !finite(data.value)))
-      || (!spec.id.includes('.scalar.') && (!text(data.observed_value) || !text(data.value)))) {
-      uncertain('Typed material receipt lacks parameter/readback/save fields.', result);
+    if (data.nexus_receipt_version !== 2 || data.requested_instance !== args.instance_path
+      || data.actual_instance !== args.instance_path || !text(data.instance_class)
+      || data.param !== args.param_name || !same(data.requested_value,args.value)
+      || typeof data.readback_available !== 'boolean' || typeof data.verified !== 'boolean'
+      || typeof data.saved !== 'boolean' || typeof data.dirty !== 'boolean') {
+      uncertain('Material receipt lacks exact target, requested value or save/readback fields.', result);
     }
-    // Pinned native scalar and texture handlers echo the original requested
-    // value before reporting readback. A mismatched echo cannot be correlated
-    // to this dispatched write, even if the native verification flag is true.
-    if ((spec.id.includes('.scalar.') || spec.id.includes('.texture.')) && data.value !== args.value) {
-      uncertain('Material receipt requested value does not match the dispatched write.', result);
+    if (spec.id.includes('.texture.')) {
+      if (data.value !== args.value || data.resolved_texture !== args.value
+        || typeof data.observed_value !== 'string' || typeof data.same_texture !== 'boolean'
+        || data.verified !== (data.readback_available && data.same_texture)
+        || (data.same_texture && data.observed_value !== data.resolved_texture)
+        || (!data.same_texture && data.observed_value === data.resolved_texture)) {
+        uncertain('Texture receipt contradicts the requested object or native readback.', result);
+      }
+    } else {
+      const input = JSON.parse(JSON.stringify(args.value));
+      const numbers = Array.isArray(input) ? [...input] : [input];
+      if (numbers.length === 3) numbers.push(1);
+      const bits = numbers.map(value => {
+        const f=Math.fround(value);
+        if (!Number.isFinite(f)) uncertain('Material input is not finite binary32.', result);
+        const view=new DataView(new ArrayBuffer(4));view.setFloat32(0,f,false);
+        return view.getUint32(0,false).toString(16).padStart(8,'0');
+      });
+      const validBits = value => Array.isArray(value) && value.length === bits.length
+        && value.every(x => typeof x === 'string' && /^[0-9a-f]{8}$/u.test(x));
+      if (data.comparison !== 'binary32_exact' || !validBits(data.expected_bits) || !validBits(data.observed_bits)
+        || !same(data.expected_bits,bits)
+        || data.verified !== (data.readback_available && same(data.expected_bits,data.observed_bits))
+        || (spec.id.includes('.scalar.') && (!finite(data.value) || data.value !== input || !finite(data.observed_value)))) {
+        uncertain('Material binary32 receipt contradicts the requested or observed value.', result);
+      }
+      if (spec.id.includes('.scalar.')) {
+        const view=new DataView(new ArrayBuffer(4));view.setFloat32(0,data.observed_value,false);
+        const observed=view.getUint32(0,false).toString(16).padStart(8,'0');
+        const bothZero=data.observed_value === 0 && ['00000000','80000000'].includes(data.observed_bits[0]);
+        if (!bothZero && observed !== data.observed_bits[0])
+          uncertain('Material scalar value contradicts its binary32 readback.', result);
+      }
     }
-    const ok = data.verified && data.saved;
+    const ok = data.verified && data.saved && !data.dirty;
     return normalized(result,data,{ok,phase:ok?'persisted':data.verified?'persistence-failed':'readback-failed',
-      instance_path:args.instance_path,param_name:args.param_name,requested_value:args.value,
-      observed_value:data.observed_value,verified:data.verified,saved:data.saved});
+      instance_path:data.actual_instance,param_name:args.param_name,requested_value:args.value,
+      observed_value:data.observed_value,verified:data.verified,saved:data.saved,dirty:data.dirty});
   }
+
   return {
     tools:new Set(descriptors.keys()),
     async supports(operation, {signal,timeoutMs=30000} = {}) {
@@ -524,7 +593,8 @@ export function createSpecialistAdapter({provider, callTool, tools}) {
         const result = await dispatch(request,timeoutMs,signal);
         const frame = parseFrame(result,spec,nonce,true);
         const data = frame.native.data;
-        const supplied = [...(spec.parameters.required ?? []),...Object.keys(spec.route.fixed)];
+        const supplied = [...(spec.id === 'blueprint.compile.memory.loaded' ? ['paths'] : (spec.parameters.required ?? [])),
+          ...Object.keys(spec.route.fixed)];
         if (!frame.ok || data.deep_inspect !== true || data.tool?.name !== recipe[2]
           || !schemaFields(data.tool.input_schema,NATIVE_SHAPES[recipe[2]],supplied)) return false;
       }

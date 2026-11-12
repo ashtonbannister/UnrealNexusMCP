@@ -292,7 +292,7 @@ Add graph/node/property/parameter contracts sufficient for agent-owned authoring
 
 **Dependencies:** [FIX-01](../MASTER_ROADMAP.md#fix-01), [FIX-02](../MASTER_ROADMAP.md#fix-02). Additional scope-specific prerequisites are stated below.
 
-**Candidate state:** screenshot.pie selects UE-MCP but is held before dispatch until secure native output ownership and target safety are established. A bounded, authorized image-delivery contract is additional work; do not replace it with EngineWire's different current-view semantics.
+**Candidate state:** screenshot.pie uses the patched UE-MCP direct-byte route with exact PIE target and bounded image checks. A disposable end-to-end capture passed; visual fidelity and broader native qualification remain open. EngineWire current-view capture remains a distinct operation.
 
 Define fresh-file-to-image delivery tied to the selected project/capture, safe basename/path, actual write receipt, dimensions and payload bounds. It may be an explicit resource or canonical follow-up after review; no arbitrary host-file reader.
 

@@ -13,6 +13,15 @@ test('the partial ledger is checked without claiming semantic or native qualific
   assert.match(result.limitation,/not verified/);
 });
 
+test('recorded Epic versions remain separate and incomplete source snapshots',()=>{
+  const fiveEight=coverage.entries.filter(e=>e.provider==='ue-mcp' && e.surface==='recorded-epic-catalog');
+  const fiveNine=coverage.entries.filter(e=>e.provider==='ue-mcp' && e.surface==='recorded-epic-catalog-5.9');
+  assert.equal(fiveEight.length,830);assert.equal(fiveNine.length,1914);
+  assert.ok(fiveNine.every(e=>e.disposition==='unreviewed' && !(e.canonicalRouteReferences?.length)));
+  const wrong=copy();wrong.entries.splice(wrong.entries.findIndex(e=>e.surface==='recorded-epic-catalog-5.9'),1);
+  assert.throws(()=>validateCapabilityCoverage({ledger:wrong}),/recorded Epic snapshot count mismatch/);
+});
+
 test('duplicate source entries, changed pins and recorded hashes are refused',()=>{
   const duplicate=copy();duplicate.entries.push(structuredClone(duplicate.entries[0]));
   assert.throws(()=>validateCapabilityCoverage({ledger:duplicate}),/duplicate source record/);
@@ -37,6 +46,7 @@ test('invented or cross-provider canonical selections are refused',()=>{
   wrong.canonicalRouteReferences=['actor.inspect.editor'];
   assert.throws(()=>validateCapabilityCoverage({ledger:same}),/invalid selected route/);
   const sameCategory=copy();const start=sameCategory.entries.find(e=>e.provider==='ue-mcp' && e.sourceEntry==='pie_inject_input_start');
+  start.disposition='selected-route-slice-other-semantics-unreviewed';
   start.canonicalRouteReferences=['input.action.hold.stop'];
   assert.throws(()=>validateCapabilityCoverage({ledger:sameCategory}),/invalid selected route/);
   const local=copy();const native=local.entries.find(e=>e.provider==='ue-mcp' && e.sourceEntry==='execute_pcg_graph');
@@ -67,9 +77,10 @@ test('blocked source records require owner, reason, reopening condition and pinn
   const blocked=coverage.entries.filter(e=>e.disposition==='blocked');
   const blockedUap=new Set(blocked.filter(e=>e.provider==='unrealagentplayer').map(e=>e.sourceEntry));
   for(const name of ['bridge_status','perf_stat','pie_pause','pie_resume','screenshot_viewport','log_tail','log_since','helper_list','actor_find','actor_get_properties','actor_set_property','exec_console','exec_python','actor_call_function','helper_call','input_key','input_mouse_move','input_mouse_button','input_axis','input_gamepad','input_xr_button','input_xr_pose','input_xr_clear','input_sequence','ui_menu_click','ui_find_window','ui_list_menus','read_viewport_ui','game_launch','game_attach','game_list','game_stop','perf_trace_start','perf_trace_stop','report_start','report_assert','report_note','report_caption','report_finish','perf_baseline_save','perf_baseline_compare']) assert.ok(blockedUap.has(name));
-  const blockedUe=new Set(blocked.filter(e=>e.provider==='ue-mcp').map(e=>e.sourceEntry));
+  const blockedUe=new Set(coverage.entries.filter(e=>e.provider==='ue-mcp' && e.disposition==='unreviewed' && e.historicalSourceReview?.revision==='62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d').map(e=>e.sourceEntry));
   for(const name of ['play_sequence','scrub_sequence','add_sequence_track','add_sequence_section','set_sequence_playback_range']) assert.ok(blockedUe.has(name));
-  for(const name of ['epic_call_tool','delete_asset','delete_asset_batch','rename_asset','move_asset','list_assets','read_pcg_graph','delete_actor','delete_actors','set_actor_tags','remove_blueprint_interface','edit_graph_parameters','edit_local_variable','remove_event_dispatcher','delete_graph','delete_macro','connect_texture_to_material','connect_material_expressions','connect_to_material_property','delete_material_expression','disconnect_material_property','load_level','create_new_level','set_current_edit_level','add_streaming_sublevel','remove_streaming_sublevel','set_streaming_sublevel_properties','set_world_settings','set_world_game_mode']) assert.ok(blockedUe.has(name));
+  for(const name of ['epic_call_tool','delete_asset','delete_asset_batch','rename_asset','move_asset','list_assets','delete_actor','delete_actors','set_actor_tags','remove_blueprint_interface','edit_graph_parameters','edit_local_variable','remove_event_dispatcher','delete_graph','delete_macro','connect_texture_to_material','connect_material_expressions','connect_to_material_property','delete_material_expression','disconnect_material_property','load_level','create_new_level','set_current_edit_level','add_streaming_sublevel','remove_streaming_sublevel','set_streaming_sublevel_properties','set_world_settings','set_world_game_mode']) assert.ok(blockedUe.has(name));
+  const pcg=coverage.entries.find(e=>e.provider==='ue-mcp' && e.sourceEntry==='read_pcg_graph');assert.equal(pcg.disposition,'selected-route-slice-other-semantics-unreviewed');assert.deepEqual(pcg.canonicalRouteReferences,['pcg.graph.inspect']);assert.ok(pcg.historicalSourceReview);
   const blockedHayba=new Set(blocked.filter(e=>e.provider==='hayba').map(e=>e.sourceEntry));
   for(const name of ['actor_call_function','actor_batch_spawn','actor_tag','actor_snap_to_socket','actor_duplicate','object_set_property','editor_run_console_command','editor_save_all_and_quit','asset_search','build_project','build_cook','build_generate_project_files','spline_create','spline_add_point','spline_set_point','spline_remove_point','spline_get_info','ism_create_actor','ism_add_instance','ism_add_instances','ism_clear_instances']) assert.ok(blockedHayba.has(name));
   const blockedIvan=new Set(blocked.filter(e=>e.provider==='ivan-unreal-mcp').map(e=>e.sourceEntry));
@@ -87,6 +98,8 @@ test('blocked source records require owner, reason, reopening condition and pinn
     const ledger=copy(); change(ledger.entries.find(e=>e.disposition==='blocked'));
     assert.throws(()=>validateCapabilityCoverage({ledger}),/invalid blocked evidence/);
   }
+  const historical=copy();historical.entries.find(e=>e.historicalSourceReview).historicalSourceReview.revision='0'.repeat(40);
+  assert.throws(()=>validateCapabilityCoverage({ledger:historical}),/invalid historical evidence/);
   const contradictory=copy();contradictory.entries.find(e=>e.disposition==='blocked').canonicalRouteReferences=['actor.inspect.editor'];
   assert.throws(()=>validateCapabilityCoverage({ledger:contradictory}),/disposition\/route mismatch/);
 });

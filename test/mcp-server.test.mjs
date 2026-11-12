@@ -9,6 +9,7 @@ import {startHttpServer} from '../src/http-server.mjs';
 import {createMcpConnection} from '../src/transport-client.mjs';
 import {MASTER_URI,ENABLED_GUIDANCE_URI,CATALOG_URI,STATUS_URI} from '../src/guidance.mjs';
 import {createFixtureRuntime,FIXTURE_CAPABILITIES,FIXTURE_IMAGE} from './fixtures/nexus-server-runtime.mjs';
+import upstreams from '../catalog/upstreams.lock.json' with {type:'json'};
 
 const fixturePath=fileURLToPath(new URL('./fixtures/nexus-server-stdio.mjs',import.meta.url));
 const productionPath=fileURLToPath(new URL('../src/main.mjs',import.meta.url));
@@ -77,7 +78,7 @@ test('command search separates canonical operations from static source records w
   const upstream=semantic.find(row=>row.kind==='source-record' && row.provider==='enginewire' && row.sourceEntry==='animation_physics.analyze_animation');
   assert.ok(upstream?.summary);assert.equal(upstream.enabled,undefined);
   const sourceDetails=(await call(client,'nexus.describe_source',{provider:'ue-mcp',surface:'legacy-default',sourceEntry:'place_actor'})).structuredContent;
-  assert.equal(sourceDetails.record.sourceEntry,'place_actor');assert.equal(sourceDetails.source.commit,'62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d');
+  assert.equal(sourceDetails.record.sourceEntry,'place_actor');assert.equal(sourceDetails.source.commit,upstreams.sources['ue-mcp'].commit);
   assert.ok(sourceDetails.currentBindings.some(item=>item.id==='actor.place.editor' && item.enabled===false));
   toolError(await call(client,'nexus.describe_source',{provider:'ue-mcp',surface:'legacy-default',sourceEntry:'not_a_real_source'}),'SOURCE_RECORD_NOT_FOUND');
   assert.equal((await call(client,'nexus.status')).structuredContent.backends.length,0);
@@ -169,16 +170,12 @@ test('front door refuses raw/disabled/invalid tools and returns correct missing-
   await assert.rejects(client.request({method:'tools/list',params:{cursor:'not-a-page'}},options),{code:-32602});
 });
 
-test('held PIE lifecycle and status refuse before starting a provider',async(t)=>{
-  const f=await httpFixture(t);
-  const client=await f.client();
-  for(const id of ['pie.start.viewport','pie.status']) {
-    const response=await call(client,id);
-    assert.equal(response.isError,true);
-    assert.match(response.structuredContent.error,/PIE_.*UNVERIFIED/);
-  }
-  assert.deepEqual(f.runtime.state.starts,[]);
-  assert.deepEqual(f.runtime.state.calls,[]);
+test('owned PIE start reaches its selected provider',async(t)=>{
+  const f=await httpFixture(t);const client=await f.client();
+  const response=await call(client,'pie.start.viewport');
+  assert.notEqual(response.isError,true);
+  assert.deepEqual(f.runtime.state.starts,['unrealagentplayer']);
+  assert.equal(f.runtime.state.calls.length,1);
 });
 
 test('write authority is checked before a stdio backend starts',async(t)=>{

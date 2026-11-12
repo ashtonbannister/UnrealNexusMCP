@@ -21,26 +21,33 @@
       "caveat": "Canonical records and folded aliases are not comparable public tool counts; preserve selectors and native availability/policy gates."
     },
     "ue-mcp": {
-      "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+      "commit": "da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8",
       "repository": "https://github.com/db-lyon/ue-mcp",
       "counts": {
         "builtInCategoryDeclarations": 30,
-        "recordedBridgeHandlerSpecs": 1206,
+        "recordedBridgeHandlerSpecs": 1384,
         "recordedEpicToolsets": 52,
-        "recordedEpicTools": 830
+        "recordedEpicTools": 830,
+        "recordedEpic59Toolsets": 109,
+        "recordedEpic59Tools": 1914
       },
       "recordedEpicEngineAssociation": "5.8",
       "sources": [
         {
           "path": "tests/golden/handler-specs.json",
-          "sha256": "58f34a96e98e500b024b90c16ff5528be34e251c9411581b7ea2b24fb21174e1"
+          "sha256": "04dbf5ecaf14c7450eee39a4e08bfc04f4f478f07053d49f9bdaa90d6e3aeec7"
         },
         {
-          "path": "tests/golden/epic-catalog.json",
+          "path": "tests/golden/epic-catalog/5.8.json",
           "sha256": "3cdc25ececd56fdcaa34874408a8cfe964827f47fc37b937ce237805252e63d1"
+        },
+        {
+          "path": "tests/golden/epic-catalog/5.9.json",
+          "sha256": "2ebabb6cdc4e95b87798c95c8e56e29231e0338f9b4d18b8bfc23005dac585c1"
         }
       ],
-      "caveat": "Recorded subsets can overlap and omit local/extension actions. Default micro public gateway is tools; live editor registration gates availability."
+      "caveat": "Recorded subsets can overlap and omit local/extension actions. Default micro public gateway is tools; live editor registration gates availability.",
+      "recordedEpic59EngineAssociation": "5.9"
     },
     "unrealagentplayer": {
       "commit": "4ab7a62eb78612c2ec110f683b6e11f5dea62e95",

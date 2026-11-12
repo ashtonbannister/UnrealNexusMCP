@@ -4,11 +4,11 @@
   "sources": {
     "ue-mcp": {
       "repository": "https://github.com/db-lyon/ue-mcp",
-      "commit": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
+      "commit": "da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8",
       "license": "MIT",
       "surface": "default micro gateway: tools(action=call, category, method, args)",
-      "defaultBranchHeadAtReview": "62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d",
-      "commitDate": "2026-10-25T02:44:32Z"
+      "defaultBranchHeadAtReview": "da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8",
+      "commitDate": "2026-11-11T22:08:00Z"
     },
     "enginewire": {
       "repository": "https://github.com/ChiR24/Unreal_mcp",

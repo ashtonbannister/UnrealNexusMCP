@@ -1,5 +1,5 @@
 {
   "toolRouting": "deferred",
-  "alwaysLoadPacks": ["material", "python"],
+  "alwaysLoadPacks": ["material"],
   "externalRouteAdvice": "off"
 }

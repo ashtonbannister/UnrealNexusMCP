@@ -1,6 +1,6 @@
 # CAP-18A transport decision evidence
 
-Status: **direct bounded bridge bytes selected by the owner; not implemented or qualified**. The callable `screenshot.pie` operation remains held. This note refines the open dependency and Windows API questions in the [transport review](CAP18A_SOURCE_TRANSPORT.md) and [image contract](CAP18A_IMAGE_CONTRACT.md). No response-size budget, source patch, or live behavior is asserted.
+Status: **historical transport decision**; see [current implementation evidence](qualification/UE_DIRECT_PIE_CAPTURE_WIP_20261112.md). At the time of this note, `screenshot.pie` was held. This note refines the open dependency and Windows API questions in the [transport review](CAP18A_SOURCE_TRANSPORT.md) and [image contract](CAP18A_IMAGE_CONTRACT.md). This historical note does not itself assert a response budget, patch, or live behavior.
 
 ## Pinned WebSocket client default
 

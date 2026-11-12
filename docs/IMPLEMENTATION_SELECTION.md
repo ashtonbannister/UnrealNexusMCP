@@ -16,8 +16,8 @@ capabilities individually or in packs. A backend factory starts only when an
 enabled capability assigned to it is executed. Listing, describing and planning
 do not start anything. Unused specialists impose no startup dependency.
 
-The catalogue now has 32 executable routing contracts in 16 selected groups.
-Thirteen optional specialist routes extend the original 16 core routes, with
+The catalogue now has 36 executable routing contracts in 19 selected groups.
+Fourteen optional specialist routes extend the original 16 core routes, with
 explicit reviewed compatibility requirements. Other choices remain conditional,
 preserved variants or holds. The 25 excluded
 default candidates are **not 25 deleted native functions**: some entries name a
@@ -27,12 +27,13 @@ family or a behavior that must not be imported as Nexus's default.
 |---|---|---|
 | Confirmed viewport PIE lifecycle | UnrealAgentPlayer | Selected, restricted schema; no-replay/target-binding patch required |
 | Current viewport image (editor or PIE) | EngineWire | Selected |
-| Exact PIE client capture with UMG | UE-MCP | Selected; host file output |
+| Exact PIE client capture with UMG | UE-MCP | Selected; bounded direct image output |
 | Exact actor/world inspection | UE-MCP | Selected |
 | Current-editor actor discovery | UE-MCP | Selected; pages are not a frozen snapshot |
 | Current-editor actor transform | UE-MCP | Selected; read back after native callbacks |
 | Current-editor actor placement | UE-MCP | Selected; native receipt requires independent inspection |
 | Current level and exact package saves | UE-MCP | Selected; no broad-save selector |
+| PCG graph node, pin and edge inspection | UE-MCP | Selected in upgrade candidate; no revision or pagination |
 | Persisted PCG connection and run-aware generation | UE-MCP | Selected |
 | Explicit-world Enhanced Input and named holds | UE-MCP | Selected |
 | Blueprint compile without saving | Claireon | Optional fixed adapter; no-autosave patch required |
@@ -82,7 +83,7 @@ gameplay observations/input. Specialist packs for compile, strict materials,
 automation and Insights are implemented and opt-in. Source patches and live
 markers are required before the affected routes can execute.
 
-Ivan's backend is not required by the 32 selected routes. This is not a finding
+Ivan's backend is not required by the 33 selected routes. This is not a finding
 that every Ivan capability is redundant: isolated/camera rendering and queries
 are distinct. Component licensing must be assessed before incorporating its
 PolyForm Shield RQL/Code-Exec components. No such source is copied here.
