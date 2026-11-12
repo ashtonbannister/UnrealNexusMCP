@@ -27,11 +27,12 @@ Future vendoring must include the exact upstream notices and a component-level
 licence inventory. A source revision update also requires rechecking licence and
 dependency changes.
 
-## Optional patch notices
+## Included upstream notices
 
 The Claireon, Hayba and UnrealAgentPlayer patch contexts derive from their pinned
 MIT sources. Their complete original notices are preserved here:
 
+- [EngineWire MIT notice](third_party/licenses/EngineWire-MIT.txt) (search metadata derived from its pinned catalogue)
 - [Claireon MIT notice](third_party/licenses/Claireon-MIT.txt)
 - [Hayba MIT notice](third_party/licenses/Hayba-MIT.txt)
 - [UnrealAgentPlayer MIT notice](third_party/licenses/UnrealAgentPlayer-MIT.txt)

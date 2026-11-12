@@ -22,11 +22,21 @@ export async function searchCommands(gateway, args, loadInventory = () => import
   }));
   const inventory=(await loadInventory()).default;
   if (!Array.isArray(inventory?.entries)) throw new NexusError('INVENTORY_UNAVAILABLE','Source inventory is unavailable.');
-  const sources=inventory.entries.filter(row=>matches([row.sourceEntry,row.provider,row.category,row.sourceGroup].map(text).join(' '))).map(row=>({
-    kind:'source-record',provider:row.provider,sourceEntry:row.sourceEntry,
-    surface:row.surface ?? 'legacy-default',disposition:row.disposition,
-    reviewOwnerTask:row.reviewOwnerTask ?? null,canonicalRouteReferences:row.canonicalRouteReferences ?? [],
-  }));
+  const index=(await import('../catalog/enginewire-search-index.json',{with:{type:'json'}})).default;
+  const source=inventory.sources?.enginewire;
+  if (index?.version!==1 || index.provider!=='enginewire' || index.commit!==gateway.catalog.upstreams.sources.enginewire.commit
+    || index.sourceSha256!==source?.sha256 || index.sourcePath!==source?.path || !index.records || typeof index.records!=='object') {
+    throw new NexusError('INVENTORY_UNAVAILABLE','EngineWire search metadata does not match the pinned inventory.');
+  }
+  const metadata = row => row.provider==='enginewire' && (row.surface ?? 'legacy-default')==='legacy-default'
+    ? index.records[row.sourceEntry] : undefined;
+  const sources=inventory.entries.filter(row=>{const m=metadata(row);return matches([row.sourceEntry,row.provider,row.category,row.sourceGroup,m?.summary,...(m?.terms ?? [])].map(text).join(' '));}).map(row=>{
+    const m=metadata(row);
+    return {kind:'source-record',provider:row.provider,sourceEntry:row.sourceEntry,
+      surface:row.surface ?? 'legacy-default',disposition:row.disposition,
+      reviewOwnerTask:row.reviewOwnerTask ?? null,canonicalRouteReferences:row.canonicalRouteReferences ?? [],
+      ...(m?.summary ? {summary:m.summary,summaryTruncated:m.summaryTruncated} : {})};
+  });
   const all=[...canonical,...sources];
   return {query:args.query,results:all.slice(offset,offset+limit),total:all.length,
     nextOffset:offset+limit<all.length?offset+limit:null,

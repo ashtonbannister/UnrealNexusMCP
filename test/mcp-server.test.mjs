@@ -73,6 +73,9 @@ test('command search separates canonical operations from static source records w
   const canonical=found.results.find(row=>row.kind==='canonical');assert.ok(canonical);assert.equal(typeof canonical.enabled,'boolean');assert.equal(canonical.availability,'not-checked');
   const source=(await call(client,'nexus.search',{query:'actor',limit:50,offset:found.total-1})).structuredContent.results[0];
   assert.equal(source.kind,'source-record');assert.ok(source.provider && source.sourceEntry && source.disposition);assert.equal(source.enabled,undefined);
+  const semantic=(await call(client,'nexus.search',{query:'foot sliding',limit:50})).structuredContent.results;
+  const upstream=semantic.find(row=>row.kind==='source-record' && row.provider==='enginewire' && row.sourceEntry==='animation_physics.analyze_animation');
+  assert.ok(upstream?.summary);assert.equal(upstream.enabled,undefined);
   assert.equal((await call(client,'nexus.status')).structuredContent.backends.length,0);
   toolError(await call(client,'nexus.search',{query:'actor',limit:51}),'INVALID_ARGUMENTS');
 });
