@@ -48,12 +48,12 @@ function ueDescription(operation) {
 const vector = (keys) => ({ type: 'object', properties: Object.fromEntries(keys.map((key) => [key, { type: 'number' }])), additionalProperties: false });
 const ewInput = { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object',
   properties: {
-    action: { type: 'string' }, filename: { type: 'string' }, path: { type: 'string' }, resolution: { type: 'string' },
+    filename: { type: 'string' }, path: { type: 'string' }, resolution: { type: 'string' },
     mode: { type: 'string', enum: ['editor_viewport', 'game_viewport', 'full_editor_window'] },
     window: { type: ['integer', 'string'] }, location: vector(['x', 'y', 'z']), rotation: vector(['pitch', 'yaw', 'roll']),
     returnBase64: { type: 'boolean' }, keepFile: { type: 'boolean' }, waitForShaders: { type: 'boolean' },
     includeMetadata: { type: 'boolean' }, metadata: { type: 'object', additionalProperties: true, 'x-unreal-reflection-boundary': true },
-  }, required: ['action'], additionalProperties: false };
+  }, required: [], additionalProperties: false };
 const ewDescription = () => ({ operation: 'describe', action: 'screenshot', capability: 'control_editor.screenshot',
   legacyIds: [{ tool: 'control_editor', action: 'screenshot' }, { tool: 'control_editor', action: 'take_screenshot', folded: {} }],
   availability: { status: 'available', reasons: [], requiredPlugins: [], editorStates: ['edit', 'pie', 'simulate'] },
@@ -251,6 +251,8 @@ test('EngineWire availability is not inferred from describe existence', async (t
     (d) => { d.availability.editorStates = ['edit']; },
     (d) => { d.legacyIds = [{ tool: 'control_editor', action: 'different' }]; },
     (d) => { delete d.inputSchema.properties.keepFile; },
+    (d) => { delete d.inputSchema.properties.returnBase64; },
+    (d) => { d.inputSchema.properties.mode.enum = ['game_viewport']; },
     (d) => { d.inputSchema.anyOf = [{ required: ['unknown'] }]; },
   ]) {
     const f = await fixture(t, 'enginewire'); alter(f.state.describe);

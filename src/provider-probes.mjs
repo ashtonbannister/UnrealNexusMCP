@@ -506,7 +506,7 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
         || !Array.isArray(description.availability.editorStates)
         || !['edit', 'pie', 'simulate'].every((state) => description.availability.editorStates.includes(state))
         || !description.legacyIds?.some((id) => id.tool === operation.route.tool && id.action === operation.route.action)
-        || !covers(description.inputSchema, routeSchema(operation, { action: operation.route.action }))) return false;
+        || !covers(description.inputSchema, routeSchema(operation))) return false;
     } else if (provider === 'unrealagentplayer' && operation.route.kind === 'direct') {
       if (compatibilityPatch === 'uap-nexus-strict-status-v2'
         && !['NotPlaying','Starting','Playing','Paused','Ending'].includes(identity.native.strictStatusPhase)) return false;
