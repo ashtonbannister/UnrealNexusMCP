@@ -141,7 +141,7 @@ pause through this restricted lifecycle route.
 
 `actor.list.editor` discovers matching actors and returns paths and pages in the current editor world. The native handler gathers rows before paging; pagination is not a frozen snapshot, and streaming proxies are excluded by default. Revalidate selected targets before later actions.
 
-`actor.place.editor` creates one actor in the current editor world without saving. Supply a unique label, class and finite location; optional mesh assignment is not verified by the native placement receipt. The receipt does not report the resolved world, actor path or transform: inspect the created actor and world separately. An uncertain dispatch requires reconciliation, not retry.
+`actor.place.editor` creates one actor in the current editor world without saving. Supply a unique label, class and finite location; optional mesh and material assignments are not verified by the native placement receipt. The receipt does not report the resolved world, actor path or transform: inspect the created actor and world separately. An uncertain dispatch requires reconciliation, not retry.
 
 **Trigger:** read a level actor before editing or verify a gameplay actor.
 

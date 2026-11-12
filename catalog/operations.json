@@ -244,6 +244,64 @@
             "minLength": 1,
             "maxLength": 1024,
             "description": "Optional static mesh object path; native receipt does not verify assignment."
+          },
+          "rotation": {
+            "type": "object",
+            "properties": {
+              "pitch": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "yaw": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "roll": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              }
+            },
+            "required": [
+              "pitch",
+              "yaw",
+              "roll"
+            ],
+            "additionalProperties": false
+          },
+          "scale": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "y": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              },
+              "z": {
+                "type": "number",
+                "minimum": -100000000,
+                "maximum": 100000000
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          },
+          "material": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Optional material object path; native receipt does not verify assignment."
           }
         },
         "required": [
@@ -263,7 +321,7 @@
         }
       },
       "postconditions": [
-        "Require created=true, existed=false and matching label and class in the native receipt. The native receipt does not establish resolved world, actor path, position or optional mesh assignment; inspect separately. The current editor world may change between checks. The level is not saved. Do not retry an uncertain dispatch."
+        "Require created=true, existed=false and matching label and class in the native receipt. The native receipt does not establish resolved world, actor path, position or optional mesh or material assignment; inspect separately. The current editor world may change between checks. The level is not saved. Do not retry an uncertain dispatch."
       ],
       "example": {
         "actorClass": "/Script/Engine.StaticMeshActor",

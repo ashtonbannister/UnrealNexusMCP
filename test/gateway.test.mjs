@@ -608,7 +608,7 @@ test('actor discovery preserves native page and fixes editor world',async()=>{
 });
 
 test('actor placement fixes editor scope and fences an uncorrelated receipt',async()=>{
-  const args={actorClass:'/Script/Engine.StaticMeshActor',label:'NexusTest',location:{x:1,y:2,z:3},staticMesh:'/Engine/BasicShapes/Cube.Cube'};
+  const args={actorClass:'/Script/Engine.StaticMeshActor',label:'NexusTest',location:{x:1,y:2,z:3},rotation:{pitch:0,yaw:45,roll:0},scale:{x:2,y:2,z:2},staticMesh:'/Engine/BasicShapes/Cube.Cube',material:'/Game/Test.Material'};
   const good={success:true,created:true,existed:false,actorLabel:args.label,actorClass:args.actorClass};
   const refusal=fixture({config:{enabledCapabilities:['actor.place.editor']},reply:()=>({isError:true,content:[{type:'text',text:'Error [INVALID_PARAMS]: refused before dispatch'}]})});
   const refused=await refusal.gateway.execute('actor.place.editor',args);assert.equal(refused.isError,true);assert.equal(refused._meta['unreal-nexus/result-policy'].outcomeUnknown,false);await refusal.gateway.close();
