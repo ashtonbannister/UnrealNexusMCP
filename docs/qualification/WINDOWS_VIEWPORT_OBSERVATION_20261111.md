@@ -24,3 +24,7 @@ A separate read-only Windows process-module enumeration for editor PID 39912 sho
 | UnrealEditor-HaybaMCPToolkit.dll | `655cb6ff68b58332168b7dca002ed7a63704d59c59bd222f100f3af1421d248c` |
 | UnrealEditor-UnrealAgentPlayerRuntime.dll | `8c05ad1c88c5de5042461e5f4e834b7a5bbfd020c9209cad3133bd111764d194` |
 | UnrealEditor-UnrealAgentPlayer.dll | `74a34eb062c60fc899e1c91b21221525cd2714e17f385367703df5e7850f025d` |
+
+## Upstream checkout source snapshot
+
+On the same date, the five installed upstream checkouts (`ue-mcp`, `enginewire`, `hayba`, `unrealagentplayer`, and `claireon`) each reported a HEAD matching `catalog/upstreams.lock.json`. The installed files listed in the `claireon-nexus-no-autosave-v1`, `hayba-nexus-no-retry-v1`, and `uap-nexus-no-replay-v1` compatibility records all matched their recorded post-patch SHA-256 values. This is a source checkout observation only: it does not link those sources to the binaries loaded in the editor, prove the entire checkout is clean, or qualify the plugins' behavior.
