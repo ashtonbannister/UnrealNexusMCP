@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
-import {createMcpConnection} from '../src/transport-client.mjs';
+import {createMcpConnection, cancellationAwareEventStream} from '../src/transport-client.mjs';
 import {cleanupIncomplete} from '../src/errors.mjs';
 
 const fixturePath = fileURLToPath(new URL('./fixtures/transport-stdio.mjs',import.meta.url));
@@ -252,4 +252,18 @@ test('failed startup reports unconfirmed bounded cleanup without replacing the o
   catch (error) { failure=error; }
   assert.equal(failure?.code,'BACKEND_TIMEOUT');
   assert.equal(cleanupIncomplete(failure),true);
+});
+
+
+test('aborting a locked event stream cancels its underlying response',async()=>{
+  let cancelled=0;
+  const source=new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode('data: ready\n\n'));},cancel(){cancelled++;}});
+  const controller=new AbortController();
+  const response=cancellationAwareEventStream(new Response(source,{status:200,headers:{'content-type':'text/event-stream'}}),controller.signal);
+  const reader=response.body.pipeThrough(new TextDecoderStream()).getReader();
+  assert.match((await reader.read()).value,/ready/u);
+  const pending=reader.read();
+  controller.abort();
+  assert.equal((await pending).done,true);
+  assert.equal(cancelled,1);
 });

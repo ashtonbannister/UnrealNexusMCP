@@ -69,6 +69,28 @@ function childEnvironment(config) {
   return env;
 }
 
+// Node fetch can leave a streamed GET body locked after its request is aborted.
+// Own the underlying reader so transport shutdown also explicitly cancels it.
+export function cancellationAwareEventStream(response, signal) {
+  if (!response.body || !signal) return response;
+  const reader=response.body.getReader();
+  const abort=()=>{void reader.cancel().catch(()=>{});};
+  const detach=()=>signal.removeEventListener('abort',abort);
+  if (signal.aborted) abort();
+  else signal.addEventListener('abort',abort,{once:true});
+  const stream=new ReadableStream({
+    async pull(controller) {
+      try {
+        const item=await reader.read();
+        if (item.done) {detach();controller.close();}
+        else controller.enqueue(item.value);
+      } catch (error) {detach();controller.error(error);}
+    },
+    cancel(reason) {detach();return reader.cancel(reason);},
+  });
+  return new Response(stream,{status:response.status,statusText:response.statusText,headers:response.headers});
+}
+
 function makeTransport(config, lifetime, fail) {
   if (!record(config)) throw new NexusError('INVALID_TRANSPORT_CONFIGURATION', 'A transport configuration is required.');
   if (config.type === 'stdio') {
@@ -99,8 +121,14 @@ function makeTransport(config, lifetime, fail) {
   try { headers = new Headers(strings(config.headers ?? {}, 'headers')); } catch {
     throw new NexusError('INVALID_TRANSPORT_CONFIGURATION', 'Invalid backend headers.');
   }
-  const oneFetch = (input, init = {}) => fetch(input, {...init,redirect:'error',
-    signal:AbortSignal.any([lifetime.signal,...(init.signal ? [init.signal] : [])])});
+  const oneFetch = async (input, init = {}) => {
+    const signal=AbortSignal.any([lifetime.signal,...(init.signal ? [init.signal] : [])]);
+    const response=await fetch(input,{...init,redirect:'error',signal});
+    if ((init.method ?? 'GET').toUpperCase() === 'GET' && response.ok
+      && response.headers.get('content-type')?.split(';',1)[0].trim().toLowerCase() === 'text/event-stream')
+      return cancellationAwareEventStream(response,signal);
+    return response;
+  };
   const options = {requestInit:{headers,redirect:'error'},fetch:oneFetch};
   if (config.type === 'sse') return new SSEClientTransport(url,options);
   return new StreamableHTTPClientTransport(url,{...options,
