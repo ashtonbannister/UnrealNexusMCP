@@ -51,7 +51,7 @@ Use these controls as a short decision loop, not as a fixed command list:
 
 ## Practical workflows
 
-- **Actors:** discover in the intended editor/PIE world, use returned paths, then place, inspect or transform as requested. Labels can be duplicated; the native placement receipt may not prove mesh, material, transform or resolved world. Read back what matters.
+- **Actors:** discover in the intended editor/PIE world, use returned paths, then place, inspect, transform or manage tags as requested. For deletion, `actor.delete.editor` requires the checked native patch and an exact loaded actor path; independently check the world afterward. Labels can be duplicated; the native placement receipt may not prove mesh, material, transform or resolved world. Read back what matters.
 - **Assets and graphs:** `blueprint.create` creates and compiles one Blueprint; it may save according to editor settings. `blueprint.variable.add` adds, compiles and saves one variable. Identify the exact asset and intended graph/node/pin before editing. Distinguish an in-memory change from a save or reload; a request not to save excludes explicit save commands.
 - **Play, input and observation:** distinguish editor viewport from a particular PIE client, verify play state and target, preserve image blocks and release only holds or sessions the task owns. Screenshot size can be a bounding box.
 - **Compilation, tests and profiling:** use the relevant selected operation or direct provider; preserve diagnostics, progress, warnings and partial results. A successful dispatch is not necessarily completed work.

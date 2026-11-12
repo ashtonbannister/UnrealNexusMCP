@@ -408,6 +408,13 @@ export function normalizeResult(operation, result, expectedArgs = {}) {
     }
     // The native receipt does not report the resolved world or PIE instance.
   }
+  if (operation.id === 'actor.delete.editor') {
+    policy = 'require-checked-actor-deletion';
+    const valid = payload?.success === true && result.isError !== true && payload.deleted === true
+      && payload.nexusCheckedActorDeleteVersion === 1 && payload.actorPath === expectedArgs.actorPath
+      && payload.rollbackLossy === true;
+    if (!valid) {failed = true; outcomeUnknown = true;}
+  }
   if (['actor.tags.list.editor','actor.tag.add.editor'].includes(operation.id) && payload?.success === true) {
     policy = 'require-matching-actor-tags';
     const tags = Array.isArray(payload.tags) && payload.tags.every(tag => typeof tag === 'string');

@@ -2255,6 +2255,47 @@
         "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube",
         "tag": "NexusExample"
       }
+    },
+    {
+      "id": "actor.delete.editor",
+      "description": "Request destruction of one exact loaded editor-world actor; no level save is performed.",
+      "provider": "ue-mcp",
+      "decision": "actor-deletion-checked",
+      "effect": "destructive",
+      "contract": "actor.delete.editor",
+      "guidanceSections": [
+        4
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "actorPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^/[A-Za-z0-9_][^\\u0000-\\u001F]*$",
+            "description": "Exact case-sensitive path of a loaded editor-world actor."
+          }
+        },
+        "required": [
+          "actorPath"
+        ],
+        "additionalProperties": false
+      },
+      "route": {
+        "kind": "ue-micro",
+        "category": "level",
+        "method": "delete_actor",
+        "fixed": {}
+      },
+      "requiredCompatibility": "ue-mcp-nexus-checked-delete-v1",
+      "postconditions": [
+        "Require the exact actor path, checked-deletion version and Unreal's successful destruction acknowledgement; independently inspect the world after deletion.",
+        "The call does not save. Unloaded actors are not treated as deleted; an error or timeout can leave an uncertain outcome. An inverse spawn is lossy and is not rollback."
+      ],
+      "example": {
+        "actorPath": "/Game/Maps/Demo.Demo:PersistentLevel.Cube"
+      }
     }
   ]
 }

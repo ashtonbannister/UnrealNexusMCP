@@ -147,6 +147,8 @@ pause through this restricted lifecycle route.
 
 `actor.place.editor` creates one actor in the current editor world without saving. Supply a unique label, class and finite location; optional mesh and material assignments are not verified by the native placement receipt. The receipt does not report the resolved world, actor path or transform: inspect the created actor and world separately. An uncertain dispatch requires reconciliation, not retry.
 
+`actor.delete.editor` requires the checked-deletion patch and destroys one loaded actor without saving. Its receipt is an acknowledgement, not an independent post-delete read; actor recreation is lossy. Reconcile any uncertain result before retrying.
+
 Use `actor.tags.list.editor` to page authored tags and `actor.tag.add.editor` to add one without saving. Tag names use Unreal FName comparison; inspect the returned spelling and status.
 
 **Trigger:** read a level actor before editing or verify a gameplay actor.

@@ -696,6 +696,115 @@
         "Includes the no-autosave python wrapper. The exact loaded compile form refuses folder expansion and expired-session cleanup and uses SkipSave.",
         "Requires rebuilding the Claireon native plugin; loaded artifact provenance remains separate."
       ]
+    },
+    {
+      "id": "ue-mcp-nexus-checked-delete-v1",
+      "provider": "ue-mcp",
+      "baseCommit": "da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8",
+      "file": "patches/ue-mcp-nexus-checked-delete-v1.patch",
+      "sha256": "9f00e258cb14495afed83a49efeae4accc5c8fdd1bf1535525cd2de49c4095b7",
+      "capabilityMarker": {
+        "tool": "tools",
+        "responseField": "bridgeProtocol.features",
+        "containsAll": [
+          "nexus-pagination-count-v1",
+          "nexus-level-save-guard-v1",
+          "nexus-direct-pie-capture-v1",
+          "nexus-owned-input-hold-v1",
+          "nexus-checked-actor-delete-v1"
+        ]
+      },
+      "files": [
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp",
+          "beforeSha256": "1d15bd5191328ab31a5f07943b30a67f0ea4a6eb60849eafe641bbbaf6350fe3",
+          "afterSha256": "107c7b8b3bf74e1eb76c0af96b145599c238b9237713aa6bc26a589acbff6898"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "beforeSha256": "23cfaffa1e319875d423190b65321026a3043d3e13703e1db00c01e66e8a9dc4",
+          "afterSha256": "f7b3fcec3cf9b40fe13f8ea907b09346fdc2da43fad500a97f4a65ddf3fa1d1d"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.h",
+          "beforeSha256": "4e6580a4d2efe188f2b7b089959961c93054ed899bfbc6c4dd494171b1a09636",
+          "afterSha256": "b87ebb61cb5860607367c1c5dc68f4d4325917680946db93b128edbd84aadb6a"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "beforeSha256": "c04ea480d71190ea720885d6adcaf960ec7a6042e3c4beb471608e1a32827ea3",
+          "afterSha256": "5e14bf0cd43448f929ffa5b04d1a083eb2f300df99fc3709b35f8459a8fb2a1b"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "beforeSha256": "817cb9fca518426af9a51c095d0f5a09a6c3f2707299ccc21d7406e201398e81",
+          "afterSha256": "b92f261a7c1e499d74e1cf0d6dd8d1cd514777590967da6dcf832027a2263020"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp",
+          "beforeSha256": "484c986163635c0470508c2cf0841be6e3989ea1c5e9595e2413f98f70e5bdc5",
+          "afterSha256": "6dde0bc56837f5653afed1c6325ac6e4b9dbbe3d4e1cfe052e452f39a8edc3b0"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers.cpp",
+          "beforeSha256": "27911fd8b79db9ce5b92d54838cc121e8995d248a113295c09ca259d527dcb7f",
+          "afterSha256": "05776582b7280ddc2b5766725a1c689512eed68d74b94700f3cbc27f9f4c04b2"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp",
+          "beforeSha256": "ce834b0b695da854b4cd594836ebfe3c11d1030af230357ca13e89d5992f04b6",
+          "afterSha256": "34099e89315ec9374af52d5247d3262b40570492b897f4e66ff373fd1097b7fb"
+        },
+        {
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h",
+          "beforeSha256": "513228e3b9de2513a87acef65f5b1530faddd5c1108b1bac9f23a627917ddbff",
+          "afterSha256": "5d52a098c34b979a9aed0242ee3e6f6e8da708833f8ede1daa2d26b4428d3fbc"
+        },
+        {
+          "path": "src/bridge/bridge.ts",
+          "beforeSha256": "2ea80cbcc903f8db3b6be079ac7c62f42e1f0aeed7e3b79d1210a32ec4ad16f6",
+          "afterSha256": "cb43b0508f5343d00419c9268301edf8c15f7b4df26e129118a49fd0d847d8f8"
+        },
+        {
+          "path": "src/tools/editor.ts",
+          "beforeSha256": "b230c0a5153ecf1d56cdc2b2e1a144e9669fe55e59821b1d154ca481ed135b73",
+          "afterSha256": "411660c1f13f5dc6c9cba5a6afec53e6200e3af8b0dd34329feae61d1bcea348"
+        },
+        {
+          "path": "src/tools/pie.ts",
+          "beforeSha256": "8f7cdb896deec4e0e1cd27136167e411970b78038e495667ddce00d88c23275e",
+          "afterSha256": "46ef9b7f13b7e7017c15d6016567727a1ccb1b279a0dd1dc182760cc05ea6a9b"
+        },
+        {
+          "path": "src/tools/project/sessions.ts",
+          "beforeSha256": "5f072686401593c13e9c87b3e87e1b5dc07b6f2ab74785dc886f2ec80e434ed6",
+          "afterSha256": "41595ec8d0060645d35f24c4764680227890e54d295d0fd573cd745ff88f4105"
+        },
+        {
+          "path": "src/tools/specs/editor.generated.ts",
+          "beforeSha256": "c0ea5496c537d56fdb12ccf7b5cc34eedc568a584ec1e36572be1c0d1a22021f",
+          "afterSha256": "63a29ff0d1d685a68075660cfd681728344b090a7b880515d83dc7d3ab0b0157"
+        },
+        {
+          "path": "src/tools/specs/level.generated.ts",
+          "beforeSha256": "46d58f92c1da9a71cc150ffbe7957ea5314361f25e9c774abff655821baa69c6",
+          "afterSha256": "5aafaba305aaf767b4ede6af1e48d45683ab3bf944bf66b065b9a032f0afefc4"
+        },
+        {
+          "path": "src/tools/specs/pie.generated.ts",
+          "beforeSha256": "92c5ff95e741672ec4c14977edb32f9f08a5cdd335f9431ab45b6e14bf2ad5f0",
+          "afterSha256": "b10bb8b608ccf7fe7adf1336e890b46ca1341c0756691811353697b66c80163f"
+        },
+        {
+          "path": "tests/golden/handler-specs.json",
+          "beforeSha256": "04dbf5ecaf14c7450eee39a4e08bfc04f4f478f07053d49f9bdaa90d6e3aeec7",
+          "afterSha256": "6cc0932a95d1821bc267661e8118e15f023344d372159e07be3b6159d5dcc494"
+        }
+      ],
+      "notes": [
+        "Includes the owned-hold v1 patch and checks exact actor-path resolution and Unreal destruction return values.",
+        "Requires a rebuilt native plugin. A successful deletion receipt is not an independent post-delete world readback."
+      ]
     }
   ]
 }

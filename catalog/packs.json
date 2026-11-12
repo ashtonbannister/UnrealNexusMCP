@@ -106,6 +106,16 @@
         "insights.trace.close"
       ],
       "requiredCompatibility": "claireon-nexus-no-autosave-v1"
+    },
+    {
+      "id": "actor-deletion-checked",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "ue-mcp",
+      "operations": [
+        "actor.delete.editor"
+      ],
+      "requiredCompatibility": "ue-mcp-nexus-checked-delete-v1"
     }
   ]
 }

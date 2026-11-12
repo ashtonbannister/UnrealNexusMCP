@@ -1136,3 +1136,17 @@ test('actor tag operations use exact paths and preserve tag results',async()=>{
   assert.equal(bad.isError,true);
   await gateway.close();
 });
+
+
+test('checked actor deletion requires the correlated native acknowledgement and fences uncertainty',async()=>{
+  const actorPath='/Game/Map.Map:PersistentLevel.Actor';
+  const receipt={success:true,actorPath,deleted:true,nexusCheckedActorDeleteVersion:1,rollbackLossy:true};
+  const {gateway,calls}=fixture({config:{enabledCapabilities:['actor.delete.editor']},reply:()=>json(receipt)});
+  assert.notEqual((await gateway.execute('actor.delete.editor',{actorPath})).isError,true);
+  assert.equal(calls[0].call.arguments.method,'delete_actor');
+  await gateway.close();
+  const bad=fixture({config:{enabledCapabilities:['actor.delete.editor']},reply:()=>json({...receipt,actorPath:'/Game/Other'})}).gateway;
+  assert.equal((await bad.execute('actor.delete.editor',{actorPath})).isError,true);
+  assert.equal(bad.status().queue.blocked,true);
+  await bad.close();
+});

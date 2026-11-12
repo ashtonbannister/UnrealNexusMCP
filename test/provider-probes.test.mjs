@@ -30,6 +30,7 @@ const ueFacts = {
   'level.move_actor': ['move_actor', [str('actorPath'),str('actorLabel'),{name:'location',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}},{name:'rotation',type:'object',required:false,properties:{pitch:{type:'number',required:true},yaw:{type:'number',required:true},roll:{type:'number',required:true}}},{name:'scale',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}},str('world')]],
   'level.place_actor': ['place_actor', [str('actorClass', true), str('label'), str('onConflict'), {name:'location',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}}, {name:'rotation',type:'object',required:false,properties:{pitch:{type:'number',required:true},yaw:{type:'number',required:true},roll:{type:'number',required:true}}}, {name:'scale',type:'object',required:false,properties:{x:{type:'number',required:true},y:{type:'number',required:true},z:{type:'number',required:true}}}, str('staticMesh'), str('material'), str('world')]],
   'level.get_actor_details': ['get_actor_details', [...actor, bool('includeProperties'), str('propertyName'), str('world'), int('pieInstance')]],
+  'level.delete_actor': ['delete_actor', [...actor]],
   'level.get_actor_bounds': ['get_actor_bounds', [...actor, bool('onlyColliding'), str('world'), int('pieInstance')]],
   'level.list_actor_tags': ['list_actor_tags', [...actor, str('cursor'), int('limit')]],
   'level.add_actor_tag': ['add_actor_tag', [...actor, str('tag',true)]],
@@ -581,4 +582,14 @@ test('UAP identity and reflection share fresh listener and process brackets',asy
   }});
   await assert.rejects(replaced.supports(op('pie.start.viewport')),/listener mismatch/u);
   assert.equal(listeners,2);
+});
+
+
+test('checked actor deletion requires the complete live native feature marker',async(t)=>{
+  const f=await fixture(t,'ue-mcp');
+  const probe=createProviderProbe({...f.options,compatibilityPatch:'ue-mcp-nexus-checked-delete-v1'});
+  f.state.status.bridgeProtocol.features=['nexus-pagination-count-v1','nexus-level-save-guard-v1','nexus-direct-pie-capture-v1','nexus-owned-input-hold-v1'];
+  await assert.rejects(probe.attestIdentity(),/compatibility marker/u);
+  f.state.status.bridgeProtocol.features.push('nexus-checked-actor-delete-v1');
+  assert.equal(await probe.supports(op('actor.delete.editor')),true);
 });

@@ -60,6 +60,8 @@ git -C <UPSTREAMS>\unrealagentplayer apply --check <NEXUS_ROOT>\patches\uap-nexu
 git -C <UPSTREAMS>\unrealagentplayer apply <NEXUS_ROOT>\patches\uap-nexus-owned-pie-v4.patch
 ```
 
+For the optional `actor-deletion-checked` profile, apply `ue-mcp-nexus-checked-delete-v1.patch` to a pristine UE-MCP checkout instead of the owned-hold patch above; it includes that patch. Build the native plugin and TypeScript server, and require the live marker before use.
+
 Do not commit inside the upstream checkouts. The patched working tree is intentional.
 
 Build only the servers required by the selected profile that the gateway launches:

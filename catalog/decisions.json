@@ -1998,6 +1998,37 @@
       "qualification": [
         "Source reviewed at the pinned revision; live qualification is scoped to the observed build."
       ]
+    },
+    {
+      "id": "actor-deletion-checked",
+      "status": "selected",
+      "scope": "Destroy one exact loaded editor-world actor, with checked native return and identity.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.delete_actor with checked-delete-v1 compatibility patch"
+      },
+      "operations": [
+        "actor.delete.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1355,
+            1429
+          ],
+          "note": "Pinned deletion resolves an actor in the editor world; reviewed compatibility patch checks the resolved path and Unreal destruction return value.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1355-L1429"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Unloaded World Partition deletion, referenced asset deletion, bulk deletion and persistence have distinct contracts."
+      ],
+      "qualification": [
+        "Candidate source patch and fixture checks do not prove a loaded native plugin; rebuild and live marker required."
+      ]
     }
   ]
 }

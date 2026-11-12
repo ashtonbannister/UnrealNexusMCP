@@ -361,3 +361,13 @@ test('closing during automatic editor selection never starts a backend',async()=
   await assert.rejects(pending,{code:'GATEWAY_CLOSED'});
   assert.equal(events.filter(e=>e[0]==='connect').length,0);
 });
+
+
+test('checked actor deletion requires the new native compatibility patch',async()=>{
+  const raw={version:1,target,allowWrites:true,enabledCapabilities:['actor.delete.editor'],
+    backends:{'ue-mcp':{...backend(),compatibilityPatch:'ue-mcp-nexus-owned-hold-v1'}}};
+  const {adapters}=fixture();
+  await assert.rejects(createRuntime(parseConfig(raw),adapters),{code:'COMPATIBILITY_PATCH_REQUIRED'});
+  raw.backends['ue-mcp'].compatibilityPatch='ue-mcp-nexus-checked-delete-v1';
+  const runtime=await createRuntime(parseConfig(raw),adapters);await runtime.close();
+});

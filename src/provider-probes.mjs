@@ -16,7 +16,7 @@ const IO_LIMIT = 1024 * 1024;
 const UE_BRIDGES = new Map([
   ['blueprint.create', 'create_blueprint'], ['blueprint.add_variable', 'add_variable'],
   ['editor.capture_screenshot', 'capture_screenshot'], ['editor.nexus_capture_pie_png_v1', 'nexus_capture_pie_png_v1'], ['level.get_actor_details', 'get_actor_details'],
-  ['level.get_actor_bounds', 'get_actor_bounds'], ['level.list_actor_tags', 'list_actor_tags'], ['level.add_actor_tag', 'add_actor_tag'], ['level.place_actor', 'place_actor'], ['level.move_actor', 'move_actor'],
+  ['level.delete_actor', 'delete_actor'], ['level.get_actor_bounds', 'get_actor_bounds'], ['level.list_actor_tags', 'list_actor_tags'], ['level.add_actor_tag', 'add_actor_tag'], ['level.place_actor', 'place_actor'], ['level.move_actor', 'move_actor'],
   ['pcg.read_graph', 'read_pcg_graph'], ['editor.list_pie_instances', 'list_pie_instances'],
   ['level.get_outliner', 'get_world_outliner'],
   ['level.save', 'save_level'], ['level.get_current_edit_level', 'get_current_edit_level'], ['asset.save', 'save_asset'], ['pcg.connect_nodes', 'connect_pcg_nodes'],
@@ -432,8 +432,10 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       if (native.mode !== 'live' || native.editorConnected !== true || native.answeringPid !== target.processId
         || native.editorTargetMismatch === true || native.pluginStaleSource !== 'parity') fail('UE-MCP does not prove this live editor and registered surface');
       if (native.bridgeProtocol?.mismatch) fail('UE-MCP live bridge protocol mismatch');
-      if (['ue-mcp-nexus-pagination-count-v1','ue-mcp-nexus-guarded-save-v2','ue-mcp-nexus-direct-pie-v1','ue-mcp-nexus-owned-hold-v1'].includes(compatibilityPatch)) {
-        const requiredFeatures = compatibilityPatch === 'ue-mcp-nexus-owned-hold-v1'
+      if (['ue-mcp-nexus-pagination-count-v1','ue-mcp-nexus-guarded-save-v2','ue-mcp-nexus-direct-pie-v1','ue-mcp-nexus-owned-hold-v1','ue-mcp-nexus-checked-delete-v1'].includes(compatibilityPatch)) {
+        const requiredFeatures = compatibilityPatch === 'ue-mcp-nexus-checked-delete-v1'
+          ? ['nexus-pagination-count-v1','nexus-level-save-guard-v1','nexus-direct-pie-capture-v1','nexus-owned-input-hold-v1','nexus-checked-actor-delete-v1']
+          : compatibilityPatch === 'ue-mcp-nexus-owned-hold-v1'
           ? ['nexus-pagination-count-v1','nexus-level-save-guard-v1','nexus-direct-pie-capture-v1','nexus-owned-input-hold-v1']
           : compatibilityPatch === 'ue-mcp-nexus-direct-pie-v1'
           ? ['nexus-pagination-count-v1','nexus-level-save-guard-v1','nexus-direct-pie-capture-v1']

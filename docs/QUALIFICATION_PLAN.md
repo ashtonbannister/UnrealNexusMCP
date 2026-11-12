@@ -175,6 +175,11 @@ This is the exact current allowlist, not proposed capability names. Every row al
 | `actor.transform.editor` | ue-mcp | Exact path and independent post-callback transform readback | Missing target, wrong world, uncertain dispatch and no implicit save | not-run |
 | `actor.place.editor` | ue-mcp | Created actor in current editor world; requested label/class and independent position/mesh inspection | Duplicate label, invalid class or mesh, world change, partial/unknown dispatch | not-run |
 | `actor.inspect.editor` | ue-mcp | Exact editor actor identity/properties; disclosed truncation | Repeated labels, wrong path and stale epoch | not-run |
+| `actor.bounds.editor` | ue-mcp | Exact loaded actor path and world-space bounds | Wrong path, invalid or inconsistent bounds | not-run |
+| `actor.tags.list.editor` | ue-mcp | Exact loaded actor and authored tag pages | Missing actor, changed page and ambiguous path | not-run |
+| `actor.tag.add.editor` | ue-mcp | Exact actor tag receipt and unsaved package state | Existing tag, wrong path and uncertain dispatch | not-run |
+| `actor.delete.editor` | ue-mcp | Exact loaded actor path and checked native acknowledgement | One disposable create/delete/readback observed; unloaded actors and refusal cases remain | partial |
+
 | `actor.inspect.pie` | ue-mcp | Requested PIE world/instance actor identity | Editor duplicate, unavailable/ambiguous instance | not-run |
 | `level.save.current` | ue-mcp | Intended current map/external packages and per-package disk receipts | Wrong current map refusal and disposable force save observed; other cases source/fixture only | partial |
 | `asset.save.exact` | ue-mcp | Only explicit loaded asset set, actual files and reload | Empty/invalid scope, missing/read-only/partial save; malformed receipt | not-run |
