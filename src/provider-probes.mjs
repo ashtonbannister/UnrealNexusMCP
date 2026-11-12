@@ -377,7 +377,15 @@ export function createProviderProbe({ provider, connection, tools, target, endpo
       await listener(endpointUrl);
       const receipt = payload(await call('unreal', { operation: 'execute', tool: 'inspect', action: 'get_project_settings', params: {} }));
       native = receipt.data;
-      if (receipt.status !== 'success' || !object(native) || native.success !== true) fail('EngineWire project settings probe did not succeed');
+      const legacy = receipt.status === 'success' && object(native) && native.success === true && receipt.success === undefined && receipt.migratedFrom === undefined
+        && receipt.action === undefined && receipt.capabilityId === undefined && receipt.tool === undefined
+        && (receipt.operation === undefined || receipt.operation === 'execute');
+      const migrated = receipt.success === true && receipt.operation === 'execute' && receipt.tool === 'inspect'
+        && receipt.action === 'get_editor_state' && receipt.capabilityId === 'inspect.get_editor_state'
+        && object(receipt.migratedFrom) && receipt.migratedFrom.tool === 'inspect'
+        && receipt.migratedFrom.action === 'get_project_settings' && object(native)
+        && (receipt.status === undefined || receipt.status === 'success') && (native.success === undefined || native.success === true);
+      if (!legacy && !migrated) fail('EngineWire project settings probe did not succeed');
       const projectDir = await normalizedPath(native.projectDir, before.platform, pathApi(before.platform).dirname(before.executablePath));
       if (projectDir !== pathApi(before.platform).dirname(expected)) fail('EngineWire reports a different project directory');
       await projectArgument(before, expected);

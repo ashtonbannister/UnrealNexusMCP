@@ -116,7 +116,7 @@ async function fixture(t, provider, change = {}) {
     }
     if (name === 'unreal' && args.operation === 'describe') return result(state.describe);
     if (name === 'unreal' && args.action === 'get_project_settings') {
-      return result({ status: 'success', operation: 'execute', data: { success: true, projectName: 'Demo', projectDir: state.nativeDir ?? dir } });
+      return result(state.engineReceipt ?? { status: 'success', operation: 'execute', data: { success: true, projectName: 'Demo', projectDir: state.nativeDir ?? dir } });
     }
     if (name === 'bridge_status') return result(state.bridgeStatus);
     if (name === 'exec_python' || name === 'python_run') {
@@ -400,4 +400,17 @@ test('expired overall qualification budget cannot issue a later native request',
   f.state.call = async () => { await new Promise((resolve) => setTimeout(resolve, 15)); return result(f.state.status); };
   await assert.rejects(f.probe.supports(op('level.save.current'), { timeoutMs: 5 }), /deadline/u);
   assert.ok(f.calls.length <= 1);
+});
+
+test('EngineWire accepts only a coherent migrated project identity receipt', async (t) => {
+  const f = await fixture(t, 'enginewire');
+  const receipt = {operation:'execute',tool:'inspect',action:'get_editor_state',capabilityId:'inspect.get_editor_state',migratedFrom:{tool:'inspect',action:'get_project_settings'},success:true,data:{projectDir:f.state.nativeDir ?? f.state.target.projectRoot.replace(/[^/\\]+$/, '')}};
+  f.state.engineReceipt={status:'success',operation:'describe',data:{success:true,projectDir:receipt.data.projectDir}};
+  await assert.rejects(f.probe.attestIdentity(), {code:'IDENTITY_UNPROVEN'});
+  f.state.engineReceipt=receipt;
+  await f.probe.attestIdentity();
+  for (const change of [{success:false},{status:'error'},{action:'other'},{capabilityId:'other'},{migratedFrom:{tool:'inspect',action:'other'}},{data:{projectDir:receipt.data.projectDir,success:null}},{data:{projectDir:receipt.data.projectDir,success:0}},{data:{projectDir:receipt.data.projectDir,success:'true'}}]) {
+    f.state.engineReceipt={...receipt,...change};
+    await assert.rejects(f.probe.attestIdentity(), {code:'IDENTITY_UNPROVEN'});
+  }
 });
