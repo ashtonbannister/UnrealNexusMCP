@@ -14,6 +14,7 @@ export class BackendPool {
   #cleanupTimeoutMs;
 
   constructor(factories, sources, target, {cleanupTimeoutMs = 10000} = {}) {
+    if (!Number.isInteger(cleanupTimeoutMs) || cleanupTimeoutMs < 1 || cleanupTimeoutMs > 60000) throw new RangeError('cleanupTimeoutMs must be an integer between 1 and 60000');
     this.#cleanupTimeoutMs = cleanupTimeoutMs;
     this.#factories = new Map(factories);
     this.#sources = sources;

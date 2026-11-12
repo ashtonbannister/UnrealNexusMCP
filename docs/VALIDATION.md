@@ -3,11 +3,14 @@
 Date: 2026-10-26. Current implementation: Nexus 0.2.0, on
 `codex/implementation-curation`.
 
-## Current gateway result
+## Historical Claude-branch gateway result
 
-**`npm run check`: 154 passed, 0 failed, 0 cancelled, 0 skipped.**
+**Historical Claude-branch run:** `npm run check`: 163 passed, 0 failed, 0 cancelled, 0 skipped**, with
+`NEXUS_UAP_SOURCE_ROOT` set to a checkout of the pinned UnrealAgentPlayer
+revision (`4ab7a62`). Without that variable the patched-method test is skipped
+and the result is 162 passed, 1 skipped.
 
-Executed from the completed writable checkout using Node.js v24.22.1 on Linux,
+Executed on Node.js v24.22.2 on Linux (2026-11-10 re-run after FIX-01/FIX-02),
 with the official pinned SDK dependencies installed. The final full run took
 approximately 6.1 seconds of Node test time. This was a real filesystem/package
 run, including fixture child processes and loopback HTTP servers.

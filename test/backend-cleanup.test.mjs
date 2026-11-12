@@ -78,3 +78,7 @@ test('cleanup uncertainty survives sanitizing a non-Nexus startup error',async()
   assert.deepEqual(runtime.status().backends,[{provider:'ue-mcp',state:'failed',cleanup:'unconfirmed'}]);
   await assert.rejects(runtime.close(),{code:'BACKEND_CLEANUP_INCOMPLETE'});
 });
+
+test('cleanup timeout rejects invalid host overrides',()=>{
+  for(const value of [0,-1,1.5,60001,NaN]) assert.throws(()=>new BackendPool(new Map(),{},null,{cleanupTimeoutMs:value}),RangeError);
+});
