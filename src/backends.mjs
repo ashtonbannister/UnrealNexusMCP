@@ -21,6 +21,12 @@ export class BackendPool {
     this.#target = target;
   }
 
+  bindTarget(target) {
+    if (this.#closed || this.#target !== null || this.#promises.size)
+      throw new NexusError('EDITOR_IDENTITY_UNCONFIRMED','The backend pool cannot change its editor target.');
+    this.#target = target;
+  }
+
   async get(provider) {
     if (this.#closed) throw new NexusError('GATEWAY_CLOSED', 'Backend pool is closed.');
     if (!this.#promises.has(provider)) {

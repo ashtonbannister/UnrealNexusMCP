@@ -326,3 +326,38 @@ test('automatic Claireon endpoint is selected only on first use before connectio
   assert.equal(selected,1);assert.equal(connected,'http://127.0.0.1:59055/mcp');
   await runtime.close();
 });
+
+
+test('automatic target selection waits for execution, retries a pre-dispatch absence, then pins one epoch',async()=>{
+  const cfg=coreConfig();cfg.target.processId='auto';
+  let attempts=0;
+  const {events,adapters}=fixture({editorSelector:async()=>{
+    attempts++;
+    if(attempts===1) throw new Error('editor unavailable');
+    return {processId:1234,editorInstanceId:'linux-boot:1234:epoch'};
+  }});
+  const runtime=await createRuntime(cfg,adapters);
+  assert.match(runtime.status().editorIdentity,/awaiting editor selection/u);
+  assert.ok(runtime.gateway.list().length);assert.equal(attempts,0);
+  const args={actorPath:'/Game/Map.Map:PersistentLevel.Actor'};
+  await assert.rejects(runtime.gateway.execute('actor.inspect.editor',args),/editor unavailable/u);
+  assert.equal(events.filter(e=>e[0]==='connect').length,0);
+  assert.notEqual((await runtime.gateway.execute('actor.inspect.editor',args)).isError,true);
+  assert.notEqual((await runtime.gateway.execute('actor.inspect.editor',args)).isError,true);
+  assert.equal(attempts,2);assert.match(runtime.status().editorIdentity,/pinned/u);
+  await runtime.close();
+});
+
+
+test('closing during automatic editor selection never starts a backend',async()=>{
+  const cfg=coreConfig();cfg.target.processId='auto';
+  let release,started;
+  const selecting=new Promise(resolve=>{started=resolve;});
+  const {events,adapters}=fixture({editorSelector:()=>new Promise(resolve=>{release=resolve;started();})});
+  const runtime=await createRuntime(cfg,adapters);
+  const pending=runtime.gateway.execute('actor.inspect.editor',{actorPath:'/Game/Map.Map:PersistentLevel.Actor'});
+  await selecting;await runtime.close();
+  release({processId:1234,editorInstanceId:'linux-boot:1234:epoch'});
+  await assert.rejects(pending,{code:'GATEWAY_CLOSED'});
+  assert.equal(events.filter(e=>e[0]==='connect').length,0);
+});

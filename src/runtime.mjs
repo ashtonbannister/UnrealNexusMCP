@@ -62,7 +62,7 @@ export async function createRuntime(config, {
       throw new NexusError('INVALID_CONFIGURATION','Process inspector factory returned an invalid helper.');
     if (ownedInspector) processInspector = ownedInspector.inspect;
     let target = null;
-    if (config.target) {
+    const resolveTarget = async () => {
       const process = config.target.processId === 'auto'
         ? await editorSelector(config.target.projectRoot, {processInspector})
         : await processInspector(config.target.processId);
@@ -71,7 +71,9 @@ export async function createRuntime(config, {
       }
       target = Object.freeze({projectRoot:await resolvePath(config.target.projectRoot),
         processId:config.target.processId === 'auto' ? process.processId : config.target.processId,editorInstanceId:process.editorInstanceId});
-    }
+      return target;
+    };
+    if (config.target && config.target.processId !== 'auto') await resolveTarget();
     const evidence = new Map();
     const factories = new Map();
     // Register factories for enabled providers only. None of these bodies runs
@@ -142,7 +144,8 @@ export async function createRuntime(config, {
       });
     }
     const gateway = new Gateway(catalog,{enabledCapabilities:enabled,backendFactories:factories,
-      allowWrites:config.allowWrites,allowLevelExternalPackageDeletion:config.allowLevelExternalPackageDeletion,timeoutMs:config.timeoutMs,target});
+      allowWrites:config.allowWrites,allowLevelExternalPackageDeletion:config.allowLevelExternalPackageDeletion,timeoutMs:config.timeoutMs,target,
+      targetResolver:config.target?.processId === 'auto' ? resolveTarget : null});
     const guidance = await guidanceLoader();
     // Check mapping before accepting protocol traffic, without contacting backends.
     guidance.forOperations(enabled.map(id=>catalog.get(id)));
@@ -150,7 +153,7 @@ export async function createRuntime(config, {
     return {
       gateway,guidance,
       status:() => ({...gateway.status(),networkTransport:config.server.transport,
-        editorIdentity:target===null?'unconfigured':'OS process epoch pinned; each selected provider must corroborate the exact project/editor before dispatch',
+        editorIdentity:target===null?(config.target?'awaiting editor selection':'unconfigured'):'OS process epoch pinned; each selected provider must corroborate the exact project/editor before dispatch',
         guidanceSha256:guidance.sha256,sourceAndIdentityEvidence:Object.fromEntries(evidence),
         liveUnrealQualification:'pending; protocol integration tests use fixture backends'}),
       close:() => closePromise ??= (async()=>{

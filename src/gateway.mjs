@@ -25,10 +25,12 @@ export class Gateway {
   #closed = false;
   #inputHolds = new Map();
   #allowLevelExternalPackageDeletion;
+  #targetResolver;
+  #targetPromise = null;
 
   constructor(catalog, {
     enabledPacks = [], enabledCapabilities = [], backendFactories = new Map(),
-    allowWrites = false, allowLevelExternalPackageDeletion = false, timeoutMs = 120000, target = null,
+    allowWrites = false, allowLevelExternalPackageDeletion = false, timeoutMs = 120000, target = null, targetResolver = null,
   } = {}) {
     if (typeof allowWrites !== 'boolean' || typeof allowLevelExternalPackageDeletion !== 'boolean' || !Number.isInteger(timeoutMs)
       || timeoutMs < 100 || timeoutMs > 600000) {
@@ -39,6 +41,8 @@ export class Gateway {
       || typeof target.editorInstanceId !== 'string' || !target.editorInstanceId.trim())) {
       throw new NexusError('INVALID_CONFIGURATION', 'Target needs projectRoot and editorInstanceId.');
     }
+    if (targetResolver !== null && typeof targetResolver !== 'function') throw new NexusError('INVALID_CONFIGURATION','Target resolver must be a function.');
+    this.#targetResolver = targetResolver;
     this.catalog = catalog;
     this.#enabled = new Set(selectCapabilities(catalog, {enabledPacks,enabledCapabilities}));
     this.allowWrites = allowWrites;
@@ -47,6 +51,26 @@ export class Gateway {
     this.target = target === null ? null : Object.freeze({...target});
     this.queue = new EditorQueue();
     this.#pool = new BackendPool(backendFactories, catalog.upstreams.sources, this.target);
+  }
+
+  async #ensureTarget() {
+    if (this.target !== null) return this.target;
+    if (!this.#targetResolver) throw new NexusError('EDITOR_IDENTITY_UNCONFIRMED','Configure the intended project/editor.');
+    if (!this.#targetPromise) {
+      this.#targetPromise = Promise.resolve().then(() => this.#targetResolver()).then(target => {
+        if (this.#closed) throw new NexusError('GATEWAY_CLOSED','Gateway closed while selecting the editor.');
+        if (!target || typeof target.projectRoot !== 'string' || !target.projectRoot.trim()
+          || typeof target.editorInstanceId !== 'string' || !target.editorInstanceId.trim()
+          || !Number.isSafeInteger(target.processId) || target.processId < 1) {
+          throw new NexusError('EDITOR_IDENTITY_UNCONFIRMED','The editor target could not be established.');
+        }
+        const pinned = Object.freeze({...target});
+        this.#pool.bindTarget(pinned);
+        this.target = pinned;
+        return pinned;
+      }).finally(() => {this.#targetPromise = null;});
+    }
+    return this.#targetPromise;
   }
 
   #operation(id) {
@@ -100,7 +124,7 @@ export class Gateway {
       plan.call.arguments.args.nonce = nonce;
       expectedArgs.nonce = nonce;
     }
-    if (this.target === null) {
+    if (this.target === null && !this.#targetResolver) {
       throw new NexusError('EDITOR_IDENTITY_UNCONFIRMED', 'Configure the intended project/editor; the factory must attest its live target.');
     }
     if (operation.effect !== 'read' && !this.allowWrites) {
@@ -160,6 +184,7 @@ export class Gateway {
       effect:operation.effect, timeoutMs:this.timeoutMs, operation:id, signal,
       prepare:async () => {
         if (this.#closed) throw new NexusError('GATEWAY_CLOSED', 'Gateway is closed.');
+        await this.#ensureTarget();
         let ownedHold;
         if (id.startsWith('input.action.hold.')) {
           ownedHold = this.#inputHolds.get(expectedArgs.injection_id);
@@ -197,7 +222,7 @@ export class Gateway {
       ownedInputHolds:[...this.#inputHolds].map(([id,entry])=>({id,state:entry.state})),
       requiredProviders:[...new Set(this.list().map((op)=>op.provider))].sort(),
       backends:this.#pool.status,
-      editorIdentity:this.target === null ? 'unconfigured' : 'verified by host adapter on load; not independently attested by this core',
+      editorIdentity:this.target === null ? (this.#targetResolver ? 'awaiting editor selection' : 'unconfigured') : 'verified by host adapter on load; not independently attested by this core',
       liveUnrealQualification:'not performed', networkTransport:'not included'};
   }
 

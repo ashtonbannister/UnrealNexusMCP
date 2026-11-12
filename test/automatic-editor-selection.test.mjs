@@ -20,10 +20,10 @@ test('automatic selection accepts one matching project and rejects absent, ambig
   let reads=0;
   await assert.rejects(selectEditorForProject(project,{enumerate:async()=>[1],processInspector:async()=>info(1,project,++reads===1?'one':'two')}),{code:'IDENTITY_UNPROVEN'});
 });
-test('runtime pins the automatically selected editor epoch',async () => {
+test('runtime exposes discovery before the automatic editor is selected',async () => {
   const cfg=parseConfig({version:1,target:{projectRoot:'/tmp/Demo.uproject',processId:'auto'},backends:{}});
   const runtime=await createRuntime(cfg,{resolvePath:async p=>p,editorSelector:async()=>({processId:44,editorInstanceId:'epoch-44'})});
-  assert.match(runtime.status().editorIdentity,/pinned/u);
+  assert.match(runtime.status().editorIdentity,/awaiting editor selection/u);
   await runtime.close();
   assert.throws(()=>parseConfig({version:1,target:{projectRoot:'/tmp/Demo.uproject',processId:'AUTO'},backends:{}}),{code:'INVALID_CONFIGURATION'});
 });
