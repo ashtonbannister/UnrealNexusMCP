@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "defaultEnabled": [],
+  "packs": [
+    {
+      "id": "authoring-core",
+      "optional": false,
+      "description": "UE-MCP exact inspection, persistence and PCG authoring.",
+      "operations": [
+        "actor.transform.editor",
+        "actor.list.editor",
+        "actor.place.editor",
+        "actor.inspect.editor",
+        "actor.bounds.editor",
+        "actor.tags.list.editor",
+        "actor.tag.add.editor",
+        "actor.inspect.pie",
+        "level.save.current",
+        "asset.save.exact",
+        "pcg.graph.connect.persisted",
+        "pcg.generation.execute",
+        "pcg.generation.wait",
+        "pcg.graph.inspect",
+        "level.current.inspect",
+        "blueprint.create",
+        "blueprint.variable.add"
+      ],
+      "requiredCompatibility": {
+        "ue-mcp": "ue-mcp-nexus-guarded-save-v2"
+      }
+    },
+    {
+      "id": "editor-observation",
+      "optional": false,
+      "description": "EngineWire current viewport image; source can be editor or PIE.",
+      "operations": [
+        "screenshot.viewport.current"
+      ]
+    },
+    {
+      "id": "playtesting",
+      "optional": true,
+      "description": "UAP confirmed lifecycle plus UE selected PIE capture and Enhanced Input.",
+      "operations": [
+        "pie.start.viewport",
+        "pie.stop",
+        "pie.status",
+        "screenshot.pie",
+        "input.action.once",
+        "input.action.hold.start",
+        "input.action.hold.update",
+        "input.action.hold.stop",
+        "play.worlds.list"
+      ],
+      "requiredCompatibility": {
+        "unrealagentplayer": "uap-nexus-owned-pie-v4",
+        "ue-mcp": "ue-mcp-nexus-owned-hold-v1"
+      }
+    },
+    {
+      "id": "blueprint-compile",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "claireon",
+      "operations": [
+        "blueprint.compile.memory.asset",
+        "blueprint.compile.memory.session",
+        "blueprint.compile.memory.loaded"
+      ],
+      "requiredCompatibility": "claireon-nexus-compile-loaded-v2"
+    },
+    {
+      "id": "material-strict",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "hayba",
+      "operations": [
+        "material.parameter.scalar.persisted",
+        "material.parameter.vector.persisted",
+        "material.parameter.texture.persisted"
+      ],
+      "requiredCompatibility": "hayba-nexus-material-receipt-v2"
+    },
+    {
+      "id": "automation-tests",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "claireon",
+      "operations": [
+        "automation.tests.run",
+        "automation.tests.poll"
+      ],
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
+    },
+    {
+      "id": "insights-analysis",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "claireon",
+      "operations": [
+        "insights.capture.start",
+        "insights.capture.stop",
+        "insights.trace.open",
+        "insights.trace.scopes",
+        "insights.trace.frames",
+        "insights.trace.close"
+      ],
+      "requiredCompatibility": "claireon-nexus-no-autosave-v1"
+    },
+    {
+      "id": "actor-deletion-checked",
+      "optional": true,
+      "status": "available-with-compatibility",
+      "provider": "ue-mcp",
+      "operations": [
+        "actor.delete.editor"
+      ],
+      "requiredCompatibility": "ue-mcp-nexus-checked-delete-v1"
+    }
+  ]
+}

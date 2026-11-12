@@ -1,0 +1,271 @@
+diff --git a/mcp-tools/hayba-mcp/src/tools/index.ts b/mcp-tools/hayba-mcp/src/tools/index.ts
+index 9836dd808f06acec645e828d8fec2943ee38887a..f5396dd0b87385176426915805231d1c2b62ab81 100644
+--- a/mcp-tools/hayba-mcp/src/tools/index.ts
++++ b/mcp-tools/hayba-mcp/src/tools/index.ts
+@@ -2087,6 +2087,18 @@ const HANDWRITTEN_STANDARD_DESCRIPTORS: ToolDescriptor[] = [
+       name: z.string().min(1).describe('Name of the material instance asset'),
+     },
+   },
++  {
++    name: 'material_nexus_identity',
++    description: 'Read the native editor identity and Nexus material receipt capability.',
++    meta: {cost:'low', effects:['read_only'], when:'checking the Nexus material adapter', not_when:'editing assets'},
++    handler: async (args) => {
++      const data = await executeCommand('material_nexus_identity', args);
++      return {content:[{type:'text',text:JSON.stringify(data)}]};
++    },
++    cost: 'low',
++    returns: '{nonce,pid,project,role,read_only,nexus_material_receipt_version}',
++    schema: {nonce: z.string().regex(/^[0-9a-f]{32}$/)},
++  },
+   {
+     name: 'material_set_param',
+     description: 'Set a scalar, vector (rgba), or texture parameter on a material instance.',
+@@ -2096,6 +2108,8 @@ const HANDWRITTEN_STANDARD_DESCRIPTORS: ToolDescriptor[] = [
+     returns: '{ok}',
+     niche: M,
+     schema: {
++      nexus_retry_policy: z.literal('never').describe('Nexus reviewed no-retry compatibility v1; required typed-route marker'),
++      nexus_receipt_version: z.literal(2).optional().describe('Optional Nexus native material receipt v2'),
+       instance_path: z.string().min(1).describe('Path to the material instance'),
+       param_name: z.string().min(1).describe('Name of the parameter to set'),
+       value: z
+diff --git a/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts b/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts
+index c649da074231404d89c2704c64dcc33fd727a24f..e565fe34086466d02b7a57a49f9e0110b013ccb1 100644
+--- a/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts
++++ b/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts
+@@ -11,6 +11,8 @@ export const meta: HaybaToolMeta = {
+ };
+ 
+ export const schema = z.object({
++  nexus_retry_policy: z.literal('never').describe('Nexus reviewed no-retry compatibility v1; required typed-route marker'),
++  nexus_receipt_version: z.literal(2).optional().describe('Optional Nexus native material receipt v2'),
+   instance_path: z.string().min(1).describe('Path to the material instance'),
+   param_name: z.string().min(1).describe('Name of the parameter to set'),
+   value: z.union([
+@@ -20,4 +22,6 @@ export const schema = z.object({
+   ]).describe('Parameter value: scalar, vector (1-4 elements), or texture asset path'),
+ });
+ 
+-export const materialSetParamHandler: ToolHandler = ueTool('material_set_param', schema);
++// The marker proves the reviewed TS route and is never forwarded to native UE.
++export const materialSetParamHandler: ToolHandler = ueTool('material_set_param',
++  schema.transform(({ nexus_retry_policy: _nexusRetryPolicy, ...params }) => params));
+diff --git a/mcp-tools/hayba-mcp/src/tools/tool-executor.ts b/mcp-tools/hayba-mcp/src/tools/tool-executor.ts
+index 92f6fcd77a4911fbd5efa478e35bb13e499dcd0e..700852bfe618ef98724e41c17ab214829dfe4d42 100644
+--- a/mcp-tools/hayba-mcp/src/tools/tool-executor.ts
++++ b/mcp-tools/hayba-mcp/src/tools/tool-executor.ts
+@@ -122,6 +122,8 @@ export const NON_IDEMPOTENT = new Set<string>([
+   // Material authoring
+   'material_create',
+   'material_create_instance',
++  // Nexus compatibility: a lost reply is not permission to repeat a save/edit.
++  'material_set_param',
+   // Material add-element family (append mutations — duplicate nodes/edges on retry)
+   'material_add_node',
+   'material_add_comment',
+diff --git a/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/HaybaMCPCommandSets.h b/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/HaybaMCPCommandSets.h
+index b63617f06236b37cebe7dffddaf415256fdfc9ea..4287c1d328df2e1c84a29937731629fa83bc25cf 100644
+--- a/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/HaybaMCPCommandSets.h
++++ b/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/HaybaMCPCommandSets.h
+@@ -71,7 +71,7 @@ namespace HaybaMCPCommandSets
+ 			// plain reads
+             TEXT("actor_list"), TEXT("world_budget_snapshot"), TEXT("world_semantic_snapshot"), TEXT("world_tile_capture"), TEXT("world_query"), TEXT("actor_get_properties"), TEXT("actor_get_components"), TEXT("object_get_property"),
+ 			TEXT("blueprint_get_info"), TEXT("blueprint_inspect_graph"), TEXT("anim_blueprint_get_info"), TEXT("bt_get_info"),
+-			TEXT("material_get_info"), TEXT("material_list"), TEXT("data_get"), TEXT("level_get_info"), TEXT("level_list"),
++			TEXT("material_get_info"), TEXT("material_list"), TEXT("material_nexus_identity"), TEXT("data_get"), TEXT("level_get_info"), TEXT("level_list"),
+ 			TEXT("level_get_spatial_index"), TEXT("scene_get_actor_relations"), TEXT("spline_get_info"),
+ 			TEXT("texture_get_info"), TEXT("texture_list"), TEXT("mesh_get_info"), TEXT("mesh_list"), TEXT("ui_query"),
+ 			TEXT("ui_list_widget_types"), TEXT("ui_list_widget_blueprints"), TEXT("ui_report_findings"),
+diff --git a/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPMaterialHandler.cpp b/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPMaterialHandler.cpp
+index 24af75495974ade1d57a4f3e3d7189df52ed647b..649ab1ccb80a166f8fe69d531ca02195c67dca1c 100644
+--- a/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPMaterialHandler.cpp
++++ b/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPMaterialHandler.cpp
+@@ -22,6 +22,8 @@
+ #include "Engine/Font.h"
+ #include "Engine/World.h"
+ #include "Misc/PackageName.h"
++#include "Misc/Paths.h"
++#include "HAL/PlatformProcess.h"
+ #include "UObject/UObjectGlobals.h"
+ #include "UObject/UnrealType.h"
+ #include "UObject/EnumProperty.h"
+@@ -82,6 +84,7 @@ TArray<FString> FHaybaMCPMaterialHandler::GetCommands() const
+         TEXT("material_validate"),
+         TEXT("material_create_instance"),
+         TEXT("material_set_param"),
++        TEXT("material_nexus_identity"),
+         TEXT("material_apply"),
+         TEXT("material_list"),
+         TEXT("material_get_info"),
+@@ -107,6 +110,22 @@ FHaybaHandlerResult FHaybaMCPMaterialHandler::Handle(const FString& Cmd, const T
+     if (Cmd == TEXT("material_validate"))       return MatValidate(P);
+     if (Cmd == TEXT("material_create_instance")) return MatCreateInstance(P);
+     if (Cmd == TEXT("material_set_param"))      return MatSetParam(P);
++    if (Cmd == TEXT("material_nexus_identity"))
++    {
++        FString Nonce;
++        if (!HaybaParams::GetString(P, TEXT("nonce"), Nonce) || Nonce.Len() != 32)
++            return FHaybaHandlerResult::Err(TEXT("material_nexus_identity: invalid nonce"));
++        for (TCHAR C : Nonce)
++            if (!FChar::IsHexDigit(C)) return FHaybaHandlerResult::Err(TEXT("material_nexus_identity: invalid nonce"));
++        TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
++        Out->SetStringField(TEXT("nonce"), Nonce);
++        Out->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
++        Out->SetStringField(TEXT("project"), FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
++        Out->SetStringField(TEXT("role"), GIsEditor ? TEXT("editor") : TEXT("game"));
++        Out->SetBoolField(TEXT("read_only"), true);
++        Out->SetNumberField(TEXT("nexus_material_receipt_version"), 2);
++        return FHaybaHandlerResult::Ok(Out);
++    }
+     if (Cmd == TEXT("material_apply"))          return MatApply(P);
+     if (Cmd == TEXT("material_list"))           return MatList(P);
+     if (Cmd == TEXT("material_get_info"))       return MatGetInfo(P);
+@@ -1323,8 +1342,21 @@ FHaybaHandlerResult FHaybaMCPMaterialHandler::MatCreateInstance(const TSharedPtr
+     return FHaybaHandlerResult::Ok(Out);
+ }
+ 
++static FString NexusMaterialFloatBits(float Value)
++{
++    static_assert(sizeof(float) == sizeof(uint32), "Nexus material receipt requires binary32 float");
++    uint32 Bits = 0;
++    FMemory::Memcpy(&Bits, &Value, sizeof(Bits));
++    return FString::Printf(TEXT("%08x"), Bits);
++}
++
+ FHaybaHandlerResult FHaybaMCPMaterialHandler::MatSetParam(const TSharedPtr<FJsonObject>& P)
+ {
++    double ReceiptVersion = 0.0;
++    const bool bNexusReceipt = P.IsValid() && P->HasField(TEXT("nexus_receipt_version"));
++    if (bNexusReceipt && (!P->TryGetNumberField(TEXT("nexus_receipt_version"), ReceiptVersion) || ReceiptVersion != 2.0))
++        return FHaybaHandlerResult::Err(TEXT("material_set_param: unsupported Nexus receipt version"));
++
+     FHaybaParamReader ParamR(P, TEXT("material_set_param"));
+     const FString InstPath = ParamR.RequiredString(TEXT("instance_path"));
+     const FString ParamName = ParamR.RequiredString(TEXT("param_name"));
+@@ -1332,6 +1364,8 @@ FHaybaHandlerResult FHaybaMCPMaterialHandler::MatSetParam(const TSharedPtr<FJson
+ 
+     UMaterialInstanceConstant* MIC = LoadObject<UMaterialInstanceConstant>(nullptr, *InstPath);
+     if (!MIC) return FHaybaHandlerResult::Err(TEXT("material_set_param: instance not found"));
++    if (bNexusReceipt && MIC->GetPathName() != InstPath)
++        return FHaybaHandlerResult::Err(TEXT("material_set_param: instance path did not resolve to the exact requested object; nothing was changed"));
+ 
+     TSharedPtr<FJsonValue> Val = P->TryGetField(TEXT("value"));
+     if (!Val.IsValid()) return FHaybaHandlerResult::Err(TEXT("material_set_param: missing value"));
+@@ -1348,6 +1382,14 @@ FHaybaHandlerResult FHaybaMCPMaterialHandler::MatSetParam(const TSharedPtr<FJson
+     FName PName(*ParamName);
+     TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
+     Out->SetStringField(TEXT("param"), ParamName);
++    if (bNexusReceipt)
++    {
++        Out->SetNumberField(TEXT("nexus_receipt_version"), 2);
++        Out->SetStringField(TEXT("requested_instance"), InstPath);
++        Out->SetStringField(TEXT("actual_instance"), MIC->GetPathName());
++        Out->SetStringField(TEXT("instance_class"), MIC->GetClass()->GetPathName());
++        Out->SetField(TEXT("requested_value"), Val);
++    }
+     bool bVerified = false;
+ 
+     // Honesty: the ...EditorOnly setters silently register an override for a
+@@ -1362,17 +1404,29 @@ FHaybaHandlerResult FHaybaMCPMaterialHandler::MatSetParam(const TSharedPtr<FJson
+         double RequestedScalar = 0.0;
+         if (!IsFiniteJsonNumber(Val, &RequestedScalar))
+             return FHaybaHandlerResult::Err(TEXT("material_set_param: scalar value must be finite; nothing was changed"));
++        const float ExpectedScalar = static_cast<float>(RequestedScalar);
++        if (bNexusReceipt && !FMath::IsFinite(ExpectedScalar))
++            return FHaybaHandlerResult::Err(TEXT("material_set_param: scalar exceeds finite float32; nothing was changed"));
+         float ExistingScalar = 0.f;
+         if (!MIC->GetScalarParameterValue(ParamInfo, ExistingScalar, /*bOveriddenOnly=*/false))
+             return FHaybaHandlerResult::Err(FString::Printf(
+                 TEXT("material_set_param: scalar parameter '%s' does not exist on this material"), *ParamName));
+         MIC->Modify();
+-        MIC->SetScalarParameterValueEditorOnly(PName, static_cast<float>(RequestedScalar));
++        MIC->SetScalarParameterValueEditorOnly(PName, ExpectedScalar);
+         float ObservedScalar = 0.f;
+-        bVerified = MIC->GetScalarParameterValue(ParamInfo, ObservedScalar, false)
+-            && FMath::IsNearlyEqual(ObservedScalar, static_cast<float>(RequestedScalar));
++        const bool bReadback = MIC->GetScalarParameterValue(ParamInfo, ObservedScalar, false);
++        bVerified = bReadback && (bNexusReceipt
++            ? NexusMaterialFloatBits(ObservedScalar) == NexusMaterialFloatBits(ExpectedScalar)
++            : FMath::IsNearlyEqual(ObservedScalar, ExpectedScalar));
+         Out->SetNumberField(TEXT("value"), RequestedScalar);
+         Out->SetNumberField(TEXT("observed_value"), ObservedScalar);
++        if (bNexusReceipt)
++        {
++            Out->SetBoolField(TEXT("readback_available"), bReadback);
++            Out->SetStringField(TEXT("comparison"), TEXT("binary32_exact"));
++            Out->SetArrayField(TEXT("expected_bits"), { MakeShared<FJsonValueString>(NexusMaterialFloatBits(ExpectedScalar)) });
++            Out->SetArrayField(TEXT("observed_bits"), { MakeShared<FJsonValueString>(NexusMaterialFloatBits(ObservedScalar)) });
++        }
+     }
+     else if (Val->Type == EJson::Array)
+     {
+@@ -1387,13 +1441,37 @@ FHaybaHandlerResult FHaybaMCPMaterialHandler::MatSetParam(const TSharedPtr<FJson
+                 TEXT("material_set_param: vector value %s; nothing was changed"), *ShapeError));
+         FLinearColor C(Arr[0]->AsNumber(), Arr[1]->AsNumber(), Arr[2]->AsNumber(),
+             Arr.Num() > 3 ? Arr[3]->AsNumber() : 1.0);
++        if (bNexusReceipt && (!FMath::IsFinite(C.R) || !FMath::IsFinite(C.G) || !FMath::IsFinite(C.B) || !FMath::IsFinite(C.A)))
++            return FHaybaHandlerResult::Err(TEXT("material_set_param: vector exceeds finite float32; nothing was changed"));
+         MIC->Modify();
+         MIC->SetVectorParameterValueEditorOnly(PName, C);
+-        FLinearColor Observed;
+-        bVerified = MIC->GetVectorParameterValue(ParamInfo, Observed, false)
+-            && Observed.Equals(C);
++        FLinearColor Observed(0.f, 0.f, 0.f, 0.f);
++        const bool bReadback = MIC->GetVectorParameterValue(ParamInfo, Observed, false);
++        const float ExpectedValues[] = { C.R, C.G, C.B, C.A };
++        const float ObservedValues[] = { Observed.R, Observed.G, Observed.B, Observed.A };
++        bool bExact = bReadback;
++        TArray<TSharedPtr<FJsonValue>> ExpectedBits, ObservedBits;
++        if (bNexusReceipt)
++        {
++            for (int32 Index = 0; Index < 4; ++Index)
++            {
++                const FString Expected = NexusMaterialFloatBits(ExpectedValues[Index]);
++                const FString Actual = NexusMaterialFloatBits(ObservedValues[Index]);
++                ExpectedBits.Add(MakeShared<FJsonValueString>(Expected));
++                ObservedBits.Add(MakeShared<FJsonValueString>(Actual));
++                bExact = bExact && Expected == Actual;
++            }
++        }
++        bVerified = bNexusReceipt ? bExact : bReadback && Observed.Equals(C);
+         Out->SetStringField(TEXT("value"), C.ToString());
+         Out->SetStringField(TEXT("observed_value"), Observed.ToString());
++        if (bNexusReceipt)
++        {
++            Out->SetBoolField(TEXT("readback_available"), bReadback);
++            Out->SetStringField(TEXT("comparison"), TEXT("binary32_exact"));
++            Out->SetArrayField(TEXT("expected_bits"), ExpectedBits);
++            Out->SetArrayField(TEXT("observed_bits"), ObservedBits);
++        }
+     }
+     else if (Val->Type == EJson::String)
+     {
+@@ -1404,16 +1482,25 @@ FHaybaHandlerResult FHaybaMCPMaterialHandler::MatSetParam(const TSharedPtr<FJson
+         FString TexPath = Val->AsString();
+         UTexture* Tex = LoadObject<UTexture>(nullptr, *TexPath);
+         if (!Tex) return FHaybaHandlerResult::Err(FString::Printf(TEXT("material_set_param: texture not found: %s"), *TexPath));
++        if (bNexusReceipt && Tex->GetPathName() != TexPath)
++            return FHaybaHandlerResult::Err(TEXT("material_set_param: texture path did not resolve to the exact requested object; nothing was changed"));
+         MIC->Modify();
+         MIC->SetTextureParameterValueEditorOnly(PName, Tex);
+         UTexture* ObservedTexture = nullptr;
+-        bVerified = MIC->GetTextureParameterValue(ParamInfo, ObservedTexture, false)
+-            && ObservedTexture == Tex;
++        const bool bReadback = MIC->GetTextureParameterValue(ParamInfo, ObservedTexture, false);
++        bVerified = bReadback && ObservedTexture == Tex;
+         Out->SetStringField(TEXT("value"), TexPath);
+         Out->SetStringField(TEXT("observed_value"), ObservedTexture ? ObservedTexture->GetPathName() : FString());
++        if (bNexusReceipt)
++        {
++            Out->SetBoolField(TEXT("readback_available"), bReadback);
++            Out->SetStringField(TEXT("resolved_texture"), Tex->GetPathName());
++            Out->SetBoolField(TEXT("same_texture"), ObservedTexture == Tex);
++        }
+     }
+     else if (Val->Type == EJson::Boolean)
+     {
++        if (bNexusReceipt) return FHaybaHandlerResult::Err(TEXT("material_set_param: Nexus v2 does not support static switches"));
+         // Task 5: static-switch parameter — uses StaticParameterSet + UpdateStaticPermutation.
+         const bool bSwitch = Val->AsBool();
+         FStaticParameterSet StaticParams;

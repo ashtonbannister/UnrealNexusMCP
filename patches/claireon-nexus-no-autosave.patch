@@ -1,0 +1,55 @@
+diff --git a/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp b/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp
+--- a/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp
++++ b/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp
+@@ -465,7 +465,15 @@
+ 			 "Advisories raised by inner claireon.* tool calls -- their hints, warnings and "
+ 			 "summaries -- are ALWAYS reported, quiet or not; they are rate-limited per key to "
+ 			 "at most once per invocation and coalesced with occurrence counts."));
+-	Properties->SetObjectField(TEXT("quiet"), QuietProp);
++	Properties->SetObjectField(TEXT("quiet"), QuietProp);
++
++	// Nexus compatibility: opt out per call, before any script can execute.
++	TSharedPtr<FJsonObject> NexusSkipAutoSaveProp = MakeShared<FJsonObject>();
++	NexusSkipAutoSaveProp->SetStringField(TEXT("type"), TEXT("boolean"));
++	NexusSkipAutoSaveProp->SetBoolField(TEXT("default"), false);
++	NexusSkipAutoSaveProp->SetStringField(TEXT("description"),
++		TEXT("Nexus reviewed compatibility v1: true skips this invocation's pre-Python and deferred-action automatic package saves. Does not suppress explicit saves inside called tools."));
++	Properties->SetObjectField(TEXT("nexus_skip_auto_save"), NexusSkipAutoSaveProp);
+ 
+ 	Schema->SetObjectField(TEXT("properties"), Properties);
+ 
+@@ -515,7 +523,9 @@
+ 	// Optional hint suppression (WI-14, schema-documented): quiet=true drops
+ 	// every advisory hint channel for this invocation.
+ 	bool bQuietHints = false;
+-	Arguments->TryGetBoolField(TEXT("quiet"), bQuietHints);
++	Arguments->TryGetBoolField(TEXT("quiet"), bQuietHints);
++	bool bNexusSkipAutoSave = false;
++	Arguments->TryGetBoolField(TEXT("nexus_skip_auto_save"), bNexusSkipAutoSave);
+ 
+ 	FClaireonBridge::EnsureRegistered();
+ 
+@@ -566,7 +576,10 @@
+ 	}
+ 
+ 	// Step 4b: Auto-save dirty packages before crash-risk Python execution
+-	FClaireonAutoSave::SaveIfNeeded(/*bIsPythonExecution=*/true);
++	if (!bNexusSkipAutoSave)
++	{
++		FClaireonAutoSave::SaveIfNeeded(/*bIsPythonExecution=*/true);
++	}
+ 
+ 	// Step 5: Construct FPythonCommandEx — use ExecuteFile (matches original editor.python.execute)
+ 	FPythonCommandEx PythonCommand;
+@@ -670,7 +683,10 @@
+ 		// no path filter. Captured here and attached to the result below; the
+ 		// return value used to be discarded, so a write into a tracked asset left
+ 		// no trace in the envelope at all.
+-		FClaireonAutoSave::SaveIfNeeded(/*bIsPythonExecution=*/false, &AutoSavedPackages);
++		if (!bNexusSkipAutoSave)
++		{
++			FClaireonAutoSave::SaveIfNeeded(/*bIsPythonExecution=*/false, &AutoSavedPackages);
++		}
+ 
+ 		TArray<FClaireonDeferredAction> Actions = FClaireonBridge::DrainDeferredActions();
+ 		for (const FClaireonDeferredAction& Action : Actions)

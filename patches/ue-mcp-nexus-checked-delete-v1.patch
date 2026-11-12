@@ -1,0 +1,1554 @@
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
+index 6c42c28e..7cb767e5 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
+@@ -652,6 +652,11 @@ TSharedPtr<FJsonObject> FMCPBridgeServer::BuildCapabilitiesPayload()
+ 		TEXT("frame-reassembly"),
+ 		TEXT("control-frames"),
+ 		TEXT("capability-handshake"),
++		TEXT("nexus-pagination-count-v1"),
++		TEXT("nexus-level-save-guard-v1"),
++		TEXT("nexus-direct-pie-capture-v1"),
++		TEXT("nexus-owned-input-hold-v1"),
++		TEXT("nexus-checked-actor-delete-v1"),
+ 		TEXT("exclusive-port-claim"),
+ 		TEXT("owned-port-record"),
+ 		// #817. Both are always compiled in and always advertised: a caller has
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp
+index a50576f1..96194df4 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp
+@@ -452,6 +452,11 @@ void FEditorHandlers::RegisterHandlers(FMCPHandlerRegistry& Registry)
+ 	// The Blueprint-error bypass start, called only by the approval-gated
+ 	// editor(play_in_editor_ignore_blueprint_errors) handler.
+ 	Registry.RegisterHandler(TEXT("pie_start_ignoring_blueprint_errors"), &PieStartIgnoringBlueprintErrors);
++	Registry.RegisterHandler(TEXT("nexus_capture_pie_png_v1"), &NexusCapturePIEPng, {
++		MCPParam::Required(TEXT("pieInstance"), EType::Number, TEXT("Exact integer PIE instance")),
++		MCPParam::Required(TEXT("worldPath"), EType::String, TEXT("Exact PIE world object path")),
++		MCPParam::Required(TEXT("nonce"), EType::String, TEXT("32 lowercase hexadecimal request nonce")),
++	}, MCPSpec::ContractExempt(TEXT("reads a bounded composited PIE viewport")));
+ 	Registry.RegisterHandler(TEXT("capture_screenshot"), &CaptureScreenshot, {
+ 		MCPParam::Required(TEXT("filename"), EType::String, TEXT("Image path to write; .png is appended without an image extension")).Alias(TEXT("outputPath")),
+ 		MCPParam::Optional(TEXT("target"), EType::String, TEXT("auto (default) | pie | editor | window")),
+@@ -5677,3 +5682,198 @@ TSharedPtr<FJsonValue> FEditorHandlers::RunAutomationTests(const TSharedPtr<FJso
+ 		TEXT("Automation tests run arbitrary engine and project code, nothing was captured before the run, and re-running them is not an inverse. A test that leaves state behind has to clean up after itself; abandoned tests are reported so that case is visible."));
+ 	return MCPResult(Result);
+ }
++
++// Experimental fixed direct-byte PIE capture; not exposed by Nexus yet.
++#include "EditorHandlers.h"
++#include "HandlerUtils.h"
++#include "Handlers/Editor/HandlerSlateCapture.h"
++#include "Engine/Engine.h"
++#include "Engine/World.h"
++#include "Engine/GameViewportClient.h"
++#include "Framework/Application/SlateApplication.h"
++#include "Layout/WidgetPath.h"
++#include "Rendering/SlateRenderer.h"
++#include "RenderingThread.h"
++#include "Widgets/SViewport.h"
++#include "Widgets/SWindow.h"
++#include "IImageWrapper.h"
++#include "IImageWrapperModule.h"
++#include "Modules/ModuleManager.h"
++#include "Misc/Base64.h"
++#include "Misc/CommandLine.h"
++#include "Misc/Parse.h"
++#include "Misc/ScopeExit.h"
++
++// Every value is provisional until the entire bridge transport has a matching
++// receive bound. A rejected or resized frame is never claimed as full output.
++namespace
++{
++constexpr int32 NexusMaxAxis = 4096;
++constexpr int64 NexusMaxPixels = 4 * 1024 * 1024;
++constexpr int64 NexusMaxPngBytes = 8 * 1024 * 1024;
++bool GNexusCaptureActive = false;
++
++bool NexusCaptureGeometry(const TSharedRef<SWidget>& Widget, FVector2f& Position, FVector2f& Size)
++{
++	FWidgetPath Path;
++	if (!FSlateApplication::Get().GeneratePathToWidgetUnchecked(Widget, Path))
++	{
++		return false;
++	}
++	const FArrangedWidget Arranged = Path.FindArrangedWidget(Widget).Get(FArrangedWidget::GetNullWidget());
++	Position = FVector2f(Arranged.Geometry.AbsolutePosition);
++	Size = FVector2f(Arranged.Geometry.GetDrawSize());
++	return FMath::IsFinite(Position.X) && FMath::IsFinite(Position.Y)
++		&& FMath::IsFinite(Size.X) && FMath::IsFinite(Size.Y);
++}
++}
++
++TSharedPtr<FJsonValue> FEditorHandlers::NexusCapturePIEPng(const TSharedPtr<FJsonObject>& Params)
++{
++	double RawInstance = -1;
++	FString WorldPath, Nonce;
++	if (!TryGetNumberParam(Params, TEXT("pieInstance"), RawInstance)
++		|| !FMath::IsFinite(RawInstance) || RawInstance < 0 || RawInstance > MAX_int32
++		|| FMath::FloorToDouble(RawInstance) != RawInstance
++		|| !TryGetStringParam(Params, TEXT("worldPath"), WorldPath) || WorldPath.IsEmpty()
++		|| !TryGetStringParam(Params, TEXT("nonce"), Nonce) || Nonce.Len() != 32)
++	{
++		return MCPError(TEXT("Invalid exact PIE target or nonce"));
++	}
++	for (TCHAR Ch : Nonce)
++	{
++		if (!((Ch >= TEXT('0') && Ch <= TEXT('9')) || (Ch >= TEXT('a') && Ch <= TEXT('f'))))
++		{
++			return MCPError(TEXT("Nonce must be lowercase hexadecimal"));
++		}
++	}
++	if (!GEngine || !FSlateApplication::IsInitialized() || GNexusCaptureActive)
++	{
++		return MCPError(TEXT("Capture unavailable or already active"));
++	}
++	TGuardValue<bool> ActiveGuard(GNexusCaptureActive, true);
++	const int32 Instance = static_cast<int32>(RawInstance);
++	UWorld* SelectedWorld = nullptr;
++	int32 Matches = 0;
++	for (const FWorldContext& Context : GEngine->GetWorldContexts())
++	{
++		UWorld* World = Context.World();
++		if (Context.WorldType == EWorldType::PIE && World && Context.PIEInstance == Instance
++			&& World->GetPathName() == WorldPath)
++		{
++			SelectedWorld = World;
++			++Matches;
++		}
++	}
++	if (Matches != 1)
++	{
++		return MCPError(TEXT("Expected exactly one matching PIE world"));
++	}
++	TWeakObjectPtr<UWorld> WeakWorld(SelectedWorld);
++	UGameViewportClient* Viewport = SelectedWorld->GetGameViewport();
++	if (!Viewport || !Viewport->Viewport || !Viewport->GetGameViewportWidget().IsValid())
++	{
++		return MCPError(TEXT("The selected PIE world has no capturable viewport"));
++	}
++	const TSharedRef<SWidget> Widget = Viewport->GetGameViewportWidget().ToSharedRef();
++	FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer();
++	const TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(Widget);
++	FVector2f Position, Size;
++	if (!Renderer || !Window.IsValid() || !NexusCaptureGeometry(Widget, Position, Size))
++	{
++		return MCPError(TEXT("The selected PIE viewport has no drawable Slate window"));
++	}
++	const FVector2f WindowPosition = Window->GetPositionInScreen();
++	const FVector2f WindowSize = Window->GetSizeInScreen();
++	const bool bOffScreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
++	const FString NotDrawn = MCPWhySlateWindowNotDrawn(*Window,
++		bOffScreen || Renderer->GetViewportResource(*Window) != nullptr, Size);
++	if (!NotDrawn.IsEmpty())
++	{
++		return MCPError(FString::Printf(TEXT("PIE viewport is not drawn: %s"), *NotDrawn));
++	}
++	if (Position.X < WindowPosition.X || Position.Y < WindowPosition.Y
++		|| Size.X < 1 || Size.Y < 1 || Size.X > NexusMaxAxis || Size.Y > NexusMaxAxis
++		|| Position.X + Size.X > WindowPosition.X + WindowSize.X
++		|| Position.Y + Size.Y > WindowPosition.Y + WindowSize.Y)
++	{
++		return MCPError(FString::Printf(TEXT("PIE viewport is clipped or exceeds capture bounds: position=(%.1f,%.1f) size=(%.1f,%.1f), window=(%.1f,%.1f) size=(%.1f,%.1f)"),
++			Position.X, Position.Y, Size.X, Size.Y, WindowPosition.X, WindowPosition.Y, WindowSize.X, WindowSize.Y));
++	}
++	const int32 Width = static_cast<int32>(Size.X);
++	const int32 Height = static_cast<int32>(Size.Y);
++	if (Width < 1 || Height < 1 || static_cast<int64>(Width) * Height > NexusMaxPixels)
++	{
++		return MCPError(TEXT("PIE viewport exceeds capture pixel limit"));
++	}
++	TArray<FColor>& Sink = MCPSlateCaptureSink();
++	if (MCPSlateCaptureMayBePending())
++	{
++		FlushRenderingCommands();
++		MCPSlateCaptureMayBePending() = false;
++	}
++	Sink.Reset();
++	FIntVector CaptureSize = FIntVector::ZeroValue;
++	const bool bCaptured = FSlateApplication::Get().TakeScreenshot(
++		Widget, FIntRect(0, 0, Width, Height), Sink, CaptureSize);
++	if (!bCaptured || CaptureSize.X != Width || CaptureSize.Y != Height
++		|| Sink.Num() != static_cast<int64>(Width) * Height)
++	{
++		Renderer->PrepareToTakeScreenshot(FIntRect(0, 0, 1, 1), &Sink, Window.Get());
++		MCPSlateCaptureMayBePending() = true;
++		return MCPError(TEXT("The bounded PIE viewport readback was incomplete"));
++	}
++	FVector2f PositionAfter, SizeAfter;
++	int32 MatchesAfter = 0;
++	bool bSameWorldAfter = false;
++	if (WeakWorld.IsValid())
++	{
++		for (const FWorldContext& Context : GEngine->GetWorldContexts())
++		{
++			UWorld* Candidate = Context.World();
++			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == Instance
++				&& Candidate && Candidate->GetPathName() == WorldPath)
++			{
++				++MatchesAfter;
++				bSameWorldAfter = Candidate == WeakWorld.Get();
++			}
++		}
++	}
++	UGameViewportClient* ViewportAfter = WeakWorld.IsValid() ? WeakWorld->GetGameViewport() : nullptr;
++	if (MatchesAfter != 1 || !bSameWorldAfter || !ViewportAfter || ViewportAfter != Viewport || !ViewportAfter->GetGameViewportWidget().IsValid()
++		|| ViewportAfter->GetGameViewportWidget().Get() != &Widget.Get()
++		|| !NexusCaptureGeometry(Widget, PositionAfter, SizeAfter)
++		|| PositionAfter != Position || SizeAfter != Size
++		|| FSlateApplication::Get().FindWidgetWindow(Widget) != Window)
++	{
++		Sink.Reset();
++		return MCPError(TEXT("PIE viewport changed during capture; frame discarded"));
++	}
++	for (FColor& Pixel : Sink) Pixel.A = 255;
++	IImageWrapperModule& Module = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
++	const TSharedPtr<IImageWrapper> Encoder = Module.CreateImageWrapper(EImageFormat::PNG);
++	if (!Encoder.IsValid() || !Encoder->SetRaw(Sink.GetData(), static_cast<int64>(Sink.Num()) * sizeof(FColor),
++		Width, Height, ERGBFormat::BGRA, 8))
++	{
++		Sink.Reset();
++		return MCPError(TEXT("PIE PNG encoding failed"));
++	}
++	const TArray64<uint8>& Png = Encoder->GetCompressed(100);
++	if (Png.IsEmpty() || Png.Num() > NexusMaxPngBytes)
++	{
++		Sink.Reset();
++		return MCPError(TEXT("PIE PNG exceeds encoded byte limit"));
++	}
++	const FString Encoded = FBase64::Encode(Png.GetData(), static_cast<uint32>(Png.Num()));
++	Sink.Reset();
++	auto Result = MCPSuccess();
++	Result->SetNumberField(TEXT("nexusCaptureVersion"), 1);
++	Result->SetStringField(TEXT("nonce"), Nonce);
++	Result->SetNumberField(TEXT("pieInstance"), Instance);
++	Result->SetStringField(TEXT("worldPath"), WorldPath);
++	Result->SetNumberField(TEXT("width"), Width);
++	Result->SetNumberField(TEXT("height"), Height);
++	Result->SetNumberField(TEXT("pngBytes"), Png.Num());
++	Result->SetStringField(TEXT("pngBase64"), Encoded);
++	return MCPResult(Result);
++}
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.h b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.h
+index 20b26b3a..dd8e83a6 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.h
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.h
+@@ -162,6 +162,7 @@ private:
+ 	static TSharedPtr<FJsonValue> GetBuildStatus(const TSharedPtr<FJsonObject>& Params);
+ 	static TSharedPtr<FJsonValue> PieControl(const TSharedPtr<FJsonObject>& Params);
+ 	static TSharedPtr<FJsonValue> PieStartIgnoringBlueprintErrors(const TSharedPtr<FJsonObject>& Params);
++	static TSharedPtr<FJsonValue> NexusCapturePIEPng(const TSharedPtr<FJsonObject>& Params);
+ 	static TSharedPtr<FJsonValue> CaptureScreenshot(const TSharedPtr<FJsonObject>& Params);
+ 	static TSharedPtr<FJsonValue> SetViewportCamera(const TSharedPtr<FJsonObject>& Params);
+ 	// The actor a level viewport is piloting or cinematically locked to, or
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp
+index dabe946d..db91f557 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp
+@@ -210,6 +210,8 @@ void FLevelHandlers::RegisterHandlers(FMCPHandlerRegistry& Registry)
+ 		MCPParam::Optional(TEXT("force"), EType::Boolean, TEXT("Write a package even when it is already clean (default false)")),
+ 		MCPParam::Optional(TEXT("includeExternalActors"), EType::Boolean, TEXT("Also save the level's loaded external actor and folder packages (default true)")),
+ 		MCPParam::Optional(TEXT("commitDeletes"), EType::Boolean, TEXT("Save through the editor's dirty-package save, which deletes the packages of deleted World Partition actors (default false)")),
++		MCPParam::Optional(TEXT("expectedLevelPackage"), EType::String, TEXT("Exact current edit-level package name for the Nexus guard")),
++		MCPParam::Optional(TEXT("nexusNoExternalDelete"), EType::Boolean, TEXT("Refuse external package deletion under the Nexus guard")),
+ 	}, MCPSpec::ContractExempt(TEXT("Saves the current level under the contract values; nothing it reads fails first")));
+ 	Registry.RegisterHandler(TEXT("list_levels"), &ListLevels, {
+ 		SpecCursor, SpecLimit,
+@@ -1358,6 +1360,8 @@ TSharedPtr<FJsonValue> FLevelHandlers::DeleteActor(const TSharedPtr<FJsonObject>
+ 
+ 	FString Selector;
+ 	if (auto Err = RequireStringAlt(Params, TEXT("actorLabel"), TEXT("actorPath"), Selector)) return Err;
++	FString RequestedPath;
++	const bool bHasRequestedPath = Params.IsValid() && Params->TryGetStringField(TEXT("actorPath"), RequestedPath);
+ 
+ 	REQUIRE_EDITOR_WORLD(World);
+ 
+@@ -1367,6 +1371,8 @@ TSharedPtr<FJsonValue> FLevelHandlers::DeleteActor(const TSharedPtr<FJsonObject>
+ 	TSharedPtr<FJsonValue> ActorErr;
+ 	AActor* ActorToDelete = MCPResolveActor(World, Params, ActorErr);
+ 	if (!ActorToDelete && MCPIsAmbiguousActorError(ActorErr)) return ActorErr;
++	// An unloaded World Partition actor can look absent. Never claim an exact path was deleted on a miss.
++	if (!ActorToDelete && bHasRequestedPath) return ActorErr.IsValid() ? ActorErr : MCPError(TEXT("Actor path was not found in the loaded editor world"));
+ 
+ 	// Idempotent: deleting a non-existent actor is a no-op, not an error.
+ 	if (!ActorToDelete)
+@@ -1377,6 +1383,11 @@ TSharedPtr<FJsonValue> FLevelHandlers::DeleteActor(const TSharedPtr<FJsonObject>
+ 		return MCPResult(Result);
+ 	}
+ 
++	const FString ActorPath = ActorToDelete->GetPathName();
++	if (bHasRequestedPath && !ActorPath.Equals(RequestedPath, ESearchCase::CaseSensitive))
++	{
++		return MCPError(TEXT("Resolved actor path does not exactly match the requested actorPath"));
++	}
+ 	const FString ActorLabel = ActorToDelete->GetActorLabel();
+ 
+ 	// Snapshot before the actor goes away. A delete inverts to a spawn only as
+@@ -1395,10 +1406,18 @@ TSharedPtr<FJsonValue> FLevelHandlers::DeleteActor(const TSharedPtr<FJsonObject>
+ 	MCPCollectActorsByToken(World, ActorLabel, EMCPActorMatch::Label, LabelMatches);
+ 	const bool bLabelSurvivesElsewhere = LabelMatches.Num() > 1;
+ 
+-	World->DestroyActor(ActorToDelete);
++	if (!World->DestroyActor(ActorToDelete))
++	{
++		auto Failure = MCPErrorObject(TEXT("Unreal did not confirm actor destruction; inspect the world before retrying"));
++		Failure->SetStringField(TEXT("actorPath"), ActorPath);
++		Failure->SetNumberField(TEXT("nexusCheckedActorDeleteVersion"), 1);
++		return MCPResult(Failure);
++	}
+ 
+ 	auto Result = MCPSuccess();
+ 	Result->SetStringField(TEXT("actorLabel"), ActorLabel);
++	Result->SetStringField(TEXT("actorPath"), ActorPath);
++	Result->SetNumberField(TEXT("nexusCheckedActorDeleteVersion"), 1);
+ 	Result->SetBoolField(TEXT("deleted"), true);
+ 
+ 	Result->SetBoolField(TEXT("labelSurvivesElsewhere"), bLabelSurvivesElsewhere);
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp
+index 1714f669..5fcd458c 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp
+@@ -705,6 +705,8 @@ TSharedPtr<FJsonValue> FLevelHandlers::GetCurrentEditLevel(const TSharedPtr<FJso
+ 	{
+ 		Result->SetStringField(TEXT("levelName"), Cur->GetOuter()->GetName());
+ 		Result->SetStringField(TEXT("levelPath"), Cur->GetOuter()->GetPathName());
++		Result->SetStringField(TEXT("levelPackage"), Cur->GetOutermost()->GetName());
++		Result->SetStringField(TEXT("worldPath"), World->GetPathName());
+ 		Result->SetBoolField(TEXT("isPersistent"), Cur == World->PersistentLevel);
+ 	}
+ 	return MCPResult(Result);
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp
+index 5d0385b1..f3889ff7 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp
+@@ -255,10 +255,63 @@ namespace
+ }
+ 
+ 
+-// level(save): save the level currently being edited, and say what happened.
++static TSharedPtr<FJsonValue> NexusLevelGuardRefusal(const FString& Reason, const FString& Expected, const FString& Actual)
++{
++	auto Result = MakeShared<FJsonObject>();
++	Result->SetBoolField(TEXT("success"), false);
++	Result->SetBoolField(TEXT("mutationStarted"), false);
++	Result->SetNumberField(TEXT("nexusGuardVersion"), 1);
++	Result->SetStringField(TEXT("reason"), Reason);
++	Result->SetStringField(TEXT("expectedLevelPackage"), Expected);
++	Result->SetStringField(TEXT("actualLevelPackage"), Actual);
++	Result->SetStringField(TEXT("error"), TEXT("Guarded level save refused before mutation: ") + Reason);
++	return MCPResult(Result);
++}
++
++static bool NexusIsDirtyEmptyExternal(UPackage* Package)
++{
++	if (!Package || !Package->IsDirty()) return false;
++	const FString Name = Package->GetName();
++	return (Name.Contains(TEXT("/__ExternalActors__/")) || Name.Contains(TEXT("/__ExternalObjects__/")))
++		&& UPackage::IsEmptyPackage(Package);
++}
++
++// Existing direct calls retain upstream behavior. The two Nexus fields
++// together select the exact-target/no-external-delete contract.
+ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>& Params)
+ {
++	const bool bNexusGuarded = Params.IsValid() && (Params->HasField(TEXT("expectedLevelPackage"))
++		|| Params->HasField(TEXT("nexusNoExternalDelete")));
++	if (bNexusGuarded)
++	{
++		bool bNoDelete = false;
++		if (!TryGetBoolParam(Params, TEXT("nexusNoExternalDelete"), bNoDelete) || !bNoDelete
++			|| OptionalBool(Params, TEXT("commitDeletes"), false)
++			|| !OptionalBool(Params, TEXT("includeExternalActors"), true))
++			return MCPError(TEXT("Nexus guarded save requires no external deletion and loaded external actors."));
++	}
+ 	REQUIRE_EDITOR_WORLD(World);
++	FString ExpectedLevelPackage;
++	TWeakObjectPtr<UWorld> GuardWorld;
++	TWeakObjectPtr<ULevel> GuardLevel;
++	if (bNexusGuarded)
++	{
++		if (auto Err = RequireString(Params, TEXT("expectedLevelPackage"), ExpectedLevelPackage)) return Err;
++		ULevel* Current = World->GetCurrentLevel();
++		if (!Current || !Current->GetOutermost())
++			return NexusLevelGuardRefusal(TEXT("no_current_level"), ExpectedLevelPackage, FString());
++		const FString Actual = Current->GetOutermost()->GetName();
++		if (Actual != ExpectedLevelPackage)
++			return NexusLevelGuardRefusal(TEXT("level_mismatch"), ExpectedLevelPackage, Actual);
++		if (Current->IsUsingExternalObjects())
++		{
++			for (UPackage* External : Current->GetLoadedExternalObjectPackages())
++				if (NexusIsDirtyEmptyExternal(External))
++					return NexusLevelGuardRefusal(TEXT("external_deletion_required"), ExpectedLevelPackage, Actual);
++		}
++		GuardWorld = World;
++		GuardLevel = Current;
++	}
+ 
+ 	// A save during PIE is one of the ways the old action produced a bare
+ 	// false. Naming it is the difference between "stop play and try again" and
+@@ -281,9 +334,15 @@ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>&
+ 		++LandscapesMerged;
+ 	}
+ 
++	if (bNexusGuarded && (!GuardWorld.IsValid() || !GuardLevel.IsValid() || !GEditor
++		|| GEditor->GetEditorWorldContext().World() != GuardWorld.Get()
++		|| GuardWorld->GetCurrentLevel() != GuardLevel.Get()
++		|| GuardLevel->GetOutermost()->GetName() != ExpectedLevelPackage))
++		return MCPError(TEXT("Guarded level changed after preflight; landscape work may have occurred. Reconcile before retrying."));
++
+ 	// commitDeletes: the editor's own save path, which removes the external
+ 	// package of a deleted World Partition actor instead of failing on it.
+-	if (OptionalBool(Params, TEXT("commitDeletes"), false))
++	if (!bNexusGuarded && OptionalBool(Params, TEXT("commitDeletes"), false))
+ 	{
+ 		// This branch writes every dirty package, not only the level's.
+ 		if (auto Refused = MCPRefuseSweepWithUnknownParams(Params, { TEXT("force"), TEXT("includeExternalActors"), TEXT("commitDeletes") }, TEXT("level(save, commitDeletes=true)"))) return Refused;
+@@ -326,7 +385,25 @@ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>&
+ 	TArray<TSharedPtr<FJsonValue>> Failed;
+ 	TArray<TSharedPtr<FJsonValue>> Skipped;
+ 	TArray<TSharedPtr<FJsonValue>> Deleted;
+-	MCPCommitEmptyExternalPackages(Packages, Deleted, Failed);
++	if (bNexusGuarded)
++	{
++		// Never invoke the deletion helper. If an empty package appeared after
++		// preflight, report it as a partial failure rather than deleting it.
++		for (int32 Index = Packages.Num() - 1; Index >= 0; --Index)
++		{
++			if (!NexusIsDirtyEmptyExternal(Packages[Index])) continue;
++			auto Entry = MakeShared<FJsonObject>();
++			Entry->SetStringField(TEXT("package"), Packages[Index]->GetName());
++			Entry->SetBoolField(TEXT("emptyPackage"), true);
++			Entry->SetStringField(TEXT("error"), TEXT("Dirty empty external package was not deleted."));
++			Failed.Add(MakeShared<FJsonValueObject>(Entry));
++			Packages.RemoveAt(Index);
++		}
++	}
++	else
++	{
++		MCPCommitEmptyExternalPackages(Packages, Deleted, Failed);
++	}
+ 	for (UPackage* Package : Packages)
+ 	{
+ 		bool bFailed = false;
+@@ -342,6 +419,12 @@ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>&
+ 	Result->SetStringField(TEXT("levelName"), World->GetName());
+ 	Result->SetStringField(TEXT("levelPath"), World->GetPathName());
+ 	Result->SetStringField(TEXT("levelPackage"), LevelPackage->GetName());
++	if (bNexusGuarded)
++	{
++		Result->SetNumberField(TEXT("nexusGuardVersion"), 1);
++		Result->SetStringField(TEXT("expectedLevelPackage"), ExpectedLevelPackage);
++		Result->SetBoolField(TEXT("externalDeletionAllowed"), false);
++	}
+ 	Result->SetBoolField(TEXT("usesExternalActors"), Level->IsUsingExternalObjects());
+ 	Result->SetNumberField(TEXT("externalPackagesLoaded"), ExternalConsidered);
+ 	Result->SetNumberField(TEXT("landscapesMerged"), LandscapesMerged);
+@@ -357,9 +440,9 @@ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>&
+ 	// overwritten the packages it did write.
+ 	if (Saved.Num() > 0 || Deleted.Num() > 0)
+ 	{
+-		MCPSetNoRollback(Result,
+-			TEXT("The level package, and every external actor package that was dirty, were overwritten on disk with the editor's in-memory state, and the packages of deleted actors were removed from it. ")
+-			TEXT("Undoing that needs the previous file contents back, and the bridge has no action that snapshots or restores a package file; source control is what holds the old revision."));
++		MCPSetNoRollback(Result, bNexusGuarded
++			? TEXT("Saved packages were overwritten on disk; no external-package deletion was attempted. Restore previous file contents from a backup or source control.")
++			: TEXT("The level package, and every external actor package that was dirty, were overwritten on disk with the editor's in-memory state, and the packages of deleted actors were removed from it. Undoing that needs the previous file contents back; source control is what holds the old revision."));
+ 	}
+ 
+ 	if (Failed.Num() > 0)
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers.cpp
+index 4e0c1bd6..84437575 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers.cpp
+@@ -51,6 +51,14 @@ namespace
+ 	}
+ }
+ 
++namespace NexusInputHolds
++{
++	void Reset();
++	TSharedPtr<FJsonValue> Start(const TSharedPtr<FJsonObject>& Params);
++	TSharedPtr<FJsonValue> Update(const TSharedPtr<FJsonObject>& Params);
++	TSharedPtr<FJsonValue> Stop(const TSharedPtr<FJsonObject>& Params);
++}
++
+ void FPIEHandlers::StartupSystems()
+ {
+ 	if (GSystemsStarted) return;
+@@ -87,6 +95,7 @@ void FPIEHandlers::StartupSystems()
+ 	FEditorDelegates::EndPIE.AddLambda([](bool)
+ 	{
+ 		MCPPIE::FPIEInputInjector::OnPIEEnded();
++		NexusInputHolds::Reset();
+ 	});
+ 
+ 	// The editor throttles an unfocused window to a few frames a second, which starves a recording, replay,
+@@ -133,6 +142,7 @@ void FPIEHandlers::ShutdownSystems()
+ 		SMCPPIEStudioPanel::UnregisterTab();
+ 		GPanelRegistered = false;
+ 	}
++	NexusInputHolds::Reset();
+ 	MCPPIE::PIEPawnDrive::Shutdown();
+ 	MCPPIE::FPIEScriptRunner::Get().Shutdown();
+ 	MCPPIE::FPIESessionLog::Get().Shutdown();
+@@ -180,6 +190,29 @@ void FPIEHandlers::RegisterHandlers(FMCPHandlerRegistry& Registry)
+ 		MCPParam::Optional(TEXT("pie_instance"), EType::Integer, PieInstanceDoc).Min(0),
+ 		MCPParam::Optional(TEXT("client"), EType::Integer, RemoteClientDoc).Min(0),
+ 	}, MCPSpec::ContractExempt(TEXT("Drives input into the running PIE session")));
++	Registry.RegisterHandler(TEXT("pie_nexus_hold_start_v1"), &NexusInputHolds::Start, {
++		MCPParam::Required(TEXT("native_id"), EType::String, TEXT("Coordinator-generated opaque hold id")),
++		MCPParam::Required(TEXT("owner_token"), EType::String, TEXT("Coordinator-generated owner token")),
++		MCPParam::Required(TEXT("action_path"), EType::String, TEXT("Exact InputAction object path")),
++		MCPParam::Required(TEXT("world_path"), EType::String, TEXT("Exact PIE world object path")),
++		MCPParam::Required(TEXT("pie_instance"), EType::Integer, TEXT("Exact PIE instance")).Min(0),
++		MCPParam::Required(TEXT("client_id"), EType::Integer, TEXT("Local player index")).Min(0),
++		MCPParam::Required(TEXT("lease_seconds"), EType::Number, TEXT("Maximum real-time lifetime in seconds")).Range(1, 3600),
++		MCPParam::Optional(TEXT("value_x"), EType::Number, ValueXDoc),
++		MCPParam::Optional(TEXT("value_y"), EType::Number, ValueYDoc),
++		MCPParam::Optional(TEXT("value_z"), EType::Number, ValueZDoc),
++	}, MCPSpec::ContractExempt(TEXT("Injects one input frame per frame for an owned PIE hold")));
++	Registry.RegisterHandler(TEXT("pie_nexus_hold_update_v1"), &NexusInputHolds::Update, {
++		MCPParam::Required(TEXT("native_id"), EType::String, TEXT("Coordinator-generated opaque hold id")),
++		MCPParam::Required(TEXT("owner_token"), EType::String, TEXT("Coordinator-generated owner token")),
++		MCPParam::Optional(TEXT("value_x"), EType::Number, ValueXDoc),
++		MCPParam::Optional(TEXT("value_y"), EType::Number, ValueYDoc),
++		MCPParam::Optional(TEXT("value_z"), EType::Number, ValueZDoc),
++	}, MCPSpec::ContractExempt(TEXT("Changes an owned input hold")));
++	Registry.RegisterHandler(TEXT("pie_nexus_hold_stop_v1"), &NexusInputHolds::Stop, {
++		MCPParam::Required(TEXT("native_id"), EType::String, TEXT("Coordinator-generated opaque hold id")),
++		MCPParam::Required(TEXT("owner_token"), EType::String, TEXT("Coordinator-generated owner token")),
++	}, MCPSpec::ContractExempt(TEXT("Stops an owned input hold")));
+ 	Registry.RegisterHandler(TEXT("pie_inject_input_start"), &InjectInputStart, {
+ 		MCPParam::Required(TEXT("action_path"), EType::String, TEXT("InputAction asset path")),
+ 		MCPParam::Optional(TEXT("value_x"), EType::Number, ValueXDoc),
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp
+index e6032eba..8e4b11a9 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp
+@@ -14,6 +14,15 @@
+ #include "InputActionValue.h"
+ #include "Math/Vector2D.h"
+ #include "Math/Vector.h"
++#include "Handlers/PIE/PIEWorldResolver.h"
++#include "Engine/Engine.h"
++#include "Engine/World.h"
++#include "Engine/LocalPlayer.h"
++#include "Engine/GameInstance.h"
++#include "EnhancedInputSubsystems.h"
++#include "HAL/PlatformTime.h"
++#include "Misc/CoreDelegates.h"
++
+ 
+ namespace
+ {
+@@ -427,3 +436,261 @@ TSharedPtr<FJsonValue> FPIEHandlers::InjectInputTape(const TSharedPtr<FJsonObjec
+ 
+ 	return MCPResult(Result);
+ }
++
++// Nexus holds inject one frame at a time and never claim or remove Unreal's
++// shared continuous-injection slot. Their private ID and owner token are
++// coordinator-generated. A finite wall-time lease bounds abandoned holds.
++namespace NexusInputHolds
++{
++	struct FHold
++	{
++		FString OwnerToken;
++		FString WorldPath;
++		int32 PIEInstance = INDEX_NONE;
++		int32 LocalPlayerIndex = INDEX_NONE;
++		TWeakObjectPtr<UWorld> World;
++		TWeakObjectPtr<ULocalPlayer> Player;
++		TWeakObjectPtr<UInputAction> Action;
++		FInputActionValue Value;
++		double ExpiresAt = 0;
++		uint64 Frames = 0;
++		bool bActive = true;
++	};
++
++	static TMap<FString, FHold> Holds;
++	static FDelegateHandle TickHandle;
++
++	static bool IsHexToken(const FString& Value)
++	{
++		if (Value.Len() != 32) return false;
++		for (TCHAR C : Value)
++			if (!((C >= TEXT('0') && C <= TEXT('9')) || (C >= TEXT('a') && C <= TEXT('f')))) return false;
++		return true;
++	}
++
++	static bool ReadIdAndToken(const TSharedPtr<FJsonObject>& Params, FString& Id, FString& Token)
++	{
++		return TryGetStringParam(Params, TEXT("native_id"), Id)
++			&& TryGetStringParam(Params, TEXT("owner_token"), Token)
++			&& IsHexToken(Id) && IsHexToken(Token);
++	}
++
++	static bool ReadValues(const TSharedPtr<FJsonObject>& Params, double& X, double& Y, double& Z)
++	{
++		auto Read = [&Params](const TCHAR* Key, double Default, double& Out)
++		{
++			if (!HasParam(Params, Key)) { Out = Default; return true; }
++			return TryGetNumberParam(Params, Key, Out) && FMath::IsFinite(Out)
++				&& FMath::Abs(Out) <= static_cast<double>(MAX_flt);
++		};
++		return Read(TEXT("value_x"), 1.0, X) && Read(TEXT("value_y"), 0.0, Y)
++			&& Read(TEXT("value_z"), 0.0, Z);
++	}
++
++	static FInputActionValue NexusMakeInputValue(const UInputAction* Action, double X, double Y, double Z)
++	{
++		switch (Action->ValueType)
++		{
++		case EInputActionValueType::Boolean: return FInputActionValue(X != 0.0);
++		case EInputActionValueType::Axis1D: return FInputActionValue(static_cast<float>(X));
++		case EInputActionValueType::Axis2D: return FInputActionValue(FVector2D(X, Y));
++		case EInputActionValueType::Axis3D: return FInputActionValue(FVector(X, Y, Z));
++		}
++		return FInputActionValue();
++	}
++
++	static bool StillTargetsSamePlayer(const FHold& Hold)
++	{
++		UWorld* World = Hold.World.Get();
++		ULocalPlayer* Player = Hold.Player.Get();
++		if (!GEngine || !World || !Player || !Hold.Action.IsValid()) return false;
++		int32 Matches = 0;
++		for (const FWorldContext& Context : GEngine->GetWorldContexts())
++		{
++			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == Hold.PIEInstance
++				&& Context.World() && Context.World()->GetPathName() == Hold.WorldPath)
++			{
++				if (Context.World() != World) return false;
++				++Matches;
++			}
++		}
++		if (Matches != 1) return false;
++		MCPPIE::PIEWorldResolver::FPlayerTarget Target;
++		FString Error;
++		if (!MCPPIE::PIEWorldResolver::ResolvePlayerInWorld(World, Hold.LocalPlayerIndex, Target, Error)
++			|| Target.LocalPlayer != Player) return false;
++		const UEnhancedInputLocalPlayerSubsystem* Subsystem = Player->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
++		return Subsystem && Subsystem->GetPlayerInput();
++	}
++
++	static void Tick()
++	{
++		const double Now = FPlatformTime::Seconds();
++		bool bAnyActive = false;
++		for (auto It = Holds.CreateIterator(); It; ++It)
++		{
++			FHold& Hold = It.Value();
++			if (!Hold.bActive) continue;
++			if (Now >= Hold.ExpiresAt || !StillTargetsSamePlayer(Hold))
++			{
++				Hold.bActive = false;
++				continue;
++			}
++			FString Error;
++			if (!MCPPIE::FPIEInputInjector::InjectOnce(Hold.Action.Get(), Hold.Value, Error,
++				Hold.LocalPlayerIndex, Hold.PIEInstance, Hold.Player.Get()))
++			{
++				Hold.bActive = false;
++				continue;
++			}
++			++Hold.Frames;
++			bAnyActive = true;
++		}
++		if (!bAnyActive && TickHandle.IsValid())
++		{
++			FCoreDelegates::OnEndFrame.Remove(TickHandle);
++			TickHandle.Reset();
++		}
++	}
++
++	void Reset()
++	{
++		Holds.Reset();
++		if (TickHandle.IsValid())
++		{
++			FCoreDelegates::OnEndFrame.Remove(TickHandle);
++			TickHandle.Reset();
++		}
++	}
++
++	TSharedPtr<FJsonValue> Start(const TSharedPtr<FJsonObject>& Params)
++	{
++		MCP_CHECK_GAME_THREAD();
++		FString Id, Token, Path, WorldPath;
++		double InstanceValue = -1, PlayerValue = -1, Lease = 0, X, Y, Z;
++		if (!ReadIdAndToken(Params, Id, Token)
++			|| !TryGetStringParam(Params, TEXT("action_path"), Path) || Path.IsEmpty()
++			|| !TryGetStringParam(Params, TEXT("world_path"), WorldPath) || WorldPath.IsEmpty()
++			|| !TryGetNumberParam(Params, TEXT("pie_instance"), InstanceValue)
++			|| !FMath::IsFinite(InstanceValue) || InstanceValue < 0 || InstanceValue > MAX_int32
++			|| FMath::FloorToDouble(InstanceValue) != InstanceValue
++			|| !TryGetNumberParam(Params, TEXT("client_id"), PlayerValue)
++			|| !FMath::IsFinite(PlayerValue) || PlayerValue < 0 || PlayerValue > 255
++			|| FMath::FloorToDouble(PlayerValue) != PlayerValue
++			|| !TryGetNumberParam(Params, TEXT("lease_seconds"), Lease)
++			|| !FMath::IsFinite(Lease) || Lease < 1 || Lease > 3600
++			|| !ReadValues(Params, X, Y, Z))
++			return MCPError(TEXT("Invalid owned input hold parameters"));
++		if (!GEngine || Holds.Num() >= 64 || Holds.Contains(Id))
++			return MCPError(TEXT("Owned input hold capacity or ID conflict"));
++		const int32 Instance = static_cast<int32>(InstanceValue);
++		UWorld* World = nullptr;
++		int32 Matches = 0;
++		for (const FWorldContext& Context : GEngine->GetWorldContexts())
++		{
++			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == Instance
++				&& Context.World() && Context.World()->GetPathName() == WorldPath)
++			{
++				World = Context.World();
++				++Matches;
++			}
++		}
++		if (Matches != 1) return MCPError(TEXT("Expected exactly one matching PIE world"));
++		MCPPIE::PIEWorldResolver::FPlayerTarget Target;
++		FString Error;
++		if (!MCPPIE::PIEWorldResolver::ResolvePlayerInWorld(World, static_cast<int32>(PlayerValue), Target, Error))
++			return MCPError(Error);
++		const UEnhancedInputLocalPlayerSubsystem* Subsystem = Target.LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
++		if (!Subsystem || !Subsystem->GetPlayerInput()) return MCPError(TEXT("Enhanced Input player input is unavailable"));
++		TSharedPtr<FJsonValue> LoadError;
++		UInputAction* Action = LoadInputAction(Path, LoadError);
++		if (!Action) return LoadError;
++		if (Action->GetPathName() != Path) return MCPError(TEXT("InputAction path must be the exact object path"));
++		for (const TPair<FString,FHold>& Pair : Holds)
++			if (Pair.Value.bActive && FPlatformTime::Seconds() < Pair.Value.ExpiresAt
++				&& Pair.Value.Player.Get() == Target.LocalPlayer && Pair.Value.Action.Get() == Action)
++				return MCPError(TEXT("This player and action already have a Nexus-owned hold"));
++		FHold Hold;
++		Hold.OwnerToken = Token;
++		Hold.WorldPath = WorldPath;
++		Hold.PIEInstance = Instance;
++		Hold.LocalPlayerIndex = static_cast<int32>(PlayerValue);
++		Hold.World = World;
++		Hold.Player = Target.LocalPlayer;
++		Hold.Action = Action;
++		Hold.Value = NexusMakeInputValue(Action, X, Y, Z);
++		Hold.ExpiresAt = FPlatformTime::Seconds() + Lease;
++		Holds.Add(Id, MoveTemp(Hold));
++		if (!TickHandle.IsValid()) TickHandle = FCoreDelegates::OnEndFrame.AddStatic(&Tick);
++		auto Result = MCPSuccess();
++		Result->SetNumberField(TEXT("nexusHoldVersion"), 1);
++		Result->SetStringField(TEXT("native_id"), Id);
++		Result->SetStringField(TEXT("action"), Action->GetPathName());
++		Result->SetStringField(TEXT("world_path"), WorldPath);
++		Result->SetNumberField(TEXT("pie_instance"), Instance);
++		Result->SetNumberField(TEXT("client_id"), PlayerValue);
++		Result->SetNumberField(TEXT("lease_seconds"), Lease);
++		Result->SetBoolField(TEXT("started"), true);
++		Result->SetBoolField(TEXT("continuousSlotTouched"), false);
++		Result->SetBoolField(TEXT("firstFramePending"), true);
++		return MCPResult(Result);
++	}
++
++	TSharedPtr<FJsonValue> Update(const TSharedPtr<FJsonObject>& Params)
++	{
++		MCP_CHECK_GAME_THREAD();
++		FString Id, Token;
++		double X, Y, Z;
++		if (!ReadIdAndToken(Params, Id, Token) || !ReadValues(Params, X, Y, Z))
++			return MCPError(TEXT("Invalid owned input hold update"));
++		FHold* Hold = Holds.Find(Id);
++		if (!Hold || Hold->OwnerToken != Token)
++			return MCPError(TEXT("Owned input hold absent or mismatched"));
++		if (!Hold->bActive || FPlatformTime::Seconds() >= Hold->ExpiresAt || !StillTargetsSamePlayer(*Hold))
++		{
++			Hold->bActive = false;
++			auto Result = MakeShared<FJsonObject>();
++			Result->SetBoolField(TEXT("success"), false);
++			Result->SetNumberField(TEXT("nexusHoldVersion"), 1);
++			Result->SetStringField(TEXT("native_id"), Id);
++			Result->SetStringField(TEXT("reason"), TEXT("expired_or_ended"));
++			Result->SetBoolField(TEXT("mutationStarted"), false);
++			Result->SetStringField(TEXT("error"), TEXT("Owned input hold has expired or its PIE target ended"));
++			return MCPResult(Result);
++		}
++		Hold->Value = NexusMakeInputValue(Hold->Action.Get(), X, Y, Z);
++		auto Result = MCPSuccess();
++		Result->SetNumberField(TEXT("nexusHoldVersion"), 1);
++		Result->SetStringField(TEXT("native_id"), Id);
++		Result->SetBoolField(TEXT("updated"), true);
++		Result->SetNumberField(TEXT("framesQueued"), static_cast<double>(Hold->Frames));
++		Result->SetBoolField(TEXT("continuousSlotTouched"), false);
++		return MCPResult(Result);
++	}
++
++	TSharedPtr<FJsonValue> Stop(const TSharedPtr<FJsonObject>& Params)
++	{
++		MCP_CHECK_GAME_THREAD();
++		FString Id, Token;
++		if (!ReadIdAndToken(Params, Id, Token)) return MCPError(TEXT("Invalid owned input hold stop"));
++		FHold* Hold = Holds.Find(Id);
++		if (!Hold || Hold->OwnerToken != Token) return MCPError(TEXT("Owned input hold absent or mismatched"));
++		const uint64 Frames = Hold->Frames;
++		const bool bExpiredOrEnded = !Hold->bActive || FPlatformTime::Seconds() >= Hold->ExpiresAt || !StillTargetsSamePlayer(*Hold);
++		Holds.Remove(Id);
++		if (Holds.IsEmpty() && TickHandle.IsValid())
++		{
++			FCoreDelegates::OnEndFrame.Remove(TickHandle);
++			TickHandle.Reset();
++		}
++		auto Result = MCPSuccess();
++		Result->SetNumberField(TEXT("nexusHoldVersion"), 1);
++		Result->SetStringField(TEXT("native_id"), Id);
++		Result->SetBoolField(TEXT("stopped"), true);
++		Result->SetBoolField(TEXT("expiredOrEnded"), bExpiredOrEnded);
++		Result->SetNumberField(TEXT("framesQueued"), static_cast<double>(Frames));
++		Result->SetBoolField(TEXT("continuousSlotTouched"), false);
++		Result->SetBoolField(TEXT("oneFrameMayRemain"), true);
++		return MCPResult(Result);
++	}
++}
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
+index 15ce9c76..0a1a9704 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
+@@ -387,7 +387,10 @@ namespace MCPPagination
+ 			Result->SetBoolField(TEXT("totalKnown"), false);
+ 		}
+ 
+-		if (!bChanged) return;
++		// Rows after the anchor may have changed while the anchor stayed put.
++		const bool bTotalChanged = Request.bResumed && bRowsAreComplete
++			&& Request.TotalAtIssue != INDEX_NONE && Request.TotalAtIssue != Rows.Num();
++		if (!bChanged && !bTotalChanged) return;
+ 
+ 		Result->SetBoolField(TEXT("collectionChanged"), true);
+ 		Result->SetNumberField(TEXT("shiftedBy"), ShiftedBy);
+@@ -410,9 +413,17 @@ namespace MCPPagination
+ 				TEXT("skipped or returned twice. Call again with no 'cursor' if you need an exact enumeration."),
+ 				*Request.ResumeAnchor, ShiftedBy, FMath::Abs(ShiftedBy)));
+ 		}
+-		if (Request.TotalAtIssue != INDEX_NONE && bRowsAreComplete && Request.TotalAtIssue != Rows.Num())
++		else if (bTotalChanged)
+ 		{
++			Result->SetStringField(TEXT("cursorNote"), TEXT(
++				"The collection count changed since this cursor was issued. The anchor remains in place, "
++				"but the pages do not form a consistent snapshot. Call again with no cursor if needed."));
++		}
++		if (bTotalChanged)
++		{
++			// Preserve the old field and clarify that the count is from the issuing page.
+ 			Result->SetNumberField(TEXT("totalAtFirstPage"), Request.TotalAtIssue);
++			Result->SetNumberField(TEXT("totalAtCursor"), Request.TotalAtIssue);
+ 		}
+ 	}
+ }
+diff --git a/src/bridge/bridge.ts b/src/bridge/bridge.ts
+index ca1b3389..53980ad9 100644
+--- a/src/bridge/bridge.ts
++++ b/src/bridge/bridge.ts
+@@ -410,6 +410,134 @@ export interface IBridge {
+   getTarget(): BridgeTarget;
+ }
+ 
++// Fixed screenshot-only transport. Never used for general bridge methods.
++// Experimental until the Nexus compatibility manifest and coordinator land.
++
++const METHOD = "nexus_capture_pie_png_v1";
++const MAX_FRAME = 12 * 1024 * 1024;
++const MAX_PNG = 8 * 1024 * 1024;
++
++function invalid(message: string): McpError {
++  return new McpError(ErrorCode.CONNECTION_LOST, message, {outcome:"unknown",method:METHOD});
++}
++function record(x: unknown): x is Record<string, unknown> {
++  return x !== null && typeof x === "object" && !Array.isArray(x);
++}
++
++// Reject duplicate keys at every object depth before JSON.parse. The frame is
++// already bounded by ws. This scans rather than materializing the large string
++// payload a second time; JSON.parse remains the final syntax validator.
++function rejectDuplicateKeys(text: string): void {
++  let i=0;
++  const white=()=>{while(i<text.length && /[\x20\t\r\n]/.test(text[i]!)) i++;};
++  const string=(decode=true): string=>{
++    if(text[i++]!=='"') throw invalid("Malformed capture JSON");
++    const start=i-1;
++    while(i<text.length) {
++      const c=text[i++]!;
++      if(c==='"') {
++        try { return decode ? JSON.parse(text.slice(start,i)) as string : ""; }
++        catch { throw invalid("Malformed capture JSON string"); }
++      }
++      if(c==='\\') { if(i>=text.length) throw invalid("Malformed capture JSON escape"); i++; }
++      else if(c.charCodeAt(0)<32) throw invalid("Malformed capture JSON string");
++    }
++    throw invalid("Unterminated capture JSON string");
++  };
++  const value=(depth: number): void=>{
++    if(depth>16) throw invalid("Capture JSON nesting exceeds limit");
++    white();
++    const c=text[i];
++    if(c==='"') { string(false); return; }
++    if(c==='{' || c==='[') {
++      const object=c==='{', close=object?'}':']'; i++; white();
++      const seen=new Set<string>();
++      if(text[i]===close) {i++;return;}
++      while(i<text.length) {
++        if(object) {
++          white();const key=string();
++          if(seen.has(key)) throw invalid("Duplicate capture JSON key");
++          seen.add(key);white();if(text[i++]!==':') throw invalid("Malformed capture JSON object");
++        }
++        value(depth+1);white();
++        if(text[i]===close) {i++;return;}
++        if(text[i++]!==',') throw invalid("Malformed capture JSON container");
++      }
++      throw invalid("Unterminated capture JSON container");
++    }
++    const m=/^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/.exec(text.slice(i,i+64));
++    if(!m) throw invalid("Malformed capture JSON value");
++    i+=m[0].length;
++  };
++  value(0);white();if(i!==text.length) throw invalid("Extra capture JSON data");
++}
++
++export async function callNexusPieCapture(
++  host: string, port: number, headers: Record<string,string>, params: Record<string,unknown>,
++  timeoutMs: number, signal?: AbortSignal,
++): Promise<Record<string,unknown>> {
++  const {pieInstance,worldPath,nonce}=params;
++  if(!Number.isSafeInteger(pieInstance) || (pieInstance as number)<0
++    || typeof worldPath!=="string" || !worldPath.startsWith("/") || worldPath.length>1024
++    || typeof nonce!=="string" || !/^[a-f0-9]{32}$/.test(nonce)
++    || Object.keys(params).length!==3 || !Number.isSafeInteger(timeoutMs) || timeoutMs<1 || timeoutMs>600000)
++    throw new McpError(ErrorCode.INVALID_PARAMS,"Invalid bounded PIE capture request");
++  if(signal?.aborted) throw new McpError(ErrorCode.CANCELLED,"Capture cancelled before dispatch",{outcome:"failed",method:METHOD});
++  const id=randomUUID();
++  return await new Promise((resolve,reject)=>{
++    let done=false, sent=false;
++    let ws: WebSocket;
++    const finish=(error?: Error,result?: Record<string,unknown>)=>{
++      if(done)return;done=true;clearTimeout(timer);signal?.removeEventListener("abort",abort);
++      ws.terminate(); if(error) reject(error);else resolve(result!);
++    };
++    const abort=()=>finish(new McpError(ErrorCode.CANCELLED,"Capture cancelled; reconcile the editor",
++      {outcome:sent?"unknown":"failed",method:METHOD,operationId:id}));
++    const timer=setTimeout(()=>finish(new McpError(ErrorCode.BRIDGE_TIMEOUT,"Capture timed out; reconcile the editor",
++      {outcome:sent?"unknown":"failed",method:METHOD,operationId:id})),timeoutMs);
++    try {ws=new WebSocket(`ws://${host}:${port}`,{headers,maxPayload:MAX_FRAME,perMessageDeflate:false});}
++    catch {clearTimeout(timer);reject(new McpError(ErrorCode.NOT_CONNECTED,"Unable to create capture socket"));return;}
++    signal?.addEventListener("abort",abort,{once:true});
++    if(signal?.aborted){abort();return;}
++    ws.on("open",()=>{
++      sent=true;
++      ws.send(JSON.stringify({id,method:METHOD,params,timeoutMs}),err=>{
++        if(err) finish(invalid("Capture request connection failed"));
++      });
++    });
++    ws.on("message",(raw,isBinary)=>{
++      if(isBinary || !Buffer.isBuffer(raw) || raw.length===0 || raw.length>MAX_FRAME)
++        return finish(invalid("Invalid capture response frame"));
++      try {
++        const text=new TextDecoder("utf-8",{fatal:true}).decode(raw);
++        rejectDuplicateKeys(text);
++        const frame: unknown=JSON.parse(text);
++        if(!record(frame) || frame.id!==id || !record(frame.result) || frame.error!==undefined)
++          throw invalid("Uncorrelated capture response");
++        const body=frame.result;
++        if(body.success===false) return finish(undefined,body);
++        if(body.success!==true || body.nexusCaptureVersion!==1 || body.nonce!==nonce
++          || body.worldPath!==worldPath || body.pieInstance!==pieInstance
++          || !Number.isSafeInteger(body.width) || !Number.isSafeInteger(body.height)
++          || (body.width as number)<1 || (body.height as number)<1
++          || (body.width as number)>4096 || (body.height as number)>4096
++          || (body.width as number)*(body.height as number)>4194304
++          || !Number.isSafeInteger(body.pngBytes) || (body.pngBytes as number)<1 || (body.pngBytes as number)>MAX_PNG
++          || typeof body.pngBase64!=="string" || body.pngBase64.length>4*Math.ceil(MAX_PNG/3))
++          throw invalid("Invalid capture receipt");
++        const bytes=Buffer.from(body.pngBase64,"base64");
++        if(bytes.length!==body.pngBytes || bytes.toString("base64")!==body.pngBase64 || bytes.length<24
++          || !bytes.subarray(0,8).equals(Buffer.from("89504e470d0a1a0a","hex"))
++          || bytes.readUInt32BE(16)!==body.width || bytes.readUInt32BE(20)!==body.height)
++          throw invalid("Invalid capture PNG");
++        finish(undefined,body);
++      } catch {finish(invalid("Malformed or uncorrelated capture response"));}
++    });
++    ws.on("error",()=>finish(invalid("Capture socket failed")));
++    ws.on("close",()=>finish(invalid("Capture socket closed before a response")));
++  });
++}
++
+ export class EditorBridge implements IBridge {
+   private ws: WebSocket | null = null;
+   private pending = new Map<string, PendingRequest>();
+@@ -1035,6 +1163,22 @@ export class EditorBridge implements IBridge {
+       }
+     }
+ 
++    if (method === "nexus_capture_pie_png_v1") {
++      const generation = this.targetGeneration;
++      const port = this.port;
++      const target = this.getTarget();
++      if (!target.verified || !this.isConnected) {
++        throw new McpError(ErrorCode.NOT_CONNECTED, "Capture requires a verified connected editor");
++      }
++      const result = await callNexusPieCapture(this.host, port, bridgeAuthHeaders(port), params ?? {},
++        resolveBridgeTimeout(method, timeoutMs), options?.signal);
++      if (generation !== this.targetGeneration || port !== this.port || !this.isConnected) {
++        throw new McpError(ErrorCode.CONNECTION_LOST, "Editor target changed during capture",
++          {outcome:"unknown",method});
++      }
++      return result;
++    }
++
+     const id = String(++this.idCounter);
+     const explicit = typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0;
+     const signal = options?.signal;
+diff --git a/src/tools/editor.ts b/src/tools/editor.ts
+index db2ead43..9c3d1b50 100644
+--- a/src/tools/editor.ts
++++ b/src/tools/editor.ts
+@@ -437,6 +437,16 @@ export const editorTool: ToolDef = categoryTool(
+     set_scalability: specBp("mutate", "Set rendering quality via the Scalability system (actually applies + persists, not just sg.* cvars). Returns appliedLevels (#591).", "set_scalability"),
+     get_cvars: specBp("read", "Read console variables from the running editor by name, names, or pattern (substring match over every registered variable). Each row carries value, defaultValue, isDefault, type, whether it is a cheat, and `setBy`: the priority the current value was written at, which is what separates a variable sitting at its default from one a scalability group or device profile drove there. A variable set at a higher priority ignores later writes from lower ones. Names that do not resolve come back under notFound rather than as an error (#1006).", "get_cvars"),
+     set_cvars: specBp("mutate", "Bulk-set console variables, from a {name: value} object or a [{name, value}] array. Returns per-cvar old/new values and any notFound names. Use get_cvars to read one back, including which priority its value was set at (#591).", "set_cvars"),
++    nexus_capture_pie_png_v1: {
++      ...specBp("read", "Capture one exact PIE viewport as a bounded in-memory PNG without writing a file.", "nexus_capture_pie_png_v1"),
++      followUp: async (_ctx: ToolContext, _params: Record<string, unknown>, answered: unknown) => {
++        if (!answered || typeof answered !== "object" || Array.isArray(answered)) return answered;
++        const body = answered as Record<string, unknown>;
++        if (body.success !== true || typeof body.pngBase64 !== "string") return answered;
++        const {pngBase64, ...receipt} = body;
++        return {...receipt, media:[{type:"image",mimeType:"image/png",data:pngBase64}]};
++      },
++    },
+     capture_screenshot: withInlineImage(specBp("mutate", "Screenshot. target=pie synchronously captures the selected PIE client game viewport with UMG/Slate UI; target=editor captures the level viewport; target=window synchronously captures a whole Slate window via FSlateApplication::TakeScreenshot - pixel-true for ALL Slate/UMG UI, returns after the PNG is written, and works while the window is unfocused. target=pie and target=window refuse a window Slate is not drawing (hidden, minimized, off screen) with the reason, so no readback is left queued (#1450). Multi-instance PIE automatically prefers a world with a game viewport; pass pieInstance or worldPath to select explicitly, which for target=window is what picks the PIE client window instead of the active editor window. Every mode captures at the source viewport/window size - use capture_scene_png for a chosen output size. outputPath is accepted for filename, so the two capture actions take the same name (#966). Returns the resolved PIE instance/world and image dimensions (#226/#724). target=editor reports cameraLock and a warning when the viewport is piloting an actor or locked to a Sequencer camera, since the image then comes from that actor rather than from a pose set_viewport wrote (#1361). inline=true, or a longest-edge size in pixels, also returns the written image as image content, scaled down when larger.", "capture_screenshot"), ["filename"]),
+     capture_screenshot_sequence: withInlineImage({
+       kind: "handler",
+diff --git a/src/tools/pie.ts b/src/tools/pie.ts
+index 3ff093ad..fbaf6618 100644
+--- a/src/tools/pie.ts
++++ b/src/tools/pie.ts
+@@ -10,6 +10,9 @@ export const pieTool: ToolDef = categoryTool(
+   {
+     view_trace: specBp("read", "Trace the live PIE player viewpoint. Returns viewLocation, viewRotation, viewDirection and line; sweepRadius also returns a sphere sweep. Each hit includes component collision state, channel response, blocksVisibility and owner label/class. Ignores the viewing pawn by default; requires running PIE.", "pie_view_trace"),
+     inject_input:         specBp("mutate", "Inject one frame of an Enhanced Input action into a PIE player. client 1..N relays to a remote player.", "pie_inject_input"),
++    nexus_hold_start_v1: specBp("mutate", "Start an exact-world owned input hold without occupying the continuous-injection slot.", "pie_nexus_hold_start_v1"),
++    nexus_hold_update_v1: specBp("mutate", "Change a matching owned input hold.", "pie_nexus_hold_update_v1"),
++    nexus_hold_stop_v1: specBp("mutate", "Stop a matching owned input hold.", "pie_nexus_hold_stop_v1"),
+     inject_input_start:   specBp("mutate", "Start holding an input action every frame until inject_input_stop, PIE end, or duration_seconds of game time; control_rotation pins the controller's aim every frame while it runs. Hold several actions at once with one call each. Returns injection_id. Rolls back with inject_input_stop.", "pie_inject_input_start"),
+     inject_input_update:  specBp("mutate", "Change the value or control_rotation of a running hold.", "pie_inject_input_update"),
+     inject_input_stop:    specBp("mutate", "Stop a hold or tape by id; alreadyStopped when it had ended.", "pie_inject_input_stop"),
+diff --git a/src/tools/project/sessions.ts b/src/tools/project/sessions.ts
+index 9cb3fca1..0a5cf1d6 100644
+--- a/src/tools/project/sessions.ts
++++ b/src/tools/project/sessions.ts
+@@ -197,6 +197,7 @@ export const sessionActions: Record<string, ActionSpec> = {
+               client: CLIENT_PROTOCOL_VERSION,
+               builtAt: ctx.bridge.capabilities.builtAt,
+               actionCount: ctx.bridge.capabilities.actionCount,
++              features: ctx.bridge.capabilities.features,
+               mismatch: describeProtocolMismatch(ctx.bridge.capabilities) ?? undefined,
+             }
+           : undefined,
+diff --git a/src/tools/specs/editor.generated.ts b/src/tools/specs/editor.generated.ts
+index 647e5eef..ab03ecc6 100644
+--- a/src/tools/specs/editor.generated.ts
++++ b/src/tools/specs/editor.generated.ts
+@@ -2148,6 +2148,30 @@ export const handlerSpecs: HandlerSpecs = {
+     ],
+     "contractExempt": "starts a render of every enabled job in the editor's queue"
+   },
++  "nexus_capture_pie_png_v1": {
++    "category": "editor",
++    "params": [
++      {
++        "name": "pieInstance",
++        "type": "number",
++        "required": true,
++        "description": "Exact integer PIE instance"
++      },
++      {
++        "name": "worldPath",
++        "type": "string",
++        "required": true,
++        "description": "Exact PIE world object path"
++      },
++      {
++        "name": "nonce",
++        "type": "string",
++        "required": true,
++        "description": "32 lowercase hexadecimal request nonce"
++      }
++    ],
++    "contractExempt": "reads a bounded composited PIE viewport"
++  },
+   "open_asset": {
+     "category": "editor",
+     "params": [
+@@ -4435,6 +4459,7 @@ export const paramsClauses: Readonly<Record<string, string>> = {
+   mrq_list_jobs: "Params: none",
+   mrq_list_outputs: "Params: jobName?, outputDirectory?, limit?",
+   mrq_render: "Params: jobNames?, wait?",
++  nexus_capture_pie_png_v1: "Params: pieInstance, worldPath, nonce",
+   open_asset: "Params: assetPath (or path), saveFirst?, discardUnsaved?",
+   open_settings: "Params: container?, category?, section?",
+   open_tab: "Params: tabId",
+@@ -4678,6 +4703,7 @@ export const schema: Record<string, z.ZodType> = {
+   newWindowHeight: z.number().optional().describe("Play-in-New-Window height"),
+   newWindowPosition: z.object({ x: z.number().describe("Screen X in pixels"), y: z.number().describe("Screen Y in pixels") }).optional().describe("Screen position of a new PIE window; setting it turns centerNewWindow off unless that is also passed"),
+   newWindowWidth: z.number().optional().describe("Play-in-New-Window width"),
++  nonce: z.string().optional().describe("32 lowercase hexadecimal request nonce"),
+   numClients: z.number().optional().describe("Number of PIE clients"),
+   objectPath: z.string().optional().describe("Object, asset, class or Blueprint path. A class or Blueprint resolves to its default object (describe_object, get_property, set_property). Check one path: reports found and isValid rather than failing when it is gone. Wins over the search filters (find_object). Object path of the live instance. Wins over target (get_object_properties, invoke_object_function, set_object_property)"),
+   onConflict: z.string().optional().describe("skip (default) returns an existing asset untouched, error refuses (create_level_sequence). When the level exists: skip (default) returns it untouched, error refuses (create_new_level)"),
+@@ -4695,7 +4721,7 @@ export const schema: Record<string, z.ZodType> = {
+   pattern: z.string().optional().describe("Exact pattern of the policy to clear; omit to clear every policy (clear_dialog_policy). Substring matched against every registered console variable. Pass at least one of name, names and pattern (get_cvars). Case-insensitive substring of the library class name or its Python name (list_function_libraries). Substring matched case-insensitively against the dialog title and message (set_dialog_policy)"),
+   paused: z.boolean().optional().describe("true pauses the running trace, false resumes it (default true) (pause_insights_trace). true pauses, false resumes (set_pie_paused)"),
+   pieAction: z.string().optional().describe("start | stop | status (default status)"),
+-  pieInstance: z.number().optional().describe("PIE world to target: 0 = server/primary, 1..N = clients. See list_pie_instances (capture_scene_png, capture_screenshot, execute_command, find_object, get_object_properties, get_runtime_value, get_runtime_values, invoke_function, invoke_object_function, invoke_object_functions, invoke_static_function, pose_debug_camera, read_bone_transforms, restore_runtime_visibility, set_buffer_visualization, set_movement_mode, set_object_property, set_pie_paused, set_pie_view_target, set_runtime_visibility, teleport_runtime_actor). PIE world to read (default: the primary world, or the first client world when the primary is a dedicated server). See list_pie_instances (get_pie_pawn). PIE instance index when several clients run (get_sequence_runtime_bindings)"),
++  pieInstance: z.number().optional().describe("PIE world to target: 0 = server/primary, 1..N = clients. See list_pie_instances (capture_scene_png, capture_screenshot, execute_command, find_object, get_object_properties, get_runtime_value, get_runtime_values, invoke_function, invoke_object_function, invoke_object_functions, invoke_static_function, pose_debug_camera, read_bone_transforms, restore_runtime_visibility, set_buffer_visualization, set_movement_mode, set_object_property, set_pie_paused, set_pie_view_target, set_runtime_visibility, teleport_runtime_actor). PIE world to read (default: the primary world, or the first client world when the primary is a dedicated server). See list_pie_instances (get_pie_pawn). PIE instance index when several clients run (get_sequence_runtime_bindings). Exact integer PIE instance (nexus_capture_pie_png_v1)"),
+   pitch: z.number().optional().describe("Control-rotation pitch"),
+   platform: z.string().optional().describe("Target platform (default Windows)"),
+   playerIndex: z.number().optional().describe("Local player whose console runs a PIE command (default 0) (execute_command). Player index for target=playercontroller, playerpawn, or a LocalPlayer subsystem (default 0) (get_object_properties, invoke_object_function, set_object_property). 0-based player index (default 0) (get_pie_pawn). Local player whose debug camera is used (default 0) (pose_debug_camera). Player whose view target is set (default 0) (set_pie_view_target)"),
+@@ -4779,7 +4805,7 @@ export const schema: Record<string, z.ZodType> = {
+   world: z.string().optional().describe("World scope: editor (default) | pie (capture_scene_png). editor (default) | pie | auto: pie runs it as a PIE player, through that player's console, cheat manager and world (execute_command). World scope: any (default) | editor | pie. A scoped search includes objects outered to that world's GameInstance or LocalPlayers (UMG widgets, LocalPlayer subsystems) (find_object). World scope: editor | pie | auto. Each action names its own default (get_object_properties, get_runtime_value, get_runtime_values, invoke_object_function, invoke_object_functions, pose_debug_camera, read_bone_transforms, restore_runtime_visibility, set_movement_mode, set_object_property, set_pie_paused, set_pie_view_target, set_runtime_visibility, teleport_runtime_actor). auto (default: PIE when running, else editor) | pie | editor (get_sequence_runtime_bindings). editor (default) | pie | auto (invoke_function). editor (default) | pie | game | auto (invoke_static_function)"),
+   worldContextParam: z.string().optional().describe("UObject* parameter to fill with the selected world; detected from WorldContext metadata and for WorldContextObject when omitted"),
+   worldPartition: z.boolean().optional().describe("Create a blank World Partition level with one file per actor (default false); a templateLevel decides this itself"),
+-  worldPath: z.string().optional().describe("Exact PIE UWorld path or name to capture"),
++  worldPath: z.string().optional().describe("Exact PIE UWorld path or name to capture (capture_screenshot). Exact PIE world object path (nexus_capture_pie_png_v1)"),
+   worstFrames: z.number().int().optional().describe("Slowest frames to list with their top timers (default 10, max 50)"),
+   x: z.number().optional().describe("Viewport pixel X"),
+   y: z.number().optional().describe("Viewport pixel Y"),
+diff --git a/src/tools/specs/level.generated.ts b/src/tools/specs/level.generated.ts
+index 1c3c0863..7171f06d 100644
+--- a/src/tools/specs/level.generated.ts
++++ b/src/tools/specs/level.generated.ts
+@@ -4223,6 +4223,18 @@ export const handlerSpecs: HandlerSpecs = {
+         "type": "boolean",
+         "required": false,
+         "description": "Save through the editor's dirty-package save, which deletes the packages of deleted World Partition actors (default false)"
++      },
++      {
++        "name": "expectedLevelPackage",
++        "type": "string",
++        "required": false,
++        "description": "Exact current edit-level package name for the Nexus guard"
++      },
++      {
++        "name": "nexusNoExternalDelete",
++        "type": "boolean",
++        "required": false,
++        "description": "Refuse external package deletion under the Nexus guard"
+       }
+     ],
+     "contractExempt": "Saves the current level under the contract values; nothing it reads fails first"
+@@ -6698,7 +6710,7 @@ export const paramsClauses: Readonly<Record<string, string>> = {
+   resolve_actor: "Params: internalName",
+   restore_blockout: "Params: actorLabel OR actorPath OR actorPaths",
+   restore_component_relative_transform: "Params: actorLabel OR actorPath, componentName, relativeTransform, world?, pieInstance?",
+-  save_level: "Params: force?, includeExternalActors?, commitDeletes?",
++  save_level: "Params: force?, includeExternalActors?, commitDeletes?, expectedLevelPackage?, nexusNoExternalDelete?",
+   scatter_along_spline: "Params: actorLabel OR actorPath, componentName?, generatorName?, meshes?, weights?, mode?, interval?, count?, startOffset?, endOffset?, offset?, positionJitter?, yawJitter?, scaleMin?, scaleMax?, alignToSpline?, seed?, maxCount?, rebuild?",
+   select_actors: "Params: at least one of actorLabels/actorPaths",
+   select_component: "Params: actorLabel?, actorPath?, componentName, addToSelection?",
+@@ -6826,6 +6838,7 @@ export const schema: Record<string, z.ZodType> = {
+   end: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("Ray end; pass end or direction and distance"),
+   endOffset: z.number().optional().describe("Distance along the spline to leave empty at its end, in centimetres"),
+   exactClass: z.boolean().optional().describe("Require classFilter to be the exact class (default true) (convert_brushes_to_static_mesh). Require classFilter to be the exact class name (get_world_outliner)"),
++  expectedLevelPackage: z.string().optional().describe("Exact current edit-level package name for the Nexus guard"),
+   exposure: z.number().optional().describe("Fixed adaptation brightness, written to both min and max"),
+   extent: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("Query extent (default 100, 100, 100) (nav_project_point). Half extent of the cube brush (default 100, 100, 100) (spawn_volume)"),
+   fields: z.array(z.string()).optional().describe("Field groups: transform, bounds, localBounds, shadow, nanite, navigation, tick, materials, mesh, decal, health, physics, attachment, customPrimitiveData"),
+@@ -6931,6 +6944,7 @@ export const schema: Record<string, z.ZodType> = {
+   names: z.array(z.string()).optional().describe("Exact setting names to return"),
+   nearPoint: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("Keep vertices within radius of this point, in space; needs radius"),
+   newName: z.string().optional().describe("New object name; omitted, a unique name is generated from the actor's class (rename_actor_object). New runtime partition name (rename_runtime_partition)"),
++  nexusNoExternalDelete: z.boolean().optional().describe("Refuse external package deletion under the Nexus guard"),
+   offset: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("World-space offset added to each actor's location (batch_translate). Constant offset in the spline's frame: x along it, y to its right, z up (scatter_along_spline)"),
+   onConflict: z.string().optional().describe("When the label or name is taken: skip (default) | error (add_component_to_actor, place_actor, spawn_light, spawn_skeletal_mesh_actor, spawn_volume). When label is taken: skip (default) | error (create_blockout). When the label is taken: skip (default) | update (rewrite its spline points) | error (create_spline_actor)"),
+   onlyColliding: z.boolean().optional().describe("Only colliding components contribute to the bounds (default false) (actors_in_box). Only colliding components contribute to the bounds (get_actor_bounds)"),
+diff --git a/src/tools/specs/pie.generated.ts b/src/tools/specs/pie.generated.ts
+index 4b23490a..cf593d95 100644
+--- a/src/tools/specs/pie.generated.ts
++++ b/src/tools/specs/pie.generated.ts
+@@ -485,6 +485,130 @@ export const handlerSpecs: HandlerSpecs = {
+     ],
+     "contractExempt": "Writes a marker into the recording in flight"
+   },
++  "pie_nexus_hold_start_v1": {
++    "category": "pie",
++    "params": [
++      {
++        "name": "native_id",
++        "type": "string",
++        "required": true,
++        "description": "Coordinator-generated opaque hold id"
++      },
++      {
++        "name": "owner_token",
++        "type": "string",
++        "required": true,
++        "description": "Coordinator-generated owner token"
++      },
++      {
++        "name": "action_path",
++        "type": "string",
++        "required": true,
++        "description": "Exact InputAction object path"
++      },
++      {
++        "name": "world_path",
++        "type": "string",
++        "required": true,
++        "description": "Exact PIE world object path"
++      },
++      {
++        "name": "pie_instance",
++        "type": "integer",
++        "required": true,
++        "description": "Exact PIE instance",
++        "minimum": 0
++      },
++      {
++        "name": "client_id",
++        "type": "integer",
++        "required": true,
++        "description": "Local player index",
++        "minimum": 0
++      },
++      {
++        "name": "lease_seconds",
++        "type": "number",
++        "required": true,
++        "description": "Maximum real-time lifetime in seconds",
++        "minimum": 1,
++        "maximum": 3600
++      },
++      {
++        "name": "value_x",
++        "type": "number",
++        "required": false,
++        "description": "Axis or bool value X (default 1)"
++      },
++      {
++        "name": "value_y",
++        "type": "number",
++        "required": false,
++        "description": "Axis value Y (default 0)"
++      },
++      {
++        "name": "value_z",
++        "type": "number",
++        "required": false,
++        "description": "Axis value Z (default 0)"
++      }
++    ],
++    "contractExempt": "Injects one input frame per frame for an owned PIE hold"
++  },
++  "pie_nexus_hold_stop_v1": {
++    "category": "pie",
++    "params": [
++      {
++        "name": "native_id",
++        "type": "string",
++        "required": true,
++        "description": "Coordinator-generated opaque hold id"
++      },
++      {
++        "name": "owner_token",
++        "type": "string",
++        "required": true,
++        "description": "Coordinator-generated owner token"
++      }
++    ],
++    "contractExempt": "Stops an owned input hold"
++  },
++  "pie_nexus_hold_update_v1": {
++    "category": "pie",
++    "params": [
++      {
++        "name": "native_id",
++        "type": "string",
++        "required": true,
++        "description": "Coordinator-generated opaque hold id"
++      },
++      {
++        "name": "owner_token",
++        "type": "string",
++        "required": true,
++        "description": "Coordinator-generated owner token"
++      },
++      {
++        "name": "value_x",
++        "type": "number",
++        "required": false,
++        "description": "Axis or bool value X (default 1)"
++      },
++      {
++        "name": "value_y",
++        "type": "number",
++        "required": false,
++        "description": "Axis value Y (default 0)"
++      },
++      {
++        "name": "value_z",
++        "type": "number",
++        "required": false,
++        "description": "Axis value Z (default 0)"
++      }
++    ],
++    "contractExempt": "Changes an owned input hold"
++  },
+   "pie_observe_arm": {
+     "category": "pie",
+     "params": [
+@@ -2397,6 +2521,9 @@ export const paramsClauses: Readonly<Record<string, string>> = {
+   pie_inject_input_tape: "Params: action_path, values, hz?, injection_id?, client_id?, pie_instance?, client?",
+   pie_inject_input_update: "Params: injection_id, value_x?, value_y?, value_z?, control_rotation?",
+   pie_mark: "Params: label",
++  pie_nexus_hold_start_v1: "Params: native_id, owner_token, action_path, world_path, pie_instance, client_id, lease_seconds, value_x?, value_y?, value_z?",
++  pie_nexus_hold_stop_v1: "Params: native_id, owner_token",
++  pie_nexus_hold_update_v1: "Params: native_id, owner_token, value_x?, value_y?, value_z?",
+   pie_observe_arm: "Params: profile, output_dir?, sample_hz?, client_id?, pie_instance?, pin_fps?",
+   pie_observe_disarm: "Params: none",
+   pie_observe_list: "Params: output_dir?, limit?",
+@@ -2456,7 +2583,7 @@ export const paramsClauses: Readonly<Record<string, string>> = {
+ export const schema: Record<string, z.ZodType> = {
+   a_id: z.string().optional().describe("First recording id"),
+   acceptanceRadius: z.number().min(0).optional().describe("Distance in cm from targetLocation that counts as arrived (default 50)"),
+-  action_path: z.string().optional().describe("InputAction asset path"),
++  action_path: z.string().optional().describe("InputAction asset path (pie_inject_input, pie_inject_input_start, pie_inject_input_tape). Exact InputAction object path (pie_nexus_hold_start_v1)"),
+   actions: z.array(z.string()).optional().describe("InputAction paths to record (default: every action bound on the pawn)"),
+   actorLabel: z.string().optional().describe("Actor label or name in PIE"),
+   apply: z.boolean().optional().describe("Teleport the live PIE pawn to the recorded pose (default false)"),
+@@ -2476,7 +2603,7 @@ export const schema: Record<string, z.ZodType> = {
+   channel: z.string().optional().describe("Collision channel, including project-renamed channels (default Visibility)"),
+   channels: z.string().optional().describe("series: comma-separated columns (default: every t:* plus speed2d, gpu_ms, game_ms)"),
+   client: z.number().int().optional().describe("Remote player 1..N (join order) (pie_console). 1..N relays to that remote player (join order) over the game connection, including separate-process clients; 0 or absent uses the local player (pie_inject_input, pie_inject_input_start, pie_inject_input_tape)"),
+-  client_id: z.number().int().min(0).optional().describe("Local-player index inside the selected PIE world (default 0)"),
++  client_id: z.number().int().min(0).optional().describe("Local-player index inside the selected PIE world (default 0) (pie_inject_input, pie_inject_input_start, pie_inject_input_tape, pie_observe_arm, pie_record_arm, pie_replay_arm, pie_replay_run, pie_script_replay, pie_script_run). Local player index (pie_nexus_hold_start_v1)"),
+   command: z.string().optional().describe("Console command"),
+   confirm: z.boolean().optional().describe("Must be true to delete"),
+   contains: z.string().optional().describe("Substring the message must contain"),
+@@ -2505,6 +2632,7 @@ export const schema: Record<string, z.ZodType> = {
+   includeSamples: z.boolean().optional().describe("Include the sampled track (default true)"),
+   injection_id: z.string().optional().describe("Caller-chosen hold id (minted when absent) (pie_inject_input_start). Hold or tape id to stop (pie_inject_input_stop). Caller-chosen tape id (minted when absent) (pie_inject_input_tape). Hold id from inject_input_start (pie_inject_input_update). Alias for request_id (pie_remote_result)"),
+   label: z.string().optional().describe("Marker label"),
++  lease_seconds: z.number().min(1).max(3600).optional().describe("Maximum real-time lifetime in seconds"),
+   limit: z.number().int().optional().describe("Most rows (default 200) (pie_observe_list, pie_record_list, pie_session_log). csv/tracked: most rows (default 1000) (pie_observe_read). csv: most rows (default 1000) (pie_record_read). Most frames_over_threshold entries returned (default 50) (pie_replay_analyze). Most runs, newest first (default 50) (pie_script_runs). Most entries per list (default 400) (pie_script_values)"),
+   manual_only: z.boolean().optional().describe("Every step is judged by a verdict: allows a script with no auto step that has an expect (default false)"),
+   map: z.string().optional().describe("Level the script plays in, as a package or object path such as /Game/Maps/L_Arena. A run opens it before PIE and refuses when the open level has unsaved changes; empty plays whatever level is open (pie_script_create). Level to open before PIE; overrides the script's. Mode manual leaves the open level as it is (pie_script_run). Level the script plays in; empty clears it (pie_script_update). Level the script would play in (pie_script_validate)"),
+@@ -2517,13 +2645,15 @@ export const schema: Record<string, z.ZodType> = {
+   min_verbosity: z.string().optional().describe("Lowest severity kept (default warning) (pie_session_errors). Lowest severity kept (default log) (pie_session_log)"),
+   mode: z.string().optional().describe("input (default): movement input on the pawn; navigate: a navmesh move from the player controller, needs targetLocation (pie_drive_pawn). replay drives input; monitor only samples (default replay) (pie_replay_arm, pie_replay_run). full (default) plays the script in PIE; manual starts no PIE, observer or recording, leaves auto steps unchecked and puts every manual step up for its verdict at once (pie_script_run)"),
+   name: z.string().optional().describe("Asset name (pie_profile_create, pie_script_create). Scenario name (default scenario) (pie_scenario_scaffold). Name for an inline run (default inline) (pie_script_run). Test name (default repro) (pie_test_run, pie_test_scaffold)"),
++  native_id: z.string().optional().describe("Coordinator-generated opaque hold id"),
+   note: z.string().optional().describe("Tester's note"),
+   offset: z.number().int().min(0).optional().describe("csv/tracked: first row (pie_observe_read). Rows to skip (pie_record_list). csv: first row (pie_record_read). First frames_over_threshold entry returned (pie_replay_analyze). First row (pie_session_log)"),
+   onConflict: z.string().optional().describe("What to do when the asset exists (default skip) (pie_profile_create). When the asset exists: skip (default), update or replace (overwrite it), error (pie_script_create)"),
+   output_dir: z.string().optional().describe("Observation root (default Saved/MCPObservations)"),
++  owner_token: z.string().optional().describe("Coordinator-generated owner token"),
+   package_path: z.string().optional().describe("Content folder (default /Game/Observation) (pie_profile_create). Package folder (default /Game/PIEStudio/Scripts) (pie_script_create)"),
+   path: z.string().optional().describe("Profile asset path (pie_profile_delete, pie_profile_read, pie_profile_update). Test script asset path (pie_script_delete, pie_script_read, pie_script_update). Scenario JSON file, relative to the project directory (pie_uat_run)"),
+-  pie_instance: z.number().int().min(0).optional().describe("FWorldContext::PIEInstance, a non-negative integer. Omitted picks the active PlayWorld, then the first PIE world with the player; an explicit value never falls back (pie_inject_input, pie_inject_input_start, pie_inject_input_tape, pie_observe_arm, pie_record_arm, pie_replay_arm, pie_replay_run). FWorldContext PIEInstance to observe (default the active PIE world) (pie_script_replay, pie_script_run)"),
++  pie_instance: z.number().int().min(0).optional().describe("FWorldContext::PIEInstance, a non-negative integer. Omitted picks the active PlayWorld, then the first PIE world with the player; an explicit value never falls back (pie_inject_input, pie_inject_input_start, pie_inject_input_tape, pie_observe_arm, pie_record_arm, pie_replay_arm, pie_replay_run). Exact PIE instance (pie_nexus_hold_start_v1). FWorldContext PIEInstance to observe (default the active PIE world) (pie_script_replay, pie_script_run)"),
+   pieInstance: z.number().int().optional().describe("FWorldContext::PIEInstance, a non-negative integer. Omitted picks the active PlayWorld, then the first PIE world with the player; an explicit value never falls back (pie_drive_pawn). PIE instance id; omitted selects the active PIE world (pie_view_trace)"),
+   pin_fps: z.number().int().optional().describe("Pin PIE fps while observing (pie_observe_arm). Pin PIE fps for reproducibility (default sample_hz) (pie_record_arm). Pin PIE fps during replay (pie_replay_arm, pie_replay_run)"),
+   planar: z.boolean().optional().describe("Steer and measure arrival on the XY plane (default true); false for flying or swimming pawns"),
+@@ -2587,6 +2717,7 @@ export const schema: Record<string, z.ZodType> = {
+   velocity_threshold_cms: z.number().optional().describe("Velocity drift threshold"),
+   verdict: z.enum(["pass","fail","skip"]).optional().describe("Verdict"),
+   wait: z.boolean().optional().describe("Return only when the drive ends, with its whole track (default true) (pie_drive_pawn). Block until the run finishes or awaits a verdict (pie_script_replay, pie_script_run, pie_script_status)"),
++  world_path: z.string().optional().describe("Exact PIE world object path"),
+ };
+ 
+ /** Declare an action for a spec'd bridge method: effect, summary, method. */
+diff --git a/tests/golden/handler-specs.json b/tests/golden/handler-specs.json
+index a1278b91..7943f110 100644
+--- a/tests/golden/handler-specs.json
++++ b/tests/golden/handler-specs.json
+@@ -1,5 +1,5 @@
+ {
+-  "handlerCount": 1384,
++  "handlerCount": 1388,
+   "handlers": {
+     "actors_in_box": {
+       "category": "level",
+@@ -27877,6 +27877,30 @@
+         }
+       ]
+     },
++    "nexus_capture_pie_png_v1": {
++      "category": "editor",
++      "params": [
++        {
++          "name": "pieInstance",
++          "type": "number",
++          "required": true,
++          "description": "Exact integer PIE instance"
++        },
++        {
++          "name": "worldPath",
++          "type": "string",
++          "required": true,
++          "description": "Exact PIE world object path"
++        },
++        {
++          "name": "nonce",
++          "type": "string",
++          "required": true,
++          "description": "32 lowercase hexadecimal request nonce"
++        }
++      ],
++      "contractExempt": "reads a bounded composited PIE viewport"
++    },
+     "nne_import_model": {
+       "category": "gameplay",
+       "params": [
+@@ -28774,6 +28798,130 @@
+       ],
+       "contractExempt": "Writes a marker into the recording in flight"
+     },
++    "pie_nexus_hold_start_v1": {
++      "category": "pie",
++      "params": [
++        {
++          "name": "native_id",
++          "type": "string",
++          "required": true,
++          "description": "Coordinator-generated opaque hold id"
++        },
++        {
++          "name": "owner_token",
++          "type": "string",
++          "required": true,
++          "description": "Coordinator-generated owner token"
++        },
++        {
++          "name": "action_path",
++          "type": "string",
++          "required": true,
++          "description": "Exact InputAction object path"
++        },
++        {
++          "name": "world_path",
++          "type": "string",
++          "required": true,
++          "description": "Exact PIE world object path"
++        },
++        {
++          "name": "pie_instance",
++          "type": "integer",
++          "required": true,
++          "description": "Exact PIE instance",
++          "minimum": 0
++        },
++        {
++          "name": "client_id",
++          "type": "integer",
++          "required": true,
++          "description": "Local player index",
++          "minimum": 0
++        },
++        {
++          "name": "lease_seconds",
++          "type": "number",
++          "required": true,
++          "description": "Maximum real-time lifetime in seconds",
++          "minimum": 1,
++          "maximum": 3600
++        },
++        {
++          "name": "value_x",
++          "type": "number",
++          "required": false,
++          "description": "Axis or bool value X (default 1)"
++        },
++        {
++          "name": "value_y",
++          "type": "number",
++          "required": false,
++          "description": "Axis value Y (default 0)"
++        },
++        {
++          "name": "value_z",
++          "type": "number",
++          "required": false,
++          "description": "Axis value Z (default 0)"
++        }
++      ],
++      "contractExempt": "Injects one input frame per frame for an owned PIE hold"
++    },
++    "pie_nexus_hold_stop_v1": {
++      "category": "pie",
++      "params": [
++        {
++          "name": "native_id",
++          "type": "string",
++          "required": true,
++          "description": "Coordinator-generated opaque hold id"
++        },
++        {
++          "name": "owner_token",
++          "type": "string",
++          "required": true,
++          "description": "Coordinator-generated owner token"
++        }
++      ],
++      "contractExempt": "Stops an owned input hold"
++    },
++    "pie_nexus_hold_update_v1": {
++      "category": "pie",
++      "params": [
++        {
++          "name": "native_id",
++          "type": "string",
++          "required": true,
++          "description": "Coordinator-generated opaque hold id"
++        },
++        {
++          "name": "owner_token",
++          "type": "string",
++          "required": true,
++          "description": "Coordinator-generated owner token"
++        },
++        {
++          "name": "value_x",
++          "type": "number",
++          "required": false,
++          "description": "Axis or bool value X (default 1)"
++        },
++        {
++          "name": "value_y",
++          "type": "number",
++          "required": false,
++          "description": "Axis value Y (default 0)"
++        },
++        {
++          "name": "value_z",
++          "type": "number",
++          "required": false,
++          "description": "Axis value Z (default 0)"
++        }
++      ],
++      "contractExempt": "Changes an owned input hold"
++    },
+     "pie_observe_arm": {
+       "category": "pie",
+       "params": [
+@@ -38415,6 +38563,18 @@
+           "type": "boolean",
+           "required": false,
+           "description": "Save through the editor's dirty-package save, which deletes the packages of deleted World Partition actors (default false)"
++        },
++        {
++          "name": "expectedLevelPackage",
++          "type": "string",
++          "required": false,
++          "description": "Exact current edit-level package name for the Nexus guard"
++        },
++        {
++          "name": "nexusNoExternalDelete",
++          "type": "boolean",
++          "required": false,
++          "description": "Refuse external package deletion under the Nexus guard"
+         }
+       ],
+       "contractExempt": "Saves the current level under the contract values; nothing it reads fails first"

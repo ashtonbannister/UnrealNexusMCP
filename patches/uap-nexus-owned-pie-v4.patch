@@ -1,0 +1,860 @@
+diff --git a/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp b/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp
+index bf10ab84898871f849ad2135158db79f0db9583a..c0dba85c16685a849cd261e8af8d803c2fe5a2e4 100644
+--- a/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp
++++ b/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp
+@@ -5,6 +5,9 @@
+ #include "AgentRemoteControlBootstrap.h"
+ #include "Editor.h"
+ #include "LevelEditorSubsystem.h"
++#include "LevelEditor.h"
++#include "Settings/LevelEditorPlaySettings.h"
++#include "IAssetViewport.h"
+ #include "PlayInEditorDataTypes.h"
+ #include "HAL/PlatformTime.h"
+ #include "DynamicRHI.h"
+@@ -64,6 +67,7 @@ namespace
+ void UUAPAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+ {
+     Super::Initialize(Collection);
++    NexusEditorEpoch = FGuid::NewGuid().ToString(EGuidFormats::Digits);
+     HPostPIEStarted = FEditorDelegates::PostPIEStarted.AddUObject(this, &UUAPAgentSubsystem::OnPostPIEStarted);
+     HPrePIEEnded   = FEditorDelegates::PrePIEEnded.AddUObject(this, &UUAPAgentSubsystem::OnPrePIEEnded);
+     HEndPIE        = FEditorDelegates::EndPIE.AddUObject(this, &UUAPAgentSubsystem::OnEndPIE);
+@@ -190,13 +194,176 @@ bool UUAPAgentSubsystem::FocusEditorWindow()
+ 
+ void UUAPAgentSubsystem::OnPostPIEStarted(bool) { CurrentPhase = EAgentPIEPhase::Playing; PIEStartTimeSeconds = FPlatformTime::Seconds(); }
+ void UUAPAgentSubsystem::OnPrePIEEnded(bool)    { CurrentPhase = EAgentPIEPhase::Ending; }
+-void UUAPAgentSubsystem::OnEndPIE(bool)         { CurrentPhase = EAgentPIEPhase::NotPlaying; PIEStartTimeSeconds = 0.0; }
++void UUAPAgentSubsystem::OnEndPIE(bool)
++{
++    if (GEditor && NexusOwnedPlaySettings)
++    {
++        const auto Active = GEditor->GetPlayInEditorSessionInfo();
++        const auto Queued = GEditor->GetPlaySessionRequest();
++        if (Active.IsSet() && Active->OriginalRequestParams.EditorPlaySettings == NexusOwnedPlaySettings
++            && (!Queued.IsSet() || Queued->EditorPlaySettings == NexusOwnedPlaySettings))
++        {
++            bNexusEndObserved = true;
++        }
++    }
++    CurrentPhase = EAgentPIEPhase::NotPlaying;
++    PIEStartTimeSeconds = 0.0;
++}
+ void UUAPAgentSubsystem::OnPausePIE(bool)       { CurrentPhase = EAgentPIEPhase::Paused; }
+ void UUAPAgentSubsystem::OnResumePIE(bool)      { CurrentPhase = EAgentPIEPhase::Playing; }
+-void UUAPAgentSubsystem::OnCancelPIE()          { CurrentPhase = EAgentPIEPhase::NotPlaying; PIEStartTimeSeconds = 0.0; }
++void UUAPAgentSubsystem::OnCancelPIE()
++{
++    if (GEditor && NexusOwnedPlaySettings)
++    {
++        const auto Queued = GEditor->GetPlaySessionRequest();
++        if (Queued.IsSet() && Queued->EditorPlaySettings == NexusOwnedPlaySettings
++            && !GEditor->IsPlayingSessionInEditor() && !GEditor->PlayWorld)
++        {
++            bNexusEndObserved = true;
++        }
++    }
++    CurrentPhase = EAgentPIEPhase::NotPlaying;
++    PIEStartTimeSeconds = 0.0;
++}
+ 
+ EAgentPIEPhase UUAPAgentSubsystem::GetPIEPhase() const { return CurrentPhase; }
+ 
++FString UUAPAgentSubsystem::GetNexusPIEPhaseV1() const
++{
++    if (!GEditor) { return TEXT("Unknown"); }
++    // The native queued request precedes PostPIEStarted. Never report idle in that gap.
++    if (GEditor->IsPlaySessionRequestQueued()) { return TEXT("Starting"); }
++    const bool bActive = GEditor->IsPlayingSessionInEditor() || GEditor->PlayWorld != nullptr
++        || GEditor->bIsSimulatingInEditor;
++    if ((CurrentPhase == EAgentPIEPhase::NotPlaying && bActive)
++        || ((CurrentPhase == EAgentPIEPhase::Playing || CurrentPhase == EAgentPIEPhase::Paused) && !bActive))
++    {
++        return TEXT("Unknown");
++    }
++    const UEnum* Enum = StaticEnum<EAgentPIEPhase>();
++    return Enum ? Enum->GetNameStringByValue(static_cast<int64>(CurrentPhase)) : TEXT("Unknown");
++}
++
++FString UUAPAgentSubsystem::NexusOwnedPIEReceipt(bool bOk, const FString& State) const
++{
++    TSharedRef<FJsonObject> O = MakeShared<FJsonObject>();
++    O->SetBoolField(TEXT("ok"), bOk);
++    O->SetStringField(TEXT("state"), State);
++    O->SetStringField(TEXT("editorEpoch"), NexusEditorEpoch);
++    if (!NexusSessionId.IsEmpty()) O->SetStringField(TEXT("sessionId"), NexusSessionId);
++    FString Out;
++    TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Out);
++    FJsonSerializer::Serialize(O, W);
++    return Out;
++}
++
++FString UUAPAgentSubsystem::NexusOwnedPIEState() const
++{
++    if (!GEditor || !NexusOwnedPlaySettings || NexusOwnerToken.IsEmpty()) return TEXT("unknown");
++    const auto Queued = GEditor->GetPlaySessionRequest();
++    const auto Active = GEditor->GetPlayInEditorSessionInfo();
++    const bool bOurQueue = Queued.IsSet() && Queued->EditorPlaySettings == NexusOwnedPlaySettings;
++    const bool bOurActive = Active.IsSet() && Active->OriginalRequestParams.EditorPlaySettings == NexusOwnedPlaySettings;
++    // Any competing request or session invalidates ownership, even while ours still exists.
++    if ((Queued.IsSet() && !bOurQueue) || (Active.IsSet() && !bOurActive)) return TEXT("conflict");
++    if (bOurQueue) return TEXT("starting");
++    if (bOurActive)
++    {
++        if (CurrentPhase == EAgentPIEPhase::Ending) return TEXT("ending");
++        if (GEditor->PlayWorld && (CurrentPhase == EAgentPIEPhase::Playing || CurrentPhase == EAgentPIEPhase::Paused))
++            return TEXT("playing");
++        return TEXT("starting");
++    }
++    if (bNexusEndObserved && !GEditor->PlayWorld && !GEditor->bIsSimulatingInEditor)
++        return TEXT("ended");
++    return TEXT("unknown");
++}
++
++FString UUAPAgentSubsystem::NexusBeginOwnedPIE(const FString& OwnerToken)
++{
++    if (!IsInGameThread() || !GEditor || OwnerToken.Len() != 64 || NexusEditorEpoch.IsEmpty())
++        return NexusOwnedPIEReceipt(false, TEXT("invalid"));
++    for (TCHAR C : OwnerToken) if (!FChar::IsHexDigit(C)) return NexusOwnedPIEReceipt(false, TEXT("invalid"));
++    if (!NexusOwnerToken.IsEmpty()) return NexusOwnedPIEReceipt(false, TEXT("owner_exists"));
++    if (GEditor->IsPlaySessionInProgress() || GEditor->PlayWorld || GEditor->bIsSimulatingInEditor)
++        return NexusOwnedPIEReceipt(false, TEXT("busy"));
++
++    FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
++    TSharedPtr<IAssetViewport> Viewport = LevelEditor.GetFirstActiveViewport();
++    if (!Viewport.IsValid()) return NexusOwnedPIEReceipt(false, TEXT("no_viewport"));
++
++    // Unreal saves dirty maps/content when these settings require another process.
++    // Keep the existing configuration, but refuse before requesting PIE.
++    const ULevelEditorPlaySettings* Settings = GetDefault<ULevelEditorPlaySettings>();
++    if (!Settings) return NexusOwnedPIEReceipt(false, TEXT("settings_unavailable"));
++    bool bOneProcess = false;
++    int32 NumClients = 0;
++    EPlayNetMode NetMode = EPlayNetMode::PIE_Standalone;
++    Settings->GetRunUnderOneProcess(bOneProcess);
++    Settings->GetPlayNumberOfClients(NumClients);
++    Settings->GetPlayNetMode(NetMode);
++    if (!bOneProcess && (NumClients > 1 || NetMode == EPlayNetMode::PIE_Client))
++        return NexusOwnedPIEReceipt(false, TEXT("external_process_requires_save"));
++
++    FRequestPlaySessionParams Params;
++    Params.SessionDestination = EPlaySessionDestinationType::InProcess;
++    Params.WorldType = EPlaySessionWorldType::PlayInEditor;
++    Params.DestinationSlateViewport = Viewport;
++    GEditor->RequestPlaySession(Params);
++    const auto Queued = GEditor->GetPlaySessionRequest();
++    if (!Queued.IsSet() || !Queued->EditorPlaySettings)
++        return NexusOwnedPIEReceipt(false, TEXT("outcome_unknown"));
++
++    NexusOwnedPlaySettings = Queued->EditorPlaySettings;
++    NexusOwnerToken = OwnerToken;
++    NexusSessionId = FGuid::NewGuid().ToString(EGuidFormats::Digits);
++    bNexusEndObserved = false;
++    return NexusOwnedPIEReceipt(true, TEXT("starting"));
++}
++
++FString UUAPAgentSubsystem::NexusOwnedPIEStatus(const FString& OwnerToken) const
++{
++    if (!IsInGameThread() || NexusOwnerToken.IsEmpty() || OwnerToken != NexusOwnerToken)
++        return NexusOwnedPIEReceipt(false, TEXT("not_owner"));
++    const FString State = NexusOwnedPIEState();
++    return NexusOwnedPIEReceipt(State != TEXT("conflict") && State != TEXT("unknown"), State);
++}
++
++FString UUAPAgentSubsystem::NexusStopOwnedPIE(const FString& OwnerToken)
++{
++    if (!IsInGameThread() || NexusOwnerToken.IsEmpty() || OwnerToken != NexusOwnerToken)
++        return NexusOwnedPIEReceipt(false, TEXT("not_owner"));
++    const FString State = NexusOwnedPIEState();
++    if (State == TEXT("ended")) return NexusOwnedPIEReceipt(true, State);
++    if (State == TEXT("conflict") || State == TEXT("unknown")) return NexusOwnedPIEReceipt(false, State);
++    const auto Queued = GEditor->GetPlaySessionRequest();
++    const auto Active = GEditor->GetPlayInEditorSessionInfo();
++    if (Queued.IsSet())
++    {
++        // CancelRequestPlaySession also clears active session info.
++        if (Active.IsSet() || GEditor->PlayWorld) return NexusOwnedPIEReceipt(false, TEXT("transition"));
++        GEditor->CancelRequestPlaySession();
++        const FString After = NexusOwnedPIEState();
++        return NexusOwnedPIEReceipt(After == TEXT("ended"), After);
++    }
++    if (!Active.IsSet() || !GEditor->PlayWorld) return NexusOwnedPIEReceipt(false, TEXT("transition"));
++    GEditor->RequestEndPlayMap();
++    return NexusOwnedPIEReceipt(true, TEXT("ending"));
++}
++
++FString UUAPAgentSubsystem::NexusReleaseEndedPIE(const FString& OwnerToken)
++{
++    if (!IsInGameThread() || NexusOwnerToken.IsEmpty() || OwnerToken != NexusOwnerToken)
++        return NexusOwnedPIEReceipt(false, TEXT("not_owner"));
++    if (NexusOwnedPIEState() != TEXT("ended")) return NexusOwnedPIEReceipt(false, TEXT("not_ended"));
++    const FString Receipt = NexusOwnedPIEReceipt(true, TEXT("released"));
++    NexusOwnerToken.Reset();
++    NexusSessionId.Reset();
++    NexusOwnedPlaySettings = nullptr;
++    bNexusEndObserved = false;
++    return Receipt;
++}
++
+ double UUAPAgentSubsystem::GetPIEElapsedSeconds() const
+ {
+     if (PIEStartTimeSeconds <= 0.0) { return 0.0; }
+diff --git a/Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h b/Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h
+index 3fd60f9e6db4f74e422f2eddb366028ae6d45843..9a717627b8e76e56eb87c60e5e9abdd6d586d17f 100644
+--- a/Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h
++++ b/Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h
+@@ -5,6 +5,8 @@
+ #include "UAPAgentTypes.h"
+ #include "UAPAgentSubsystem.generated.h"
+ 
++class ULevelEditorPlaySettings;
++
+ UCLASS()
+ class UNREALAGENTPLAYER_API UUAPAgentSubsystem : public UEditorSubsystem
+ {
+@@ -36,6 +38,22 @@ public:
+     UFUNCTION(BlueprintCallable, Category="Agent|PIE")
+     EAgentPIEPhase GetPIEPhase() const;
+ 
++    // Queue-aware observation for Nexus. Unknown means the native facts disagree.
++    UFUNCTION(BlueprintCallable, Category="Agent|PIE")
++    FString GetNexusPIEPhaseV1() const;
++
++    UFUNCTION(BlueprintCallable, Category="Agent|PIE")
++    FString NexusBeginOwnedPIE(const FString& OwnerToken);
++
++    UFUNCTION(BlueprintCallable, Category="Agent|PIE")
++    FString NexusOwnedPIEStatus(const FString& OwnerToken) const;
++
++    UFUNCTION(BlueprintCallable, Category="Agent|PIE")
++    FString NexusStopOwnedPIE(const FString& OwnerToken);
++
++    UFUNCTION(BlueprintCallable, Category="Agent|PIE")
++    FString NexusReleaseEndedPIE(const FString& OwnerToken);
++
+     UFUNCTION(BlueprintCallable, Category="Agent|PIE")
+     double GetPIEElapsedSeconds() const;
+ 
+@@ -268,6 +286,15 @@ private:
+     void OnResumePIE(bool bSimulating);
+     void OnCancelPIE();
+ 
++    FString NexusOwnedPIEState() const;
++    FString NexusOwnedPIEReceipt(bool bOk, const FString& State) const;
++    FString NexusOwnerToken;
++    FString NexusEditorEpoch;
++    FString NexusSessionId;
++    bool bNexusEndObserved = false;
++    UPROPERTY(Transient)
++    TObjectPtr<ULevelEditorPlaySettings> NexusOwnedPlaySettings;
++
+     EAgentPIEPhase CurrentPhase = EAgentPIEPhase::NotPlaying;
+     double PIEStartTimeSeconds = 0.0;
+ 
+diff --git a/mcp-server/src/unreal_agent_player/coordination.py b/mcp-server/src/unreal_agent_player/coordination.py
+index e282e1e2c8c282b4ebcbe1daec04b7d9456fd701..414a12d69ec1b04346d5f0070ef6e23a7410b627 100644
+--- a/mcp-server/src/unreal_agent_player/coordination.py
++++ b/mcp-server/src/unreal_agent_player/coordination.py
+@@ -1805,7 +1805,8 @@ def _machine_busy(holder: dict | None, agent: str, wait: float, *, position: int
+ 
+ def acquire_machine(project: str | None, *, reason: str = "", agent: str | None = None,
+                     pid: int | None = None, wait: float = DEFAULT_WAIT_CAP,
+-                    ttl: int | None = None, task: str | None = None) -> dict:
++                    ttl: int | None = None, task: str | None = None,
++                    require_new: bool = False) -> dict:
+     """Block until this machine's foreground lock is ours, then take it.
+ 
+     Grant rule -- the lock arbitrates BETWEEN projects, never within one:
+@@ -1848,7 +1849,8 @@ def acquire_machine(project: str | None, *, reason: str = "", agent: str | None
+     while True:
+         try:
+             granted, holder, position, ahead, queue_len = _machine_poll(
+-                project, mine, agent=agent, reason=reason, pid=pid, ttl=ttl, task=task)
++                project, mine, agent=agent, reason=reason, pid=pid, ttl=ttl, task=task,
++                require_new=require_new)
+             if granted is not None:
+                 return granted
+             last_error = ""
+@@ -1884,7 +1886,7 @@ _MACHINE_QUICK_RETRIES = 5
+ 
+ 
+ def _machine_poll(project, mine: str, *, agent: str, reason: str, pid: int, ttl: int,
+-                  task: str) -> tuple:
++                  task: str, require_new: bool = False) -> tuple:
+     """One locked look at the machine lock: (grant-or-None, holder, position, ahead, queue_len)."""
+     live = _live_pie_holds()
+     clients = _live_game_clients()
+@@ -1892,7 +1894,7 @@ def _machine_poll(project, mine: str, *, agent: str, reason: str, pid: int, ttl:
+     try:
+         state = _settle_machine(_load(MACHINE_SENTINEL), live, clients)
+         holder = state.get("exclusive")
+-        if holder is not None and holder.get("project") == mine and holder.get("adopted") \
++        if not require_new and holder is not None and holder.get("project") == mine and holder.get("adopted") \
+                 and pid == 0:
+             # A sticky hold (`pie start`, `lease acquire --reason 2p`) in the project whose
+             # clients already hold the machine: the agent takes the hold over, so its own session
+@@ -1907,7 +1909,7 @@ def _machine_poll(project, mine: str, *, agent: str, reason: str, pid: int, ttl:
+                      "scope": "machine", "project": mine, "reason": reason, "holder": rec,
+                      "took_over_from": GAME_CLIENTS_AGENT},
+                     rec, 0, [], 0)
+-        if holder is not None and holder.get("project") == mine:
++        if not require_new and holder is not None and holder.get("project") == mine:
+             holder["heartbeat_at"] = _now()
+             _dequeue(state, agent)
+             _save(MACHINE_SENTINEL, state)
+diff --git a/mcp-server/src/unreal_agent_player/errors.py b/mcp-server/src/unreal_agent_player/errors.py
+index 60ae5f5cbd23276b2752be1357fd66f89dd78d7a..4fe5369efa6c7b88e5dc22b3321e0070c2d56d6d 100644
+--- a/mcp-server/src/unreal_agent_player/errors.py
++++ b/mcp-server/src/unreal_agent_player/errors.py
+@@ -10,6 +10,7 @@ class ErrorCode(str, Enum):
+     UE_REMOTE_EXEC_OFF = "UE_REMOTE_EXEC_OFF"
+     UE_CONNECTION_RESET = "UE_CONNECTION_RESET"
+     UE_CROSSED_RESPONSE = "UE_CROSSED_RESPONSE"
++    UE_STATUS_UNVERIFIED = "UE_STATUS_UNVERIFIED"
+     UE_WRONG_INSTANCE = "UE_WRONG_INSTANCE"
+     UE_OBJECT_NOT_FOUND = "UE_OBJECT_NOT_FOUND"
+     PIE_WRONG_PHASE = "PIE_WRONG_PHASE"
+@@ -35,7 +36,7 @@ class ErrorCode(str, Enum):
+     @classmethod
+     def domain_of(cls, code: ErrorCode) -> str:
+         transport = {cls.UE_UNREACHABLE, cls.UE_REMOTE_CONTROL_OFF, cls.UE_REMOTE_EXEC_OFF,
+-                     cls.UE_CONNECTION_RESET, cls.UE_CROSSED_RESPONSE, cls.UE_WRONG_INSTANCE}
++                     cls.UE_CONNECTION_RESET, cls.UE_CROSSED_RESPONSE, cls.UE_STATUS_UNVERIFIED, cls.UE_WRONG_INSTANCE}
+         mcp_side = {cls.SCHEMA_VALIDATION, cls.TIMEOUT, cls.UIA_UNAVAILABLE, cls.UIA_PATH_NOT_FOUND}
+         if code in transport:
+             return "transport"
+diff --git a/mcp-server/src/unreal_agent_player/server.py b/mcp-server/src/unreal_agent_player/server.py
+index ac832e286b5b14da2df073f0a8efa023d52fdf02..af22324f8a1c745bf517f22eeee4e2495d3e44b7 100644
+--- a/mcp-server/src/unreal_agent_player/server.py
++++ b/mcp-server/src/unreal_agent_player/server.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import asyncio
+ import logging
++import os
+ from pathlib import Path
+ 
+ from mcp.server import Server
+@@ -21,6 +22,25 @@ def build_server(
+     store: BaselineStore | None = None,
+     ui_driver: UIADriver | None = None,
+ ) -> Server:
++    nexus_values = tuple(os.environ.get(key) for key in (
++        "NEXUS_UAP_PROJECT_FILE", "NEXUS_UAP_EDITOR_PID", "NEXUS_UAP_RC_PORT"))
++    if any(value is not None for value in nexus_values):
++        project, pid_text, port_text = nexus_values
++        if not all(isinstance(value, str) and value for value in nexus_values):
++            raise ValueError("Nexus requires project file, editor PID and RC port together")
++        if rc is not None or py_exec is not None:
++            raise ValueError("Nexus environment cannot be combined with injected clients")
++        if not pid_text.isascii() or not pid_text.isdigit() or not 1 <= int(pid_text) <= 2147483647:
++            raise ValueError("Invalid Nexus editor PID")
++        if not port_text.isascii() or not port_text.isdigit() or not 1 <= int(port_text) <= 65535:
++            raise ValueError("Invalid Nexus RC port")
++        project_path = Path(project)
++        if not project_path.is_absolute() or project_path.suffix.lower() != ".uproject" or not project_path.is_file():
++            raise ValueError("Nexus project must be an existing absolute .uproject file")
++        rc = RemoteControlClient(host="127.0.0.1", port=int(port_text), nexus_strict_pie_status=True, nexus_owned_pie=True)
++        py_exec = PythonRemoteExecClient(
++            node_project_substr=project_path.resolve().as_posix(),
++            node_instance=f"pid:{int(pid_text)}", nexus_no_replay=True)
+     server = Server("unreal-agent-player")
+     register_all(
+         server,
+diff --git a/mcp-server/src/unreal_agent_player/tools/machine.py b/mcp-server/src/unreal_agent_player/tools/machine.py
+index 3126a488c8f391c5d414b5a0933e7330208d4cd9..4dc32d68363d7b1a90e936ba715bb21e55f28eb5 100644
+--- a/mcp-server/src/unreal_agent_player/tools/machine.py
++++ b/mcp-server/src/unreal_agent_player/tools/machine.py
+@@ -9,6 +9,7 @@ CLI's 15-minute cap; the caller is told who holds the machine instead).
+ from __future__ import annotations
+ 
+ import os
++import secrets
+ from typing import Any
+ 
+ from unreal_agent_player import coordination as _coord
+@@ -69,3 +70,53 @@ def release_project() -> None:
+         _coord.release_machine(agent=_coord.default_agent_id(), project=machine_project())
+     except Exception:
+         pass
++
++def take_nexus_owned() -> tuple[dict | None, dict[str, Any] | None]:
++    """Acquire a new unique sticky grant; never pass through a same-project holder."""
++    if not _coord.machine_lock_enabled():
++        return None, error_response(ErrorCode.MACHINE_BUSY, "Nexus owned PIE requires the machine lock.", recoverable=True)
++    project_file = os.environ.get("NEXUS_UAP_PROJECT_FILE", "")
++    project = os.path.splitext(os.path.basename(project_file.replace("\\", "/")))[0]
++    if not project:
++        return None, error_response(ErrorCode.MACHINE_BUSY, "Nexus project binding is missing.", recoverable=False)
++    agent = "nexus-pie-" + secrets.token_hex(16)
++    try:
++        # An uncertain owner must not be reclaimed automatically after a short
++        # heartbeat timeout. Recovery is an explicit operator action.
++        grant = _coord.acquire_machine(project, reason="nexus-pie", agent=agent, pid=0, wait=0,
++                                       ttl=(1 << 53) - 1, task=_coord.default_task(), require_new=True)
++    except Exception:
++        return None, error_response(ErrorCode.MACHINE_BUSY, "Machine grant could not be acquired.", recoverable=False)
++    if not isinstance(grant, dict) or grant.get("acquired") is not True or grant.get("agent") != agent:
++        return None, error_response(ErrorCode.MACHINE_BUSY, "Machine is already held or could not be verified.", recoverable=True)
++    return {"agent": agent, "project": project}, None
++
++
++def verify_nexus_owned(grant: dict) -> bool:
++    """Confirm the exact unique grant is still held; never acquire or replace it."""
++    if not isinstance(grant, dict) or not isinstance(grant.get("agent"), str) or not grant["agent"].startswith("nexus-pie-"):
++        return False
++    project = grant.get("project")
++    if not isinstance(project, str) or not project:
++        return False
++    try:
++        return _coord.heartbeat_machine(project, agent=grant["agent"]) is True
++    except Exception:
++        return False
++
++
++def release_nexus_owned(grant: dict) -> bool:
++    """Release only the exact unique agent/project grant; never project-wide."""
++    if not isinstance(grant, dict) or not isinstance(grant.get("agent"), str) or not grant["agent"].startswith("nexus-pie-"):
++        return False
++    project = grant.get("project")
++    if not isinstance(project, str) or not project:
++        return False
++    try:
++        result = _coord.release_machine(agent=grant["agent"], project=project, project_wide=False)
++    except Exception:
++        return False
++    if not isinstance(result, dict):
++        return False
++    holder = result.get("was_held_by")
++    return bool(result.get("released") is True and isinstance(holder, dict) and holder.get("agent") == grant["agent"])
+diff --git a/mcp-server/src/unreal_agent_player/tools/pie.py b/mcp-server/src/unreal_agent_player/tools/pie.py
+index fe36b3ba618a9346c07fb7dcf6f61361e12a1386..e40f86297d57991609d4286195fe9b293ef0dee7 100644
+--- a/mcp-server/src/unreal_agent_player/tools/pie.py
++++ b/mcp-server/src/unreal_agent_player/tools/pie.py
+@@ -1,20 +1,41 @@
+ from __future__ import annotations
+ 
+ import asyncio
++import json
++import math
++import re
++import secrets
+ import time
+ from typing import Any
+ 
+-from unreal_agent_player.errors import AgentError, ErrorCode
++from unreal_agent_player.errors import AgentError, ErrorCode, error_response
+ from unreal_agent_player.tools import machine as _machine
+ from unreal_agent_player.transport import SUBSYSTEM_OBJECT_PATH, RemoteControlClient
+ 
+ 
+ async def _get_phase(rc: RemoteControlClient) -> str:
++    strict = getattr(rc, "nexus_strict_pie_status", False) is True
++    if strict:
++        value = await rc.call_preset("GetNexusPIEPhaseV1")
++        if not isinstance(value, str) or value not in {"NotPlaying", "Starting", "Playing", "Paused", "Ending"}:
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "PIE phase response is missing or invalid; reconcile externally.", recoverable=False)
++        return value
+     resp = await rc.call_function(SUBSYSTEM_OBJECT_PATH, "GetPIEPhase", parameters={})
+     return str(resp.get("ReturnValue", "NotPlaying"))
+ 
+ 
+ async def _get_elapsed(rc: RemoteControlClient) -> float:
++    if getattr(rc, "nexus_strict_pie_status", False) is True:
++        value = await rc.call_preset("GetPIEElapsedSeconds")
++        try:
++            valid = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0
++        except (OverflowError, TypeError):
++            valid = False
++        if not valid:
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "PIE elapsed response is missing or invalid; reconcile externally.", recoverable=False)
++        return float(value)
+     resp = await rc.call_function(SUBSYSTEM_OBJECT_PATH, "GetPIEElapsedSeconds", parameters={})
+     return float(resp.get("ReturnValue", 0.0))
+ 
+@@ -23,6 +44,131 @@ async def pie_status(*, rc: RemoteControlClient, py_exec: Any) -> dict[str, Any]
+     return {"ok": True, "phase": await _get_phase(rc), "elapsed": await _get_elapsed(rc)}
+ 
+ 
++def _nexus_lock(rc: RemoteControlClient) -> asyncio.Lock:
++    lock = getattr(rc, "_nexus_owned_pie_lock", None)
++    if lock is None:
++        lock = asyncio.Lock()
++        rc._nexus_owned_pie_lock = lock
++    return lock
++
++
++async def _nexus_native(rc: RemoteControlClient, method: str, token: str) -> dict[str, Any]:
++    try:
++        value = await rc.call_preset(method, {"OwnerToken": token})
++        body = json.loads(value) if isinstance(value, str) else None
++    except Exception as exc:
++        raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                         "Owned PIE native receipt unavailable; reconcile externally.", recoverable=False) from exc
++    if not isinstance(body, dict) or not isinstance(body.get("ok"), bool) or not isinstance(body.get("state"), str):
++        raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                         "Owned PIE native receipt malformed; reconcile externally.", recoverable=False)
++    return body
++
++
++def _nexus_correlated(body: dict[str, Any], owned: dict[str, Any]) -> None:
++    if (body.get("ok") is not True or body.get("editorEpoch") != owned.get("epoch")
++            or body.get("sessionId") != owned.get("session")
++            or body.get("state") not in {"starting", "playing", "ending", "ended"}):
++        raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                         "Owned PIE identity or native state changed; reconcile externally.", recoverable=False)
++
++
++async def _nexus_owned_start(rc: RemoteControlClient, timeout: float) -> dict[str, Any]:
++    async with _nexus_lock(rc):
++        if getattr(rc, "_nexus_owned_pie", None) is not None:
++            refusal = error_response(ErrorCode.PIE_WRONG_PHASE, "A Nexus PIE owner already exists.", recoverable=False)
++            refusal["phase"] = await _get_phase(rc)
++            return refusal
++        grant, refusal = _machine.take_nexus_owned()
++        if refusal is not None:
++            refusal["phase"] = await _get_phase(rc)
++            return refusal
++        owned = {"token": secrets.token_hex(32), "grant": grant}
++        # Store before dispatch; timeouts must retain the capability and grant.
++        rc._nexus_owned_pie = owned
++        if not _machine.verify_nexus_owned(grant):
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "Machine grant is not confirmed; reconcile externally.", recoverable=False)
++        body = await _nexus_native(rc, "NexusBeginOwnedPIE", owned["token"])
++        if body.get("ok") is not True:
++            if body.get("state") not in {"invalid", "busy", "no_viewport", "settings_unavailable",
++                                         "external_process_requires_save"}:
++                raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                                 "Owned PIE start outcome needs reconciliation.", recoverable=False)
++            if not _machine.release_nexus_owned(grant):
++                raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                                 "PIE was refused but its machine grant release is unconfirmed.", recoverable=False)
++            rc._nexus_owned_pie = None
++            refusal = error_response(ErrorCode.PIE_WRONG_PHASE, "Owned PIE start refused: " + body["state"], recoverable=True)
++            refusal["phase"] = await _get_phase(rc)
++            return refusal
++        epoch, session = body.get("editorEpoch"), body.get("sessionId")
++        if (body.get("state") != "starting" or not isinstance(epoch, str) or not re.fullmatch(r"[0-9a-fA-F]{32}", epoch)
++                or not isinstance(session, str) or not re.fullmatch(r"[0-9a-fA-F]{32}", session)):
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "Owned PIE start identity is invalid; reconcile externally.", recoverable=False)
++        owned.update(epoch=epoch, session=session)
++        started = time.monotonic()
++        deadline = started + max(0.0, timeout)
++        while True:
++            status = await _nexus_native(rc, "NexusOwnedPIEStatus", owned["token"])
++            _nexus_correlated(status, owned)
++            if status["state"] == "playing":
++                phase = await _get_phase(rc)
++                if phase not in {"Playing", "Paused"}:
++                    raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                                     "Owned PIE phase changed during confirmation.", recoverable=False)
++                again = await _nexus_native(rc, "NexusOwnedPIEStatus", owned["token"])
++                _nexus_correlated(again, owned)
++                if again["state"] != "playing":
++                    raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                                     "Owned PIE changed during confirmation.", recoverable=False)
++                return {"ok": True, "playing": True, "phase": phase,
++                        "elapsed": await _get_elapsed(rc), "waited_seconds": round(time.monotonic() - started, 2),
++                        "editorEpoch": epoch, "sessionId": session}
++            if status["state"] in {"ending", "ended"}:
++                raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                                 "Owned PIE ended before start confirmation.", recoverable=False)
++            if time.monotonic() >= deadline:
++                return {"ok": False, "playing": False, "phase": "Starting", "queued": True,
++                        "confirmed": False, "error": "Owned start timed out; reconcile externally."}
++            await asyncio.sleep(_PIE_START_POLL_SECONDS)
++
++
++async def _nexus_owned_stop(rc: RemoteControlClient, timeout: float) -> dict[str, Any]:
++    async with _nexus_lock(rc):
++        owned = getattr(rc, "_nexus_owned_pie", None)
++        if not isinstance(owned, dict) or not all(owned.get(k) for k in ("token", "epoch", "session", "grant")):
++            refusal = error_response(ErrorCode.PIE_WRONG_PHASE, "No owned PIE session is available.", recoverable=False)
++            refusal["phase"] = await _get_phase(rc)
++            return refusal
++        if not _machine.verify_nexus_owned(owned["grant"]):
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "Machine grant is not confirmed; no stop was sent.", recoverable=False)
++        body = await _nexus_native(rc, "NexusStopOwnedPIE", owned["token"])
++        _nexus_correlated(body, owned)
++        deadline = time.monotonic() + max(0.0, timeout)
++        while body["state"] != "ended":
++            if body["state"] != "ending" or time.monotonic() >= deadline:
++                raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                                 "Owned PIE teardown is unconfirmed; reconcile externally.", recoverable=False)
++            await asyncio.sleep(_PIE_STOP_POLL_SECONDS)
++            body = await _nexus_native(rc, "NexusOwnedPIEStatus", owned["token"])
++            _nexus_correlated(body, owned)
++        released = await _nexus_native(rc, "NexusReleaseEndedPIE", owned["token"])
++        if (released.get("ok") is not True or released.get("state") != "released"
++                or released.get("editorEpoch") != owned["epoch"] or released.get("sessionId") != owned["session"]):
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "Native owner release is unconfirmed; reconcile externally.", recoverable=False)
++        if not _machine.release_nexus_owned(owned["grant"]):
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "Machine grant release is unconfirmed; reconcile externally.", recoverable=False)
++        rc._nexus_owned_pie = None
++        phase = await _get_phase(rc)
++        return {"ok": phase == "NotPlaying", "stopped": phase == "NotPlaying", "phase": phase,
++                "editorEpoch": owned["epoch"], "sessionId": owned["session"]}
++
++
+ PIE_START_TIMEOUT_SECONDS = 60.0
+ _PIE_START_POLL_SECONDS = 0.5
+ # A LIVE play world. Paused counts: the world exists, which is what "did the start take?" asks.
+@@ -52,6 +198,10 @@ async def pie_start(
+     reports with. The async vocabulary survives only under `wait=False` and on the timeout path,
+     where a queued session really is outstanding.
+     """
++    if getattr(rc, "nexus_owned_pie", False) is True:
++        if mode != "PlayInViewport" or map_path is not None or start_location is not None or wait is not True:
++            raise AgentError(ErrorCode.SCHEMA_VALIDATION, "Nexus owned PIE supports only confirmed viewport start.", recoverable=False)
++        return await _nexus_owned_start(rc, timeout)
+     if mode not in {"PlayInViewport", "PlayInNewWindow", "Simulate"}:
+         raise AgentError(
+             ErrorCode.SCHEMA_VALIDATION, f"Unknown PIE mode: {mode}", recoverable=False
+@@ -81,7 +231,10 @@ async def pie_start(
+     try:
+         py_exec.exec_python("\n".join(lines))
+     except Exception:
+-        _machine.give_back(grant)
++        # Nexus cannot prove a thrown Python request never queued PIE. Keep the
++        # sticky grant until external reconciliation/explicit stop; no rollback.
++        if not getattr(py_exec, "nexus_no_replay", False):
++            _machine.give_back(grant)
+         raise
+     if not wait:
+         # Opt-in fire-and-forget. RequestPlaySession only QUEUES the session and the editor tick
+@@ -131,6 +284,8 @@ async def pie_stop(*, rc: RemoteControlClient, py_exec: Any,
+     * Report the phase read immediately after the request. Teardown happens on a later editor tick,
+       so that read is an ack of the request, not a result -- poll until the phase settles.
+     """
++    if getattr(rc, "nexus_owned_pie", False) is True:
++        return await _nexus_owned_stop(rc, timeout)
+     py_exec.exec_python(
+         "import unreal\n"
+         "unreal.get_editor_subsystem(unreal.UAPAgentSubsystem).stop_pie()"
+diff --git a/mcp-server/src/unreal_agent_player/tools/python_exec.py b/mcp-server/src/unreal_agent_player/tools/python_exec.py
+index 197383ec71f5939cb83bfafc7a8647569a95abe4..366fcf4b5eb0ce7524ce10f034499b4445dd5567 100644
+--- a/mcp-server/src/unreal_agent_player/tools/python_exec.py
++++ b/mcp-server/src/unreal_agent_player/tools/python_exec.py
+@@ -18,7 +18,7 @@ async def exec_python(
+             out_lines.append(entry.get("output", ""))
+     stdout = "".join(out_lines)
+     stderr = "".join(err_lines)
+-    if resp.get("result") == "success":
++    if resp.get("success") is True:
+         return {
+             "ok": True, "stdout": stdout, "stderr": stderr,
+             "result_repr": resp.get("result_repr", ""),
+diff --git a/mcp-server/src/unreal_agent_player/tools/status.py b/mcp-server/src/unreal_agent_player/tools/status.py
+index 2e0887e04311636f7d82e8947301a1278d7f2c75..7ebac16369d69afb9a3dcd9e045f7eeef2c4a9c8 100644
+--- a/mcp-server/src/unreal_agent_player/tools/status.py
++++ b/mcp-server/src/unreal_agent_player/tools/status.py
+@@ -4,6 +4,7 @@ from typing import Any
+ 
+ from unreal_agent_player.errors import AgentError
+ from unreal_agent_player.transport import SUBSYSTEM_OBJECT_PATH, RemoteControlClient
++from unreal_agent_player.tools.pie import _get_phase
+ 
+ 
+ async def bridge_status(*, rc: RemoteControlClient, py_exec: Any) -> dict[str, Any]:
+@@ -11,23 +12,34 @@ async def bridge_status(*, rc: RemoteControlClient, py_exec: Any) -> dict[str, A
+     plugin_version: str | None = None
+     pie_phase: str | None = None  # populated later, in Phase 5
+     try:
+-        resp = await rc.call_function(SUBSYSTEM_OBJECT_PATH, "GetPluginVersion", parameters={})
+-        plugin_version = str(resp.get("ReturnValue", ""))
+-        rc_reachable = True
+-        try:
+-            phase_resp = await rc.call_function(
+-                SUBSYSTEM_OBJECT_PATH, "GetPIEPhase", parameters={}
+-            )
+-            pie_phase = str(phase_resp.get("ReturnValue", ""))
+-        except AgentError:
+-            pie_phase = None
++        if getattr(rc, "nexus_strict_pie_status", False) is True:
++            # The preset owns the native subsystem binding. UE 5.8 does not
++            # necessarily place that subsystem at the legacy hardcoded path.
++            pie_phase = await _get_phase(rc)
++            rc_reachable = True
++        else:
++            resp = await rc.call_function(SUBSYSTEM_OBJECT_PATH, "GetPluginVersion", parameters={})
++            plugin_version = str(resp.get("ReturnValue", ""))
++            rc_reachable = True
++            try:
++                phase_resp = await rc.call_function(
++                    SUBSYSTEM_OBJECT_PATH, "GetPIEPhase", parameters={}
++                )
++                pie_phase = str(phase_resp.get("ReturnValue", ""))
++            except AgentError:
++                pie_phase = None
+     except AgentError:
+         pass
+ 
+     remote_exec_reachable = False
+     try:
+-        endpoint = py_exec._discover_endpoint()
+-        remote_exec_reachable = endpoint is not None
++        # The current transport exposes list_nodes(), not _discover_endpoint().
++        # Count only responsive nodes matching the configured project and role/PID.
++        nodes = py_exec.list_nodes()
++        matches = [node for node in nodes if not node.get("probe_failed")
++                   and py_exec._matches_project(node) and py_exec._matches_instance(node)]
++        remote_exec_reachable = (len(matches) == 1 if getattr(py_exec, "nexus_no_replay", False) is True
++                                 else len(matches) > 0)
+     except Exception:
+         pass
+ 
+@@ -38,4 +50,29 @@ async def bridge_status(*, rc: RemoteControlClient, py_exec: Any) -> dict[str, A
+         "remote_exec_reachable": remote_exec_reachable,
+         "plugin_version": plugin_version,
+         "pie_phase": pie_phase,
++        "nexus_pie_status_validation": ({
++            "version": 3,
++            "phase": "native_queued_aware_v1",
++            "transport": "native_preset",
++            "discovery_interface": "optional_ipv4",
++            "discovery": "exact_node_match",
++            "elapsed": "finite_nonnegative",
++            "missing_or_invalid": "error",
++        } if getattr(rc, "nexus_strict_pie_status", False) is True else None),
++        "nexus_pie_ownership": ({
++            "version": 1,
++            "native": "request_identity_v1",
++            "machine": "exclusive_owner_release_v1",
++            "grant_ttl": "long_lived",
++            "grant_check": "before_dispatch",
++        } if getattr(rc, "nexus_owned_pie", False) is True else None),
++        "nexus_python_dispatch": ({
++            "attempts": 1, "success_field": "success", "post_send_replay": False,
++            "holds_machine_on_python_error": True,
++            "project_file": getattr(py_exec, "_node_project_substr", None),
++            "editor_pid": (int(py_exec._node_instance[4:])
++                           if getattr(py_exec, "_node_instance", "").startswith("pid:")
++                           and py_exec._node_instance[4:].isdigit() else None),
++            "rc_endpoint": getattr(rc, "_base", None),
++        } if getattr(py_exec, "nexus_no_replay", False) is True else None),
+     }
+diff --git a/mcp-server/src/unreal_agent_player/transport.py b/mcp-server/src/unreal_agent_player/transport.py
+index aefd10254fcb113bd652688a81ab2c52c81570b8..6025421d70f85121d027b370a8a541aef62b6309 100644
+--- a/mcp-server/src/unreal_agent_player/transport.py
++++ b/mcp-server/src/unreal_agent_player/transport.py
+@@ -109,7 +109,11 @@ class RemoteControlClient:
+         host: str = "127.0.0.1",
+         port: int = 30010,
+         timeout: float = 10.0,
++        nexus_strict_pie_status: bool = False,
++        nexus_owned_pie: bool = False,
+     ):
++        self.nexus_strict_pie_status = nexus_strict_pie_status is True
++        self.nexus_owned_pie = nexus_owned_pie is True
+         self._base = f"http://{host}:{port}"
+         self._client = httpx.AsyncClient(timeout=timeout)
+ 
+@@ -311,9 +315,11 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+ 
+     def __init__(self, discovery_timeout: float = 3.0, exec_timeout: float = 30.0,
+                  command_ip: str = "127.0.0.1", node_project_substr: str | None = None,
+-                 node_instance: str | None = None):
++                 node_instance: str | None = None, nexus_no_replay: bool = False):
+         self._discovery_timeout = discovery_timeout
+         self._exec_timeout = exec_timeout
++        # Nexus compatibility: one submitted command, even after an unknown outcome.
++        self.nexus_no_replay = nexus_no_replay is True
+         self._command_ip = command_ip
+         # When several editors answer (e.g. two projects open at once), pick the one
+         # whose project file path contains this substring. None = any project.
+@@ -362,15 +368,24 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+             return None
+ 
+     def _make_multicast_socket(self) -> socket.socket:
++        # A trusted Nexus host may select the editor's discovery interface.
++        # With no setting, retain the upstream default. Never auto-fail over.
++        interface = os.environ.get("NEXUS_UAP_MULTICAST_INTERFACE", "0.0.0.0") if self.nexus_no_replay else "0.0.0.0"
++        interface_bytes = socket.inet_aton(interface)
+         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-        sock.bind(("0.0.0.0", self.MULTICAST_PORT))
+-        mreq = struct.pack("4s4s", socket.inet_aton(self.MULTICAST_GROUP),
+-                           socket.inet_aton("0.0.0.0"))
+-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MULTICAST_TTL)
+-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+-        return sock
++        try:
++            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
++            sock.bind((interface, self.MULTICAST_PORT))
++            mreq = struct.pack("4s4s", socket.inet_aton(self.MULTICAST_GROUP), interface_bytes)
++            sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
++            if interface != "0.0.0.0":
++                sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, interface_bytes)
++            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MULTICAST_TTL)
++            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
++            return sock
++        except Exception:
++            sock.close()
++            raise
+ 
+     # --- public API ---
+ 
+@@ -394,6 +409,19 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+         # Per CALL, not per exchange: a crossing caught during the identity probe is still a
+         # crossing the caller needs to know happened.
+         self.last_rejected = []
++        if self.nexus_no_replay:
++            try:
++                response = self._exec_python_once(code, unattended=unattended, exec_mode=exec_mode)
++            except AgentError as exc:
++                if exc.code in (ErrorCode.UE_CONNECTION_RESET, ErrorCode.UE_CROSSED_RESPONSE):
++                    raise AgentError(exc.code, f"{exc.message} Outcome unknown; do not replay.",
++                                     recoverable=False) from exc
++                raise
++            if not isinstance(response, dict) or response.get("success") is not True:
++                raise AgentError(ErrorCode.PYTHON_RUNTIME,
++                                 "Native Python did not confirm success; outcome may be partial. Do not replay.",
++                                 recoverable=False)
++            return response
+         last_exc: AgentError | None = None
+         for attempt in range(self.CONNECTION_RETRIES):
+             try:
+@@ -673,10 +701,17 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+     def _matches_project(self, info: dict[str, Any]) -> bool:
+         if not self._node_project_substr:
+             return True
++        if self.nexus_no_replay:
++            native_project = pathlib.Path(str(info.get("project") or ""))
++            if not native_project.is_absolute():
++                return False
++            return native_project.resolve() == pathlib.Path(self._node_project_substr).resolve()
+         return self._node_project_substr.lower() in str(info.get("project") or "").lower()
+ 
+     def _matches_instance(self, info: dict[str, Any]) -> bool:
+         sel = self._node_instance
++        if self.nexus_no_replay and info.get("role") != "editor":
++            return False
+         if sel.lower() == "editor":
+             return info.get("role") == "editor"
+         if sel.lower().startswith("pid:"):
+@@ -785,6 +820,17 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+                     if data is not None:
+                         self.last_rejected.extend(rejected)
+                         return data
++                    if self.nexus_no_replay:
++                        # sendall already happened. EOF, timeout, or a foreign reply is
++                        # NOT evidence that the target did not execute the command.
++                        self.last_rejected.extend(rejected)
++                        if reject is not None:
++                            self.last_rejected.append(reject)
++                        raise AgentError(
++                            ErrorCode.UE_CROSSED_RESPONSE if reject is not None else ErrorCode.UE_CONNECTION_RESET,
++                            "Command sent without a matching result; outcome unknown. Do not replay.",
++                            recoverable=False,
++                        )
+                     if reject is not None:
+                         # Somebody else's process answered our port. Do NOT return it, and do
+                         # NOT give up: the node we addressed may still be connecting back, so

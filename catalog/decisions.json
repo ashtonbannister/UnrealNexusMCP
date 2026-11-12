@@ -1,0 +1,2230 @@
+{
+  "version": 1,
+  "reviewDate": "2026-10-26",
+  "scope": "Source-reviewed first-pass equivalence groups; not exhaustive function-by-function runtime certification.",
+  "removalMeaning": "Only redundant competing Nexus defaults are excluded. Target began with LICENSE only; no native implementation bodies were present to delete.",
+  "decisions": [
+    {
+      "id": "pie-lifecycle",
+      "status": "selected",
+      "scope": "Viewport PIE start/stop with explicit transition confirmation and queued-start cancellation.",
+      "winner": {
+        "provider": "unrealagentplayer",
+        "native": "pie_start / pie_stop / pie_status"
+      },
+      "operations": [
+        "pie.start.viewport",
+        "pie.stop",
+        "pie.status"
+      ],
+      "evidence": [
+        {
+          "provider": "unrealagentplayer",
+          "path": "mcp-server/src/unreal_agent_player/tools/pie.py",
+          "lines": [
+            55,
+            150
+          ],
+          "note": "Waits for live phase; stops through native cancellation and waits for NotPlaying.",
+          "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/tools/pie.py#L55-L150"
+        },
+        {
+          "provider": "unrealagentplayer",
+          "path": "Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp",
+          "lines": [
+            297,
+            340
+          ],
+          "note": "Cancels queued start before requesting live-session end.",
+          "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp#L297-L340"
+        },
+        {
+          "provider": "unrealagentplayer",
+          "path": "mcp-server/src/unreal_agent_player/registry.py",
+          "lines": [
+            91,
+            122
+          ],
+          "note": "Actual public schemas; stop/status take empty objects.",
+          "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/registry.py#L91-L122"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp",
+          "lines": [
+            398,
+            490
+          ],
+          "note": "UE requests a play session asynchronously; queued requests can replace prior requests and stop does not cancel a queued start. The candidate can select standalone play.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp#L398-L490"
+        },
+        {
+          "provider": "unrealagentplayer",
+          "path": "mcp-server/src/unreal_agent_player/transport.py",
+          "lines": [
+            377,
+            408
+          ],
+          "note": "Outer connection-reset retries can replay submitted Python; the reviewed compatibility delta also removes inner post-send resend and rediscovery fallthrough.",
+          "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/transport.py#L377-L408"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "ue-mcp",
+          "native": "editor.play / editor.stop",
+          "reason": "Queued/transition semantics are weaker for this confirmed lifecycle.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "enginewire",
+          "native": "control_editor.play / stop",
+          "reason": "Do not select a second lifecycle owner; stop lacks queued-start cancellation.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "hayba",
+          "native": "PIE stop",
+          "reason": "Acknowledges stop before teardown has completed.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "claireon",
+          "native": "pie_stop",
+          "reason": "Requires an active session and defers end; not the same queued-start cancellation contract.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Simulation, toolbar pause, game pause, and separate-window modes are distinct capabilities."
+      ],
+      "qualification": [
+        "The owned start/stop route requires uap-nexus-owned-pie-v4; status-only may use the v3 patch. The v4 native request identity, unique grant and live markers must be checked.",
+        "An isolated UE 5.8.4 start/stop passed through Nexus; this does not qualify other projects, engine versions, external-client cooperation or mapped DLL provenance.",
+        "No implicit retry, project-wide release or ownership recovery is performed after an uncertain outcome.",
+        "Changed EngineWire comparison spans from 5a17d6d are retained only as historical evidence; they do not constrain access to the namespaced provider toolset."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp",
+          "lines": [
+            405,
+            480
+          ],
+          "note": "Queue acknowledgement; stop cannot cancel queued start.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIE.cpp#L405-L480"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorPlay.cpp",
+          "lines": [
+            9,
+            98
+          ],
+          "note": "Waits on state but lacks the same queued-start cancellation.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorPlay.cpp#L9-L98"
+        }
+      ]
+    },
+    {
+      "id": "editor-screenshot",
+      "status": "selected",
+      "scope": "Current viewport image with actual dimensions and source-view receipt; can be editor or PIE. No camera arguments or retained output file.",
+      "winner": {
+        "provider": "enginewire",
+        "native": "unreal -> control_editor / screenshot"
+      },
+      "operations": [
+        "screenshot.viewport.current"
+      ],
+      "evidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp",
+          "lines": [
+            194,
+            242
+          ],
+          "note": "Selects the current viewport, preserving possessed/ejected PIE selection and surfacing any tab-fronting effect.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp#L194-L242"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp",
+          "lines": [
+            244,
+            324
+          ],
+          "note": "Reads pixels, applies the explicit resolution bounding box and returns actual PNG dimensions, view and camera metadata; Nexus omits renderSize and camera overrides.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp#L244-L324"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/Camera/McpViewRender.cpp",
+          "lines": [
+            146,
+            170
+          ],
+          "note": "Without renderSize, reads current viewport pixels and forces opaque alpha before PNG encoding.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/Camera/McpViewRender.cpp#L146-L170"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshotSupport.cpp",
+          "lines": [
+            60,
+            133
+          ],
+          "note": "Preserves inline PNG, warnings and error receipts; keepFile=false prevents screenshot file retention.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshotSupport.cpp#L60-L133"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/MCP/Protocol/McpJsonRpcImageContent.cpp",
+          "lines": [
+            128,
+            152
+          ],
+          "note": "Emits the original image/png MCP content block.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/MCP/Protocol/McpJsonRpcImageContent.cpp#L128-L152"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Full Slate window, PIE-with-UMG, camera scene render and isolated actor render stay separate."
+      ],
+      "qualification": [
+        "Source contract refreshed at EngineWire 2792ba198403bf0842a6cd91f87113d9d86db8e3; this update has not been exercised in a native Unreal editor.",
+        "Resolution is a bounding box for downscale, not rerender resolution.",
+        "Native editor_viewport mode selects PIE while possessed; inspect view and require reconciled NotPlaying for editor-world-only intent."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp",
+          "lines": [
+            227,
+            323
+          ],
+          "note": "Synchronous pixel readback, downscale and actual viewport metadata.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp#L227-L323"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshotSupport.cpp",
+          "lines": [
+            60,
+            114
+          ],
+          "note": "Validates inline/file output and image size.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshotSupport.cpp#L60-L114"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/MCP/Protocol/McpJsonRpcImageContent.cpp",
+          "lines": [
+            137,
+            147
+          ],
+          "note": "Native MCP image block emission.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/MCP/Protocol/McpJsonRpcImageContent.cpp#L137-L147"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp",
+          "lines": [
+            37,
+            62
+          ],
+          "note": "bEjectedView reflects current PIE state, not the requested mode.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp#L37-L62"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp",
+          "lines": [
+            190,
+            223
+          ],
+          "note": "An existing non-ejected PIE viewport is selected even for editor_viewport mode.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorScreenshot.cpp#L190-L223"
+        }
+      ]
+    },
+    {
+      "id": "pie-screenshot",
+      "status": "selected",
+      "scope": "Exact PIE client viewport, including composited UI, delivered as a bounded in-memory PNG.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> editor.nexus_capture_pie_png_v1"
+      },
+      "operations": [
+        "screenshot.pie"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "lines": [
+            2927,
+            3140
+          ],
+          "note": "Pinned source supplies the Slate viewport and original path-writing capture; the reviewed direct-PIE patch adds the bounded exact-target in-memory route.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L2927-L3140"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "lines": [
+            3203,
+            3241
+          ],
+          "note": "Captures selected game viewport including UMG. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L3203-L3241"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_PIEScreenshot.cpp",
+          "lines": [
+            100,
+            140
+          ],
+          "note": "Returns a save claim before asynchronous completion in HighResShot path.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_PIEScreenshot.cpp#L100-L140"
+        },
+        {
+          "provider": "unrealagentplayer",
+          "path": "mcp-server/src/unreal_agent_player/tools/screenshot.py",
+          "lines": [
+            69,
+            80
+          ],
+          "note": "Requested dimensions and base64 JSON text are not actual dimensions or MCP image blocks.",
+          "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/tools/screenshot.py#L69-L80"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "claireon",
+          "native": "pie_screenshot",
+          "reason": "Premature saved acknowledgement; multiplier path ignores declared destination.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "unrealagentplayer",
+          "native": "screenshot_viewport as selected-client default",
+          "reason": "First viewport selection and requested-dimension metadata do not meet exact-client contract.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "UAP composited capture does include UMG at this pin; do not repeat obsolete contrary claims.",
+        "Ivan screenshot-camera and screenshot-isolated are unique renders."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Returned path is not an inline image. Fresh filename required by workflow; no atomic no-clobber guarantee."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "lines": [
+            3026,
+            3064
+          ],
+          "note": "Captures selected game viewport including UMG.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L3026-L3064"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp",
+          "lines": [
+            2822,
+            2963
+          ],
+          "note": "Explicit world selection, Slate capture, actual dimensions and file write.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers.cpp#L2822-L2963"
+        }
+      ]
+    },
+    {
+      "id": "actor-inspection",
+      "status": "selected",
+      "scope": "Exact actor inspection with explicit editor/PIE world and ambiguity-aware identity.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.get_actor_details"
+      },
+      "operations": [
+        "actor.inspect.editor",
+        "actor.inspect.pie"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1440,
+            1563
+          ],
+          "note": "World-aware detailed actor read. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1440-L1563"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h",
+          "lines": [
+            96,
+            204
+          ],
+          "note": "Exact paths and ambiguity-aware label resolution. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h#L96-L204"
+        },
+        {
+          "provider": "unrealagentplayer",
+          "path": "mcp-server/src/unreal_agent_player/tools/actor.py",
+          "lines": [
+            8,
+            31
+          ],
+          "note": "Generic actor enumeration uses editor subsystem despite a world option.",
+          "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/tools/actor.py#L8-L31"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "unrealagentplayer",
+          "native": "generic actor read with world=pie",
+          "reason": "Does not actually select the requested PIE world in inspected path.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Regex searching, tags and query-language traversal are not the same exact-actor read."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1355,
+            1478
+          ],
+          "note": "World-aware detailed actor read.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1355-L1478"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h",
+          "lines": [
+            64,
+            172
+          ],
+          "note": "Exact paths and ambiguity-aware label resolution.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h#L64-L172"
+        }
+      ]
+    },
+    {
+      "id": "level-save",
+      "status": "selected",
+      "scope": "Guarded current editing level plus loaded external packages, with exact expected package, checked receipts, and no external package deletion or global dirty sweep.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.save(expectedLevelPackage, commitDeletes=false, includeExternalActors=true, nexusNoExternalDelete=true)"
+      },
+      "operations": [
+        "level.save.current"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp",
+          "lines": [
+            259,
+            384
+          ],
+          "note": "Pinned candidate refuses PIE and saves the current editing level. The reviewed guarded-save v2 patch adds the expected-level precondition and forbids external package deletion.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp#L259-L384"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "enginewire",
+          "native": "save_current_level as universal level-save default",
+          "reason": "Persistent-level-only scope is narrower than current editing level plus external-package contract.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "hayba",
+          "native": "save level with sanitization",
+          "reason": "May mutate transient mesh references before save; preserve only as explicit repair-and-save.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Save-as and intentional broad save/delete workflows need separate explicit approval."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "commitDeletes=true broadens to every dirty map/content package; fixed false."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp",
+          "lines": [
+            259,
+            383
+          ],
+          "note": "PIE refusal, current editing sublevel, external packages and checked outcomes.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp#L259-L383"
+        }
+      ]
+    },
+    {
+      "id": "asset-save",
+      "status": "selected",
+      "scope": "Save a nonempty explicit set of loaded packages and no others.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> asset.save(assetPaths)"
+      },
+      "operations": [
+        "asset.save.exact"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            3816,
+            3949
+          ],
+          "note": "Whole-set resolution preflight and per-package checked save. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp#L3816-L3949"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/asset.ts",
+          "lines": [
+            269,
+            270
+          ],
+          "note": "Public scoped and broad save distinction. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/src/tools/asset.ts#L269-L270"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "claireon",
+          "native": "asset resave as exact-save default",
+          "reason": "Loads/marks packages dirty and can outer-success partial failure; not equivalent loaded-package scope.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Broad save-all remains a distinct, intentionally unexposed operation.",
+        "force is an explicit caller choice, not silently assumed."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            3761,
+            3894
+          ],
+          "note": "Whole-set resolution preflight and per-package checked save.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp#L3761-L3894"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/asset.ts",
+          "lines": [
+            266,
+            267
+          ],
+          "note": "Public scoped and broad save distinction.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/tools/asset.ts#L266-L267"
+        }
+      ]
+    },
+    {
+      "id": "pcg-connection",
+      "status": "selected",
+      "scope": "Persisted PCG connection with stable node/pin names, edge verification and checked save.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> pcg.connect_nodes"
+      },
+      "operations": [
+        "pcg.graph.connect.persisted"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            1261,
+            1460
+          ],
+          "note": "Candidate validates pin labels and reports structured edge refusals, verifies the resulting edge, and retains mutation/save semantics for separate review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1261-L1460"
+        },
+        {
+          "provider": "hayba",
+          "path": "mcp-tools/hayba-mcp/src/tools/pcg/pcg-primitives.ts",
+          "lines": [
+            288,
+            346
+          ],
+          "note": "Wrapper's success depends on nonthrowing script rather than verified edge/save.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/pcg/pcg-primitives.ts#L288-L346"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "hayba",
+          "native": "pcg_wire",
+          "reason": "Does not verify resulting edge and checked persistence at the same level.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Claireon session/in-memory connection and EngineWire optional-save connection are different contracts."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            1208,
+            1308
+          ],
+          "note": "Existing edge distinguished, actual edge checked, save outcome checked.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1208-L1308"
+        }
+      ]
+    },
+    {
+      "id": "pcg-generation",
+      "status": "selected",
+      "scope": "Trigger a known actor's first PCG component; verify exact run completion separately.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> pcg.execute / pcg.wait_for_generation"
+      },
+      "operations": [
+        "pcg.generation.execute",
+        "pcg.generation.wait"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            1958,
+            2023
+          ],
+          "note": "Actor resolution and first-component trigger with returned run identity. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1958-L2023"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/pcg-wait.ts",
+          "lines": [
+            68,
+            153
+          ],
+          "note": "Candidate wait distinguishes terminal states and adds a grace interval and additional details for not_started; direct-client interference remains a separate concern.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/src/tools/pcg-wait.ts#L68-L153"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "hayba",
+          "native": "pcg_cook_and_wait as generic generation gate",
+          "reason": "ISM count and tolerated timeout cannot prove arbitrary PCG generation success.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "ISM-specific diagnostics remain useful but are not a universal gate."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Require state=generated. Native success can mean cancelled/cleaned/not_started/idle.",
+        "No componentName selector on execute; it targets the first PCG component."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            1797,
+            1862
+          ],
+          "note": "Actor resolution and first-component trigger with returned run identity.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1797-L1862"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/pcg-wait.ts",
+          "lines": [
+            55,
+            138
+          ],
+          "note": "Run-aware polling; terminal states and nested timeout warnings are distinct.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/tools/pcg-wait.ts#L55-L138"
+        }
+      ]
+    },
+    {
+      "id": "enhanced-input",
+      "status": "selected",
+      "scope": "Exact local PIE world/player one-shot injection and independent, privately owned finite-lease hold lifecycle.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> pie.inject_input; patched pie.nexus_hold_[start|update|stop]_v1"
+      },
+      "operations": [
+        "input.action.once",
+        "input.action.hold.start",
+        "input.action.hold.update",
+        "input.action.hold.stop"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/specs/pie.generated.ts",
+          "lines": [
+            256,
+            510
+          ],
+          "note": "Candidate schemas retain action and hold operations and add optional hold duration and control rotation.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/src/tools/specs/pie.generated.ts#L256-L510"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp",
+          "lines": [
+            164,
+            351
+          ],
+          "note": "Candidate retains local and remote relay paths and adds local hold options; remote relay does not support those options.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp#L164-L351"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorInput.cpp",
+          "lines": [
+            90,
+            115
+          ],
+          "note": "Alternative uses first player and action-path keyed injection.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorInput.cpp#L90-L115"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "enginewire",
+          "native": "Enhanced Input as explicit-world/independent-hold default",
+          "reason": "Narrower player/world selection and hold identity.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Raw gameplay keys, Slate/UI dispatch, gamepad and XR pose are different layers."
+      ],
+      "qualification": [
+        "One-shot remains distinct; owned hold start/update/stop passed a disposable coordinator smoke test. Gameplay effects and lease expiry are not individually live-qualified.",
+        "Inputs from other sources may combine; the independent injector does not own or stop their continuous slot.",
+        "Remote relay remains a distinct variant; a timeout is not confirmed release."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "src/tools/specs/pie.generated.ts",
+          "lines": [
+            113,
+            312
+          ],
+          "note": "Actual action, world, player and hold schemas.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/tools/specs/pie.generated.ts#L113-L312"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp",
+          "lines": [
+            103,
+            284
+          ],
+          "note": "Validation, world resolution, hold updates and stop.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PIE/PIEHandlers_InputInject.cpp#L103-L284"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorInput.cpp",
+          "lines": [
+            90,
+            115
+          ],
+          "note": "Alternative uses first player and action-path keyed injection.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlEditor/McpEditorInput.cpp#L90-L115"
+        }
+      ]
+    },
+    {
+      "id": "blueprint-compile-memory",
+      "status": "selected",
+      "scope": "Compile one Blueprint without saving; structured bounded compiler diagnostics.",
+      "winner": {
+        "provider": "claireon",
+        "native": "python_execute -> claireon.bp_compile or patched claireon.bp_compile_batch"
+      },
+      "operations": [
+        "blueprint.compile.memory.asset",
+        "blueprint.compile.memory.session",
+        "blueprint.compile.memory.loaded"
+      ],
+      "evidence": [
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonBlueprintGraphTool_Compile.cpp",
+          "lines": [
+            116,
+            269
+          ],
+          "note": "SkipSave and bounded diagnostics with error status.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonBlueprintGraphTool_Compile.cpp#L116-L269"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp",
+          "lines": [
+            447,
+            474
+          ],
+          "note": "Actual public Python envelope.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp#L447-L474"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp",
+          "lines": [
+            882,
+            889
+          ],
+          "note": "No separate structured output stream; spill/truncation must be handled.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp#L882-L889"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Foundation/BridgeHelpers/Blueprints/McpBPDiag.h",
+          "lines": [
+            100,
+            135
+          ],
+          "note": "Compiler helper may reset whole undo history.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Foundation/BridgeHelpers/Blueprints/McpBPDiag.h#L100-L135"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp",
+          "lines": [
+            566,
+            567
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp#L566-L567"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/ClaireonAutoSave.cpp",
+          "lines": [
+            14,
+            99
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/ClaireonAutoSave.cpp#L14-L99"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "ue-mcp",
+          "native": "blueprint.compile as no-save default",
+          "reason": "Compile options do not enforce no-save and diagnostics are less structured.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "ivan-unreal-mcp",
+          "native": "blueprint-compile as no-save default",
+          "reason": "No explicit no-save contract.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "enginewire",
+          "native": "manage_blueprint.compile as neutral memory compile",
+          "reason": "Persistence and undo-reset side effects require distinct workflow.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Compile-and-save, folder compile and batch compile remain distinct."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Adapter must call a fixed function, safely encode arguments and strictly parse marked results; no arbitrary Python exposure.",
+        "Conditional on exact reviewed Claireon compatibility patch and live marker; native compile status is parsed from status-mode summary plus structured diagnostics, not invented upstream JSON status.",
+        "The fixed loaded-asset compile variant uses the session-free exact batch slice and refuses expired-session cleanup; native qualification is recorded separately."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Foundation/BridgeHelpers/Blueprints/McpBPDiag.h",
+          "lines": [
+            102,
+            137
+          ],
+          "note": "Compiler helper may reset whole undo history.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Foundation/BridgeHelpers/Blueprints/McpBPDiag.h#L102-L137"
+        }
+      ]
+    },
+    {
+      "id": "material-parameter-strict",
+      "status": "selected",
+      "scope": "Existing global scalar/vector/texture parameter; finite value, actual readback and checked persistence.",
+      "winner": {
+        "provider": "hayba",
+        "native": "direct material_set_param (reviewed no-retry compatibility patch required)"
+      },
+      "operations": [
+        "material.parameter.scalar.persisted",
+        "material.parameter.vector.persisted",
+        "material.parameter.texture.persisted"
+      ],
+      "evidence": [
+        {
+          "provider": "hayba",
+          "path": "mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts",
+          "lines": [
+            13,
+            23
+          ],
+          "note": "Actual schema permits number/vector/string, not boolean.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/material/material-set-param.ts#L13-L23"
+        },
+        {
+          "provider": "hayba",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPMaterialHandler.cpp",
+          "lines": [
+            1326,
+            1460
+          ],
+          "note": "Read-only preflight, declared parameters, true readback, saved/dirty receipts.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/handlers/HaybaMCPMaterialHandler.cpp#L1326-L1460"
+        },
+        {
+          "provider": "hayba",
+          "path": "mcp-tools/hayba-mcp/src/tools/tool-executor.ts",
+          "lines": [
+            83,
+            233
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/tool-executor.ts#L83-L233"
+        },
+        {
+          "provider": "hayba",
+          "path": "mcp-tools/hayba-mcp/src/tools/tool-executor.ts",
+          "lines": [
+            291,
+            346
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/tool-executor.ts#L291-L346"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "ue-mcp",
+          "native": "material.set_parameter as strict-existing default",
+          "reason": "Can intentionally stage undeclared overrides.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "enginewire",
+          "native": "scalar setter as verified-readback default",
+          "reason": "Response may echo requested scalar rather than observe storage.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "claireon",
+          "native": "session scalar setter as persisted default",
+          "reason": "Session mutation and no checked persistence are different semantics.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Layer associations, undeclared staging, static switches and unsaved session edits remain distinct."
+      ],
+      "qualification": [
+        "Requires hayba-nexus-material-receipt-v2, exact source hashes, fixed native identity marker and the typed no-retry selector.",
+        "Native v2 checks exact resolved object paths and binary32 or texture readback; a failed save or readback may leave a partial mutation.",
+        "One isolated UE 5.8.4 scalar write passed through Nexus; vector, texture, other projects and mapped binary provenance remain separately unverified."
+      ]
+    },
+    {
+      "id": "automation-tests",
+      "status": "selected",
+      "scope": "Strict asynchronous Unreal automation run and poll, with exact run identity and explicit incomplete outcomes.",
+      "winner": {
+        "provider": "claireon",
+        "native": "python_execute -> claireon.test_run / test_poll"
+      },
+      "operations": [
+        "automation.tests.run",
+        "automation.tests.poll"
+      ],
+      "evidence": [
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+          "lines": [
+            158,
+            352
+          ],
+          "note": "Strict schema/discovery and asynchronous controller start.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp#L158-L352"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+          "lines": [
+            391,
+            519
+          ],
+          "note": "Poll identity, phase, cancellation and deadlines.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp#L391-L519"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp",
+          "lines": [
+            666,
+            714
+          ],
+          "note": "Strict terminal validation and gate release.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_TestRun.cpp#L666-L714"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemTests.cpp",
+          "lines": [
+            84,
+            107
+          ],
+          "note": "Manual tick can double-tick latent work.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemTests.cpp#L84-L107"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "ue-mcp",
+          "native": "synchronous run_automation_tests as general runner",
+          "reason": "Frame-dependent latent tests cannot be treated as reliable in synchronous game-thread runner.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "enginewire",
+          "native": "manual-tick test runner as default",
+          "reason": "Potential double ticking differs from normal engine controller delivery.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Headless commandlet tests and caller assertion recording are not equivalent."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Continue polling: gate has no autonomous expiry. Capture terminal result because it is emitted once.",
+        "Pin strict=true; expected tests and allowed skips must be explicit.",
+        "Optional fixed native strict test wrappers with run ownership and terminal report parsing; exact no-autosave compatibility required."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemTests.cpp",
+          "lines": [
+            84,
+            107
+          ],
+          "note": "Manual tick can double-tick latent work.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/SystemControl/McpSystemTests.cpp#L84-L107"
+        }
+      ]
+    },
+    {
+      "id": "trace-analysis",
+      "status": "selected",
+      "scope": "Analyze real Insights timing/frame providers from a captured trace, not file metadata.",
+      "winner": {
+        "provider": "claireon",
+        "native": "python_execute -> trace_open / trace_get_top_scopes / trace_get_frame_stats / trace_close"
+      },
+      "operations": [
+        "insights.capture.start",
+        "insights.capture.stop",
+        "insights.trace.open",
+        "insights.trace.scopes",
+        "insights.trace.frames",
+        "insights.trace.close"
+      ],
+      "evidence": [
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceOpen.cpp",
+          "lines": [
+            41,
+            106
+          ],
+          "note": "TraceServices analysis session and providers.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_TraceOpen.cpp#L41-L106"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_TraceGetTopScopes.cpp",
+          "lines": [
+            116,
+            240
+          ],
+          "note": "Actual timing aggregation.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_TraceGetTopScopes.cpp#L116-L240"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Insights/McpInsightsTraceAnalysis.cpp",
+          "lines": [
+            13,
+            53
+          ],
+          "note": "Metadata-only analyze_trace.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/Insights/McpInsightsTraceAnalysis.cpp#L13-L53"
+        },
+        {
+          "provider": "unrealagentplayer",
+          "path": "mcp-server/src/unreal_agent_player/tools/perf.py",
+          "lines": [
+            49,
+            65
+          ],
+          "note": "Null avg/p99/hitches in stop result.",
+          "url": "https://github.com/ImagineTheGames/UnrealAgentPlayer/blob/4ab7a62eb78612c2ec110f683b6e11f5dea62e95/mcp-server/src/unreal_agent_player/tools/perf.py#L49-L65"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStart.cpp",
+          "lines": [
+            54,
+            155
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_PIETraceStart.cpp#L54-L155"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonTool_PIETraceStop.cpp",
+          "lines": [
+            29,
+            54
+          ],
+          "note": "Wiring review: compatibility side effect or native receipt boundary.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonTool_PIETraceStop.cpp#L29-L54"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "enginewire",
+          "native": "analyze_trace as timing-analysis default",
+          "reason": "Only local-file metadata.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        },
+        {
+          "provider": "unrealagentplayer",
+          "native": "trace_stop as performance-summary default",
+          "reason": "Missing measurements cannot be presented as performance evidence.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "EngineWire network/file trace control and UE recorded-run perf_summary remain distinct."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Frame averages are returned-page statistics; game_thread_ms is frame duration here, not separately sampled CPU cost.",
+        "Optional fixed trace wrappers with owned capture/readers, bounded results and native caveats; exact no-autosave compatibility required."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Insights/McpInsightsTraceAnalysis.cpp",
+          "lines": [
+            13,
+            53
+          ],
+          "note": "Metadata-only analyze_trace.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/Insights/McpInsightsTraceAnalysis.cpp#L13-L53"
+        }
+      ]
+    },
+    {
+      "id": "actor-transform",
+      "status": "conditional",
+      "scope": "Set exact-path actor transform with tolerance-based observed-value verification.",
+      "winner": {
+        "provider": "enginewire",
+        "native": "control_actor transform"
+      },
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp",
+          "lines": [
+            99,
+            182
+          ],
+          "note": "Requested-versus-actual tolerance comparison.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp#L99-L182"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "UE explicit-world transform remains useful."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Not exposed until exact world/full-path preflight is implemented; no safe broad label-based default.",
+        "Changed EngineWire comparison spans from 5a17d6d are retained only as historical evidence; they do not constrain access to the namespaced provider toolset."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp",
+          "lines": [
+            99,
+            182
+          ],
+          "note": "Requested-versus-actual tolerance comparison.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp#L99-L182"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLookup.cpp",
+          "lines": [
+            5,
+            75
+          ],
+          "note": "PIE-first and first-label resolution requires extra exact-world preflight.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorLookup.cpp#L5-L75"
+        }
+      ]
+    },
+    {
+      "id": "asset-import",
+      "status": "conditional",
+      "scope": "Trusted local generic import with explicit factory and checked save.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> asset.import_file"
+      },
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers_Import.cpp",
+          "lines": [
+            880,
+            1025
+          ],
+          "note": "Factory validation, property preflight and checked save. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers_Import.cpp#L880-L1025"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Hayba Windows pinned-handle import and specialized skeletal/Interchange options remain distinct."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Pin replaceExisting=false; third-party factories may not honor it, so do not claim a security sandbox.",
+        "Source/destination path authority and no-overwrite validation must precede exposure."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers_Import.cpp",
+          "lines": [
+            880,
+            1025
+          ],
+          "note": "Factory validation, property preflight and checked save.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers_Import.cpp#L880-L1025"
+        }
+      ]
+    },
+    {
+      "id": "asset-rename",
+      "status": "conditional",
+      "scope": "Ordinary asset rename with collision handling and readback.",
+      "winner": {
+        "provider": "enginewire",
+        "native": "manage_asset rename"
+      },
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp",
+          "lines": [
+            18,
+            127
+          ],
+          "note": "Sanitization, collision checks, settings-follow and readback.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp#L18-L127"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "UE World Partition rename and external-package migration are separate.",
+        "Claireon redirector-fixing move has broader folder cleanup side effects."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Dispatch by asset type and target preflight required; no generic rename winner for all asset classes."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp",
+          "lines": [
+            18,
+            127
+          ],
+          "note": "Sanitization, collision checks, settings-follow and readback.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp#L18-L127"
+        }
+      ]
+    },
+    {
+      "id": "control-rig-create",
+      "status": "conditional",
+      "scope": "Source-backed nonmodular persisted Control Rig creation.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> animation.create_control_rig"
+      },
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Animation/AnimationHandlers_ControlRig.cpp",
+          "lines": [
+            258,
+            355
+          ],
+          "note": "Source validation, checked rename/cleanup and checked save. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Animation/AnimationHandlers_ControlRig.cpp#L258-L355"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AnimationAuthoring/McpAnimControlRig.cpp",
+          "lines": [
+            15,
+            169
+          ],
+          "note": "Blank/modular/older-engine branches are distinct.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/AnimationAuthoring/McpAnimControlRig.cpp#L15-L169"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "EngineWire blank/modular/unsaved and older-engine variants."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Not yet in executable first-pass catalogue."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Animation/AnimationHandlers_ControlRig.cpp",
+          "lines": [
+            258,
+            355
+          ],
+          "note": "Source validation, checked rename/cleanup and checked save.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Animation/AnimationHandlers_ControlRig.cpp#L258-L355"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AnimationAuthoring/McpAnimControlRig.cpp",
+          "lines": [
+            15,
+            169
+          ],
+          "note": "Blank/modular/older-engine branches are distinct.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/AnimationAuthoring/McpAnimControlRig.cpp#L15-L169"
+        }
+      ]
+    },
+    {
+      "id": "blueprint-connections",
+      "status": "preserve",
+      "scope": "Session K2 editing, actual-schema persisted editing and conversion-aware edits are not one duplicate contract.",
+      "winner": null,
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonBlueprintGraphTool_ConnectPins.cpp",
+          "lines": [
+            234,
+            379
+          ],
+          "note": "Ambiguity-aware directional pins but hardcoded K2 schema.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonBlueprintGraphTool_ConnectPins.cpp#L234-L379"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Graph.cpp",
+          "lines": [
+            1093,
+            1229
+          ],
+          "note": "Actual graph schema, previous-link restoration and persistence. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Graph.cpp#L1093-L1229"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/McpBPGraphPinMutations.cpp",
+          "lines": [
+            58,
+            199
+          ],
+          "note": "Pin growth/conversion behavior and effect receipts.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/McpBPGraphPinMutations.cpp#L58-L199"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Keep these semantic variants until narrower contracts are separately qualified."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Graph.cpp",
+          "lines": [
+            1093,
+            1229
+          ],
+          "note": "Actual graph schema, previous-link restoration and persistence.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers_Graph.cpp#L1093-L1229"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/McpBPGraphPinMutations.cpp",
+          "lines": [
+            58,
+            199
+          ],
+          "note": "Pin growth/conversion behavior and effect receipts.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/BlueprintGraph/McpBPGraphPinMutations.cpp#L58-L199"
+        }
+      ]
+    },
+    {
+      "id": "graph-widget-atomicity",
+      "status": "hold",
+      "scope": "No universal atomic graph/widget batch winner established.",
+      "winner": null,
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/FClaireonDeltaApplicatorBase.cpp",
+          "lines": [
+            229,
+            237
+          ],
+          "note": "Transaction.Cancel is not proof that earlier mutations were undone.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/FClaireonDeltaApplicatorBase.cpp#L229-L237"
+        },
+        {
+          "provider": "claireon",
+          "path": "Source/Claireon/Private/Tools/ClaireonSpecApplicator_WidgetBP.cpp",
+          "lines": [
+            317,
+            331
+          ],
+          "note": "Some item failures continue rather than atomically reverting.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Source/Claireon/Private/Tools/ClaireonSpecApplicator_WidgetBP.cpp#L317-L331"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Preserve alternatives; compare pre/post graph, disk and undo state before pruning."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Do not claim atomicity from a transaction object or a test name."
+      ]
+    },
+    {
+      "id": "asset-deletion",
+      "status": "hold",
+      "scope": "No blanket safe deletion default across disk, registry, references, batches and actor worlds.",
+      "winner": null,
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            2997,
+            3075
+          ],
+          "note": "Reference-aware deletion has edge cases when registry state is absent. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp#L2997-L3075"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Force deletion, orphan cleanup, redirector cleanup and actor deletion need separate explicit authorization."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Changed EngineWire comparison spans from 5a17d6d are retained only as historical evidence; they do not constrain access to the namespaced provider toolset."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp",
+          "lines": [
+            2942,
+            3020
+          ],
+          "note": "Reference-aware deletion has edge cases when registry state is absent.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Asset/AssetHandlers.cpp#L2942-L3020"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp",
+          "lines": [
+            138,
+            310
+          ],
+          "note": "Richer disk/reference and per-item checks but partial-batch overall success.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/AssetWorkflow/Operations/McpAssetAssetMutation.cpp#L138-L310"
+        }
+      ]
+    },
+    {
+      "id": "sequencer",
+      "status": "preserve",
+      "scope": "Channel write/readback versus track creation/time conversion are distinct.",
+      "winner": null,
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers_Channels.cpp",
+          "lines": [
+            404,
+            549
+          ],
+          "note": "Exact-channel prevalidation/readback; inverse is not lossless for custom tangents. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers_Channels.cpp#L404-L549"
+        },
+        {
+          "provider": "hayba",
+          "path": "mcp-tools/hayba-mcp/src/tools/sequencer/sequencer-py-tools.ts",
+          "lines": [
+            409,
+            491
+          ],
+          "note": "Convenience wrapper can swallow key errors and ignore save.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/mcp-tools/hayba-mcp/src/tools/sequencer/sequencer-py-tools.ts#L409-L491"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "hayba",
+          "native": "seq_transform_keyframe as checked key-write default",
+          "reason": "Can return success after zero keys or swallowed failures; replacement requires scope-specific adapter.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Preserve EngineWire authoring and UE exact-channel editing separately."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Changed EngineWire comparison spans from 5a17d6d are retained only as historical evidence; they do not constrain access to the namespaced provider toolset."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers_Channels.cpp",
+          "lines": [
+            404,
+            549
+          ],
+          "note": "Exact-channel prevalidation/readback; inverse is not lossless for custom tangents.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Sequencer/SequencerHandlers_Channels.cpp#L404-L549"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Sequence/McpSeqKeyframes.cpp",
+          "lines": [
+            112,
+            193
+          ],
+          "note": "Creation/batch conversion and range behavior.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/Sequence/McpSeqKeyframes.cpp#L112-L193"
+        }
+      ]
+    },
+    {
+      "id": "foliage-landscape-geometry",
+      "status": "preserve",
+      "scope": "Different placement rules, falloff math, target representations and procedural algorithms.",
+      "winner": null,
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp",
+          "lines": [
+            383,
+            590
+          ],
+          "note": "Native type rules and placement receipts; bounded/lossy inverse. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp#L383-L590"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp",
+          "lines": [
+            168,
+            223
+          ],
+          "note": "Layer-specific sculpt semantics. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp#L168-L223"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Geometry/Modeling/McpGeometryBooleans.cpp",
+          "lines": [
+            11,
+            63
+          ],
+          "note": "Live dynamic-mesh target differs from asset CSG.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/Geometry/Modeling/McpGeometryBooleans.cpp#L11-L63"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Native foliage rules, seeded paint, brush scatter and jittered grids are different operations.",
+        "StaticMesh CSG, live DynamicMesh booleans and Hayba custom topology algorithms are not duplicates."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp",
+          "lines": [
+            383,
+            590
+          ],
+          "note": "Native type rules and placement receipts; bounded/lossy inverse.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Foliage/FoliageHandlers_Placement.cpp#L383-L590"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp",
+          "lines": [
+            168,
+            223
+          ],
+          "note": "Layer-specific sculpt semantics.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Landscape/LandscapeHandlers_Sculpt.cpp#L168-L223"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/Geometry/Modeling/McpGeometryBooleans.cpp",
+          "lines": [
+            11,
+            63
+          ],
+          "note": "Live dynamic-mesh target differs from asset CSG.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/Geometry/Modeling/McpGeometryBooleans.cpp#L11-L63"
+        }
+      ]
+    },
+    {
+      "id": "coordination",
+      "status": "preserve",
+      "scope": "Native scheduling, asset leases, sessions, machine locks and transport lifecycle are complementary.",
+      "winner": null,
+      "operations": [],
+      "evidence": [
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Core/Subsystem/EngineWireSubsystemRequestQueue.cpp",
+          "lines": [
+            34,
+            83
+          ],
+          "note": "Native per-session/global admission guards.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Core/Subsystem/EngineWireSubsystemRequestQueue.cpp#L34-L83"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Core/Subsystem/EngineWireSubsystemRequestQueue.cpp",
+          "lines": [
+            164,
+            275
+          ],
+          "note": "Native nonreentrancy, fairness and state revisions.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Core/Subsystem/EngineWireSubsystemRequestQueue.cpp#L164-L275"
+        },
+        {
+          "provider": "hayba",
+          "path": "unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/HaybaMCPLeaseManager.cpp",
+          "lines": [
+            112,
+            138
+          ],
+          "note": "Caller-owned lease identity is not authenticated per-agent isolation.",
+          "url": "https://github.com/zajalist/hayba/blob/b69ed11011f89aed3c444a50bd2331b99551c777/unreal/HaybaMCPToolkit/Source/HaybaMCPToolkit/Private/HaybaMCPLeaseManager.cpp#L112-L138"
+        },
+        {
+          "provider": "claireon",
+          "path": "Content/Python/claireon_proxy.py",
+          "lines": [
+            2851,
+            2881
+          ],
+          "note": "General retries can repeat an uncertain mutation.",
+          "url": "https://github.com/believer-oss/Claireon/blob/89bee2f4c62d1df625cca71ae66e7c81a415a009/Content/Python/claireon_proxy.py#L2851-L2881"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "src/dispatch/locking.ts",
+          "lines": [
+            159,
+            174
+          ],
+          "note": "Lock acquisition failure can run unlocked. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/src/dispatch/locking.ts#L159-L174"
+        }
+      ],
+      "excludedDefaults": [
+        {
+          "provider": "claireon",
+          "native": "generic forwarding retry policy",
+          "reason": "Do not import an automatic retry policy for uncertain mutations.",
+          "scope": "Do not expose as the competing default for this exact contract; upstream implementation and distinct variants remain intact."
+        }
+      ],
+      "preserve": [
+        "Retain every selected backend's native guards.",
+        "UAP machine/input holds are not an asset-lease substitute."
+      ],
+      "qualification": [
+        "Static source review only; live Unreal qualification pending.",
+        "Nexus serial queue is one process only and cannot police direct backend clients."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "src/dispatch/locking.ts",
+          "lines": [
+            150,
+            165
+          ],
+          "note": "Lock acquisition failure can run unlocked.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/src/dispatch/locking.ts#L150-L165"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Core/Subsystem/EngineWireSubsystemRequestQueue.cpp",
+          "lines": [
+            34,
+            83
+          ],
+          "note": "Native per-session/global admission guards.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Core/Subsystem/EngineWireSubsystemRequestQueue.cpp#L34-L83"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Core/Subsystem/EngineWireSubsystemRequestQueue.cpp",
+          "lines": [
+            164,
+            275
+          ],
+          "note": "Native nonreentrancy, fairness and state revisions.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Core/Subsystem/EngineWireSubsystemRequestQueue.cpp#L164-L275"
+        }
+      ]
+    },
+    {
+      "id": "actor-placement",
+      "status": "selected",
+      "scope": "Place one actor in the current editor world without saving.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.place_actor"
+      },
+      "operations": [
+        "actor.place.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1230,
+            1352
+          ],
+          "note": "Explicit editor-world placement and label/class receipt; candidate adds editor lighting-cache finalization. The native receipt still does not verify mesh, resolved world or actor path.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1230-L1352"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorSpawn.cpp",
+          "lines": [
+            145,
+            180
+          ],
+          "note": "Competing spawn chooses PIE world when running before falling back to editor; distinct targeting semantics.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorSpawn.cpp#L145-L180"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelSpawnFinalize.h",
+          "lines": [
+            1,
+            24
+          ],
+          "note": "Editor-world spawn finalization invalidates actor lighting cache after placement.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelSpawnFinalize.h#L1-L24"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "EngineWire spawn retains distinct PIE-first and mesh-validation behavior."
+      ],
+      "qualification": [
+        "Live UE-MCP placement observed; canonical route requires separate live verification and the receipt does not prove the mesh was assigned."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1147,
+            1268
+          ],
+          "note": "Explicit editor-world selector and unsaved spawn; receipt includes label and requested class, not resolved actor path or mesh verification.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1147-L1268"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorSpawn.cpp",
+          "lines": [
+            145,
+            180
+          ],
+          "note": "Competing spawn chooses PIE world when running before falling back to editor; distinct targeting semantics.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorSpawn.cpp#L145-L180"
+        }
+      ]
+    },
+    {
+      "id": "actor-discovery",
+      "status": "selected",
+      "scope": "Paginated actor discovery in the current editor world.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.get_outliner"
+      },
+      "operations": [
+        "actor.list.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            994,
+            1155
+          ],
+          "note": "Editor-world outliner reports paths, actor details, paging and streaming exclusions; candidate delegates folder matching to a helper that also normalizes trailing separators.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L994-L1155"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h",
+          "lines": [
+            58,
+            94
+          ],
+          "note": "Shared folder filtering includes nested paths and trims trailing separators.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerActorResolve.h#L58-L94"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Other providers and PIE-specific discovery remain candidates for distinct contracts."
+      ],
+      "qualification": [
+        "Direct provider query observed the requested named actors; this new canonical route needs its own live test."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            900,
+            1065
+          ],
+          "note": "Editor-world actor listing with path, label, component summary, streaming exclusions and continuation; rows are gathered before pagination.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L900-L1065"
+        }
+      ]
+    },
+    {
+      "id": "actor-transform-editor-fixed",
+      "status": "selected",
+      "scope": "Set one actor transform in the current editor world without saving.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.move_actor"
+      },
+      "operations": [
+        "actor.transform.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            2086,
+            2180
+          ],
+          "note": "Explicit world selection, exact path support, current transform receipt, package dirtying and PostEditMove callbacks. Exact evidence text is unchanged at the candidate revision; shared behavior still requires review.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L2086-L2180"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp",
+          "lines": [
+            7,
+            184
+          ],
+          "note": "Competing transform supports multiple forms and can use fuzzy actor selection; target and partial-effect semantics differ.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/2792ba198403bf0842a6cd91f87113d9d86db8e3/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp#L7-L184"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "EngineWire batch and relative-transform variants remain distinct candidates."
+      ],
+      "qualification": [
+        "Native source comparison only; the canonical route requires live verification."
+      ],
+      "historicalEvidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            2001,
+            2095
+          ],
+          "note": "Explicit world selection, exact path support, current transform receipt, package dirtying and PostEditMove callbacks.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/62bb9a8f4a41b8ce5ff9a0fbbd5fbe0f49a39c7d/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L2001-L2095"
+        },
+        {
+          "provider": "enginewire",
+          "path": "plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp",
+          "lines": [
+            7,
+            184
+          ],
+          "note": "Competing transform supports multiple forms and can use fuzzy actor selection; target and partial-effect semantics differ.",
+          "url": "https://github.com/ChiR24/Unreal_mcp/blob/5a17d6d343ef9b40a509068cff73f1bfb4509815/plugins/EngineWire/Source/EngineWire/Private/Domains/ControlActor/McpActorTransform.cpp#L7-L184"
+        }
+      ]
+    },
+    {
+      "id": "pcg-graph-inspection",
+      "status": "selected",
+      "scope": "Read current PCG graph node names, pin labels and edges.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> pcg.read_graph"
+      },
+      "operations": [
+        "pcg.graph.inspect"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp",
+          "lines": [
+            1068,
+            1160
+          ],
+          "note": "Candidate read returns graph node names, pin labels and edges without a revision or paginated enumeration.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/PCG/PCGHandlers.cpp#L1068-L1160"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Graph mutation and other provider discovery variants remain distinct contracts."
+      ],
+      "qualification": [
+        "Candidate server schema is verified; native behavior and loaded plugin are not yet qualified."
+      ]
+    },
+    {
+      "id": "play-world-discovery",
+      "status": "selected",
+      "scope": "Observe currently materialized PIE and Game world contexts and their native instance metadata.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> editor.list_pie_instances"
+      },
+      "operations": [
+        "play.worlds.list"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIERuntime.cpp",
+          "lines": [
+            678,
+            709
+          ],
+          "note": "Enumerates PIE and Game world contexts, returning native paths, instance identifiers, net mode, viewport presence and player counts. An empty list is not lifecycle ownership or a guarantee against queued starts.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Editor/EditorHandlers_PIERuntime.cpp#L678-L709"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Confirmed owned lifecycle and other status or world-discovery variants remain distinct."
+      ],
+      "qualification": [
+        "Source reviewed; runtime qualification is scoped to the observed editor and build."
+      ]
+    },
+    {
+      "id": "level-current-inspection",
+      "status": "selected",
+      "scope": "Read the current editor edit-level package and world.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.get_current_edit_level"
+      },
+      "operations": [
+        "level.current.inspect"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp",
+          "lines": [
+            699,
+            711
+          ],
+          "note": "The pinned read selects the current edit level; the reviewed compatibility patch adds the level package and world path.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp#L699-L711"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Other level discovery and level-switching operations remain distinct."
+      ],
+      "qualification": [
+        "Guard patch required; runtime evidence is scoped to the identified editor."
+      ]
+    },
+    {
+      "id": "blueprint-basic-authoring",
+      "status": "selected",
+      "scope": "Create one Blueprint and add one explicitly saved variable, with conflict refusal.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> blueprint.create and blueprint.add_variable"
+      },
+      "operations": [
+        "blueprint.create",
+        "blueprint.variable.add"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers.cpp",
+          "lines": [
+            1763,
+            1858
+          ],
+          "note": "Creates one Blueprint and compiles it; the receipt does not establish whether the editor saved it.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers.cpp#L1763-L1858"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers.cpp",
+          "lines": [
+            2074,
+            2174
+          ],
+          "note": "Adds, compiles and saves the variable; reports saved status and a resolved type.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Blueprint/BlueprintHandlers.cpp#L2074-L2174"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "EngineWire variable ensure/default editing and Claireon session-based creation provide distinct variants."
+      ],
+      "qualification": [
+        "Native create and variable-add were observed in a disposable project; the coordinator routes require their own smoke check."
+      ]
+    },
+    {
+      "id": "actor-bounds",
+      "status": "selected",
+      "scope": "World-space axis-aligned bounds for an exact editor-world actor.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.get_actor_bounds"
+      },
+      "operations": [
+        "actor.bounds.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            4123,
+            4176
+          ],
+          "note": "Resolves the requested actor in the selected world and reports actor path and component bounds, with a native bounds fallback.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L4123-L4176"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "PIE bounds and spatial queries have distinct world and result contracts."
+      ],
+      "qualification": [
+        "Source-reviewed at the pinned revision; live qualification is scoped to the observed build."
+      ]
+    },
+    {
+      "id": "actor-tags",
+      "status": "selected",
+      "scope": "Read authored tags or add one tag on an exact editor-world actor.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.list_actor_tags / level.add_actor_tag"
+      },
+      "operations": [
+        "actor.tags.list.editor",
+        "actor.tag.add.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp",
+          "lines": [
+            9,
+            52
+          ],
+          "note": "Adds an actor tag with exact path, existing/update receipt and package dirtying without save.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp#L9-L52"
+        },
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp",
+          "lines": [
+            170,
+            211
+          ],
+          "note": "Lists authored actor tags in stable cursor pages with the resolved actor path.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Tags.cpp#L170-L211"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Tag removal, replacement and querying other worlds have distinct side effects and are not implied by these routes."
+      ],
+      "qualification": [
+        "Source reviewed at the pinned revision; live qualification is scoped to the observed build."
+      ]
+    },
+    {
+      "id": "actor-deletion-checked",
+      "status": "selected",
+      "scope": "Destroy one exact loaded editor-world actor, with checked native return and identity.",
+      "winner": {
+        "provider": "ue-mcp",
+        "native": "tools -> level.delete_actor with checked-delete-v1 compatibility patch"
+      },
+      "operations": [
+        "actor.delete.editor"
+      ],
+      "evidence": [
+        {
+          "provider": "ue-mcp",
+          "path": "plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp",
+          "lines": [
+            1355,
+            1429
+          ],
+          "note": "Pinned deletion resolves an actor in the editor world; reviewed compatibility patch checks the resolved path and Unreal destruction return value.",
+          "url": "https://github.com/db-lyon/ue-mcp/blob/da2c0fb5b49b3ef0dc3aba2c761155e40e8fcce8/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp#L1355-L1429"
+        }
+      ],
+      "excludedDefaults": [],
+      "preserve": [
+        "Unloaded World Partition deletion, referenced asset deletion, bulk deletion and persistence have distinct contracts."
+      ],
+      "qualification": [
+        "Candidate source patch and fixture checks do not prove a loaded native plugin; rebuild and live marker required."
+      ]
+    }
+  ]
+}

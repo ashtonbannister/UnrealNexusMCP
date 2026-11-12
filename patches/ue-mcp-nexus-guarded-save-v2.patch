@@ -1,0 +1,296 @@
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
+index 6c42c28ee5546cccc34b832140cca46e9b616e27..b790daa59b007908fa4e9d94bffddbd74ee982cb 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/BridgeServer.cpp
+@@ -652,6 +652,8 @@ TSharedPtr<FJsonObject> FMCPBridgeServer::BuildCapabilitiesPayload()
+ 		TEXT("frame-reassembly"),
+ 		TEXT("control-frames"),
+ 		TEXT("capability-handshake"),
++		TEXT("nexus-pagination-count-v1"),
++		TEXT("nexus-level-save-guard-v1"),
+ 		TEXT("exclusive-port-claim"),
+ 		TEXT("owned-port-record"),
+ 		// #817. Both are always compiled in and always advertised: a caller has
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp
+index dabe946d91ffa106d1b1ad2d469787b0f0bdd9ad..7c72d9142a705c63f87de782570faeaf8f691ac6 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers.cpp
+@@ -210,6 +210,8 @@ void FLevelHandlers::RegisterHandlers(FMCPHandlerRegistry& Registry)
+ 		MCPParam::Optional(TEXT("force"), EType::Boolean, TEXT("Write a package even when it is already clean (default false)")),
+ 		MCPParam::Optional(TEXT("includeExternalActors"), EType::Boolean, TEXT("Also save the level's loaded external actor and folder packages (default true)")),
+ 		MCPParam::Optional(TEXT("commitDeletes"), EType::Boolean, TEXT("Save through the editor's dirty-package save, which deletes the packages of deleted World Partition actors (default false)")),
++		MCPParam::Optional(TEXT("expectedLevelPackage"), EType::String, TEXT("Exact current edit-level package name for the Nexus guard")),
++		MCPParam::Optional(TEXT("nexusNoExternalDelete"), EType::Boolean, TEXT("Refuse external package deletion under the Nexus guard")),
+ 	}, MCPSpec::ContractExempt(TEXT("Saves the current level under the contract values; nothing it reads fails first")));
+ 	Registry.RegisterHandler(TEXT("list_levels"), &ListLevels, {
+ 		SpecCursor, SpecLimit,
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp
+index 1714f669d3a664703c5183fe9ec04aeb6d75fd46..5fcd458c92a1829ea103543b9cb17a4dd257ea89 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_MultiLevel.cpp
+@@ -705,6 +705,8 @@ TSharedPtr<FJsonValue> FLevelHandlers::GetCurrentEditLevel(const TSharedPtr<FJso
+ 	{
+ 		Result->SetStringField(TEXT("levelName"), Cur->GetOuter()->GetName());
+ 		Result->SetStringField(TEXT("levelPath"), Cur->GetOuter()->GetPathName());
++		Result->SetStringField(TEXT("levelPackage"), Cur->GetOutermost()->GetName());
++		Result->SetStringField(TEXT("worldPath"), World->GetPathName());
+ 		Result->SetBoolField(TEXT("isPersistent"), Cur == World->PersistentLevel);
+ 	}
+ 	return MCPResult(Result);
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp
+index 5d0385b1f9459541aed55845d68bb53554158e98..f3889ff7c0172619360869b4e175800c4e09a9c7 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Private/Handlers/Level/LevelHandlers_Save.cpp
+@@ -255,10 +255,63 @@ namespace
+ }
+ 
+ 
+-// level(save): save the level currently being edited, and say what happened.
++static TSharedPtr<FJsonValue> NexusLevelGuardRefusal(const FString& Reason, const FString& Expected, const FString& Actual)
++{
++	auto Result = MakeShared<FJsonObject>();
++	Result->SetBoolField(TEXT("success"), false);
++	Result->SetBoolField(TEXT("mutationStarted"), false);
++	Result->SetNumberField(TEXT("nexusGuardVersion"), 1);
++	Result->SetStringField(TEXT("reason"), Reason);
++	Result->SetStringField(TEXT("expectedLevelPackage"), Expected);
++	Result->SetStringField(TEXT("actualLevelPackage"), Actual);
++	Result->SetStringField(TEXT("error"), TEXT("Guarded level save refused before mutation: ") + Reason);
++	return MCPResult(Result);
++}
++
++static bool NexusIsDirtyEmptyExternal(UPackage* Package)
++{
++	if (!Package || !Package->IsDirty()) return false;
++	const FString Name = Package->GetName();
++	return (Name.Contains(TEXT("/__ExternalActors__/")) || Name.Contains(TEXT("/__ExternalObjects__/")))
++		&& UPackage::IsEmptyPackage(Package);
++}
++
++// Existing direct calls retain upstream behavior. The two Nexus fields
++// together select the exact-target/no-external-delete contract.
+ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>& Params)
+ {
++	const bool bNexusGuarded = Params.IsValid() && (Params->HasField(TEXT("expectedLevelPackage"))
++		|| Params->HasField(TEXT("nexusNoExternalDelete")));
++	if (bNexusGuarded)
++	{
++		bool bNoDelete = false;
++		if (!TryGetBoolParam(Params, TEXT("nexusNoExternalDelete"), bNoDelete) || !bNoDelete
++			|| OptionalBool(Params, TEXT("commitDeletes"), false)
++			|| !OptionalBool(Params, TEXT("includeExternalActors"), true))
++			return MCPError(TEXT("Nexus guarded save requires no external deletion and loaded external actors."));
++	}
+ 	REQUIRE_EDITOR_WORLD(World);
++	FString ExpectedLevelPackage;
++	TWeakObjectPtr<UWorld> GuardWorld;
++	TWeakObjectPtr<ULevel> GuardLevel;
++	if (bNexusGuarded)
++	{
++		if (auto Err = RequireString(Params, TEXT("expectedLevelPackage"), ExpectedLevelPackage)) return Err;
++		ULevel* Current = World->GetCurrentLevel();
++		if (!Current || !Current->GetOutermost())
++			return NexusLevelGuardRefusal(TEXT("no_current_level"), ExpectedLevelPackage, FString());
++		const FString Actual = Current->GetOutermost()->GetName();
++		if (Actual != ExpectedLevelPackage)
++			return NexusLevelGuardRefusal(TEXT("level_mismatch"), ExpectedLevelPackage, Actual);
++		if (Current->IsUsingExternalObjects())
++		{
++			for (UPackage* External : Current->GetLoadedExternalObjectPackages())
++				if (NexusIsDirtyEmptyExternal(External))
++					return NexusLevelGuardRefusal(TEXT("external_deletion_required"), ExpectedLevelPackage, Actual);
++		}
++		GuardWorld = World;
++		GuardLevel = Current;
++	}
+ 
+ 	// A save during PIE is one of the ways the old action produced a bare
+ 	// false. Naming it is the difference between "stop play and try again" and
+@@ -281,9 +334,15 @@ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>&
+ 		++LandscapesMerged;
+ 	}
+ 
++	if (bNexusGuarded && (!GuardWorld.IsValid() || !GuardLevel.IsValid() || !GEditor
++		|| GEditor->GetEditorWorldContext().World() != GuardWorld.Get()
++		|| GuardWorld->GetCurrentLevel() != GuardLevel.Get()
++		|| GuardLevel->GetOutermost()->GetName() != ExpectedLevelPackage))
++		return MCPError(TEXT("Guarded level changed after preflight; landscape work may have occurred. Reconcile before retrying."));
++
+ 	// commitDeletes: the editor's own save path, which removes the external
+ 	// package of a deleted World Partition actor instead of failing on it.
+-	if (OptionalBool(Params, TEXT("commitDeletes"), false))
++	if (!bNexusGuarded && OptionalBool(Params, TEXT("commitDeletes"), false))
+ 	{
+ 		// This branch writes every dirty package, not only the level's.
+ 		if (auto Refused = MCPRefuseSweepWithUnknownParams(Params, { TEXT("force"), TEXT("includeExternalActors"), TEXT("commitDeletes") }, TEXT("level(save, commitDeletes=true)"))) return Refused;
+@@ -326,7 +385,25 @@ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>&
+ 	TArray<TSharedPtr<FJsonValue>> Failed;
+ 	TArray<TSharedPtr<FJsonValue>> Skipped;
+ 	TArray<TSharedPtr<FJsonValue>> Deleted;
+-	MCPCommitEmptyExternalPackages(Packages, Deleted, Failed);
++	if (bNexusGuarded)
++	{
++		// Never invoke the deletion helper. If an empty package appeared after
++		// preflight, report it as a partial failure rather than deleting it.
++		for (int32 Index = Packages.Num() - 1; Index >= 0; --Index)
++		{
++			if (!NexusIsDirtyEmptyExternal(Packages[Index])) continue;
++			auto Entry = MakeShared<FJsonObject>();
++			Entry->SetStringField(TEXT("package"), Packages[Index]->GetName());
++			Entry->SetBoolField(TEXT("emptyPackage"), true);
++			Entry->SetStringField(TEXT("error"), TEXT("Dirty empty external package was not deleted."));
++			Failed.Add(MakeShared<FJsonValueObject>(Entry));
++			Packages.RemoveAt(Index);
++		}
++	}
++	else
++	{
++		MCPCommitEmptyExternalPackages(Packages, Deleted, Failed);
++	}
+ 	for (UPackage* Package : Packages)
+ 	{
+ 		bool bFailed = false;
+@@ -342,6 +419,12 @@ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>&
+ 	Result->SetStringField(TEXT("levelName"), World->GetName());
+ 	Result->SetStringField(TEXT("levelPath"), World->GetPathName());
+ 	Result->SetStringField(TEXT("levelPackage"), LevelPackage->GetName());
++	if (bNexusGuarded)
++	{
++		Result->SetNumberField(TEXT("nexusGuardVersion"), 1);
++		Result->SetStringField(TEXT("expectedLevelPackage"), ExpectedLevelPackage);
++		Result->SetBoolField(TEXT("externalDeletionAllowed"), false);
++	}
+ 	Result->SetBoolField(TEXT("usesExternalActors"), Level->IsUsingExternalObjects());
+ 	Result->SetNumberField(TEXT("externalPackagesLoaded"), ExternalConsidered);
+ 	Result->SetNumberField(TEXT("landscapesMerged"), LandscapesMerged);
+@@ -357,9 +440,9 @@ TSharedPtr<FJsonValue> FLevelHandlers::SaveLevel(const TSharedPtr<FJsonObject>&
+ 	// overwritten the packages it did write.
+ 	if (Saved.Num() > 0 || Deleted.Num() > 0)
+ 	{
+-		MCPSetNoRollback(Result,
+-			TEXT("The level package, and every external actor package that was dirty, were overwritten on disk with the editor's in-memory state, and the packages of deleted actors were removed from it. ")
+-			TEXT("Undoing that needs the previous file contents back, and the bridge has no action that snapshots or restores a package file; source control is what holds the old revision."));
++		MCPSetNoRollback(Result, bNexusGuarded
++			? TEXT("Saved packages were overwritten on disk; no external-package deletion was attempted. Restore previous file contents from a backup or source control.")
++			: TEXT("The level package, and every external actor package that was dirty, were overwritten on disk with the editor's in-memory state, and the packages of deleted actors were removed from it. Undoing that needs the previous file contents back; source control is what holds the old revision."));
+ 	}
+ 
+ 	if (Failed.Num() > 0)
+diff --git a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
+index 15ce9c765f4303fad7c91bb75c0fd17034fc63c7..0a1a9704f618e652d75c228ea45a61d1fba4c183 100644
+--- a/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
++++ b/plugin/ue_mcp_bridge/Source/UE_MCP_Bridge/Public/HandlerPagination.h
+@@ -387,7 +387,10 @@ namespace MCPPagination
+ 			Result->SetBoolField(TEXT("totalKnown"), false);
+ 		}
+ 
+-		if (!bChanged) return;
++		// Rows after the anchor may have changed while the anchor stayed put.
++		const bool bTotalChanged = Request.bResumed && bRowsAreComplete
++			&& Request.TotalAtIssue != INDEX_NONE && Request.TotalAtIssue != Rows.Num();
++		if (!bChanged && !bTotalChanged) return;
+ 
+ 		Result->SetBoolField(TEXT("collectionChanged"), true);
+ 		Result->SetNumberField(TEXT("shiftedBy"), ShiftedBy);
+@@ -410,9 +413,17 @@ namespace MCPPagination
+ 				TEXT("skipped or returned twice. Call again with no 'cursor' if you need an exact enumeration."),
+ 				*Request.ResumeAnchor, ShiftedBy, FMath::Abs(ShiftedBy)));
+ 		}
+-		if (Request.TotalAtIssue != INDEX_NONE && bRowsAreComplete && Request.TotalAtIssue != Rows.Num())
++		else if (bTotalChanged)
+ 		{
++			Result->SetStringField(TEXT("cursorNote"), TEXT(
++				"The collection count changed since this cursor was issued. The anchor remains in place, "
++				"but the pages do not form a consistent snapshot. Call again with no cursor if needed."));
++		}
++		if (bTotalChanged)
++		{
++			// Preserve the old field and clarify that the count is from the issuing page.
+ 			Result->SetNumberField(TEXT("totalAtFirstPage"), Request.TotalAtIssue);
++			Result->SetNumberField(TEXT("totalAtCursor"), Request.TotalAtIssue);
+ 		}
+ 	}
+ }
+diff --git a/src/tools/project/sessions.ts b/src/tools/project/sessions.ts
+index 9cb3fca1b0bb1cfe32b27d2c091d93af6f747dd7..0a5cf1d69971c017b4a014784e17b8cf88cd3b63 100644
+--- a/src/tools/project/sessions.ts
++++ b/src/tools/project/sessions.ts
+@@ -197,6 +197,7 @@ export const sessionActions: Record<string, ActionSpec> = {
+               client: CLIENT_PROTOCOL_VERSION,
+               builtAt: ctx.bridge.capabilities.builtAt,
+               actionCount: ctx.bridge.capabilities.actionCount,
++              features: ctx.bridge.capabilities.features,
+               mismatch: describeProtocolMismatch(ctx.bridge.capabilities) ?? undefined,
+             }
+           : undefined,
+diff --git a/src/tools/specs/level.generated.ts b/src/tools/specs/level.generated.ts
+index 1c3c08634bf7c4310818a694a9995bfbfbef05f5..7171f06d2dee447c8442358342fcc8af56fdad4e 100644
+--- a/src/tools/specs/level.generated.ts
++++ b/src/tools/specs/level.generated.ts
+@@ -4223,6 +4223,18 @@ export const handlerSpecs: HandlerSpecs = {
+         "type": "boolean",
+         "required": false,
+         "description": "Save through the editor's dirty-package save, which deletes the packages of deleted World Partition actors (default false)"
++      },
++      {
++        "name": "expectedLevelPackage",
++        "type": "string",
++        "required": false,
++        "description": "Exact current edit-level package name for the Nexus guard"
++      },
++      {
++        "name": "nexusNoExternalDelete",
++        "type": "boolean",
++        "required": false,
++        "description": "Refuse external package deletion under the Nexus guard"
+       }
+     ],
+     "contractExempt": "Saves the current level under the contract values; nothing it reads fails first"
+@@ -6698,7 +6710,7 @@ export const paramsClauses: Readonly<Record<string, string>> = {
+   resolve_actor: "Params: internalName",
+   restore_blockout: "Params: actorLabel OR actorPath OR actorPaths",
+   restore_component_relative_transform: "Params: actorLabel OR actorPath, componentName, relativeTransform, world?, pieInstance?",
+-  save_level: "Params: force?, includeExternalActors?, commitDeletes?",
++  save_level: "Params: force?, includeExternalActors?, commitDeletes?, expectedLevelPackage?, nexusNoExternalDelete?",
+   scatter_along_spline: "Params: actorLabel OR actorPath, componentName?, generatorName?, meshes?, weights?, mode?, interval?, count?, startOffset?, endOffset?, offset?, positionJitter?, yawJitter?, scaleMin?, scaleMax?, alignToSpline?, seed?, maxCount?, rebuild?",
+   select_actors: "Params: at least one of actorLabels/actorPaths",
+   select_component: "Params: actorLabel?, actorPath?, componentName, addToSelection?",
+@@ -6826,6 +6838,7 @@ export const schema: Record<string, z.ZodType> = {
+   end: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("Ray end; pass end or direction and distance"),
+   endOffset: z.number().optional().describe("Distance along the spline to leave empty at its end, in centimetres"),
+   exactClass: z.boolean().optional().describe("Require classFilter to be the exact class (default true) (convert_brushes_to_static_mesh). Require classFilter to be the exact class name (get_world_outliner)"),
++  expectedLevelPackage: z.string().optional().describe("Exact current edit-level package name for the Nexus guard"),
+   exposure: z.number().optional().describe("Fixed adaptation brightness, written to both min and max"),
+   extent: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("Query extent (default 100, 100, 100) (nav_project_point). Half extent of the cube brush (default 100, 100, 100) (spawn_volume)"),
+   fields: z.array(z.string()).optional().describe("Field groups: transform, bounds, localBounds, shadow, nanite, navigation, tick, materials, mesh, decal, health, physics, attachment, customPrimitiveData"),
+@@ -6931,6 +6944,7 @@ export const schema: Record<string, z.ZodType> = {
+   names: z.array(z.string()).optional().describe("Exact setting names to return"),
+   nearPoint: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("Keep vertices within radius of this point, in space; needs radius"),
+   newName: z.string().optional().describe("New object name; omitted, a unique name is generated from the actor's class (rename_actor_object). New runtime partition name (rename_runtime_partition)"),
++  nexusNoExternalDelete: z.boolean().optional().describe("Refuse external package deletion under the Nexus guard"),
+   offset: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("World-space offset added to each actor's location (batch_translate). Constant offset in the spline's frame: x along it, y to its right, z up (scatter_along_spline)"),
+   onConflict: z.string().optional().describe("When the label or name is taken: skip (default) | error (add_component_to_actor, place_actor, spawn_light, spawn_skeletal_mesh_actor, spawn_volume). When label is taken: skip (default) | error (create_blockout). When the label is taken: skip (default) | update (rewrite its spline points) | error (create_spline_actor)"),
+   onlyColliding: z.boolean().optional().describe("Only colliding components contribute to the bounds (default false) (actors_in_box). Only colliding components contribute to the bounds (get_actor_bounds)"),
+diff --git a/tests/golden/handler-specs.json b/tests/golden/handler-specs.json
+index a1278b913f208201378687cd373a603963aea43d..b8cefe5d9e06cb230b76a790e65155684601af7a 100644
+--- a/tests/golden/handler-specs.json
++++ b/tests/golden/handler-specs.json
+@@ -38415,6 +38415,18 @@
+           "type": "boolean",
+           "required": false,
+           "description": "Save through the editor's dirty-package save, which deletes the packages of deleted World Partition actors (default false)"
++        },
++        {
++          "name": "expectedLevelPackage",
++          "type": "string",
++          "required": false,
++          "description": "Exact current edit-level package name for the Nexus guard"
++        },
++        {
++          "name": "nexusNoExternalDelete",
++          "type": "boolean",
++          "required": false,
++          "description": "Refuse external package deletion under the Nexus guard"
+         }
+       ],
+       "contractExempt": "Saves the current level under the contract values; nothing it reads fails first"

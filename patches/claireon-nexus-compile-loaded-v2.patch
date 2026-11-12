@@ -1,0 +1,339 @@
+diff --git a/Source/Claireon/Private/ClaireonBridge.cpp b/Source/Claireon/Private/ClaireonBridge.cpp
+index 9a97aaa..4bd807d 100644
+--- a/Source/Claireon/Private/ClaireonBridge.cpp
++++ b/Source/Claireon/Private/ClaireonBridge.cpp
+@@ -602,7 +602,15 @@ PyObject* FClaireonBridge::MCPCallTool(PyObject* /*Self*/, PyObject* Args)
+ 
+ 		case EClaireonToolSessionMode::EditorWide:
+ 		{
+-			FMCPOpenSessionResult OpenResult = FClaireonSessionManager::Get().OpenEditorWideSession(ToolName);
++			// The fixed Nexus exact-compile form must never clean up another
++			// caller's expired session while acquiring its editor-wide lock.
++			bool bNexusExactNoSave = false;
++			if (ToolName == TEXT("bp_compile_batch"))
++			{
++				Arguments->TryGetBoolField(TEXT("nexus_exact_no_save"), bNexusExactNoSave);
++			}
++			FMCPOpenSessionResult OpenResult = FClaireonSessionManager::Get().OpenEditorWideSession(
++				ToolName, ClaireonDefaultSessionTimeoutMinutes, !bNexusExactNoSave);
+ 			if (OpenResult.Result == EOpenSessionResult::BlockedByOtherTool)
+ 			{
+ 				if (OpenResult.BlockingSession.IsSet())
+diff --git a/Source/Claireon/Private/ClaireonSessionManager.cpp b/Source/Claireon/Private/ClaireonSessionManager.cpp
+index 54f0a48..ab87b21 100644
+--- a/Source/Claireon/Private/ClaireonSessionManager.cpp
++++ b/Source/Claireon/Private/ClaireonSessionManager.cpp
+@@ -365,12 +365,12 @@ TArray<FMCPSessionClosedInfo> FClaireonSessionManager::CleanupExpiredInternal()
+ 	return Removed;
+ }
+ 
+-FMCPOpenSessionResult FClaireonSessionManager::OpenEditorWideSession(const FString& ToolName, double InTimeoutMinutes)
++FMCPOpenSessionResult FClaireonSessionManager::OpenEditorWideSession(const FString& ToolName, double InTimeoutMinutes, bool bCleanupExpired)
+ {
+ 	// Naming-contract validation belongs at bootstrap time, not session-manager
+ 	// time.
+ 	FScopeLock ScopeLock(&CriticalSection);
+-	CleanupExpiredInternal();
++	if (bCleanupExpired) CleanupExpiredInternal();
+ 
+ 	// Block if another editor-wide session is held.
+ 	if (EditorWideSession.IsSet())
+diff --git a/Source/Claireon/Private/Tests/ClaireonTestTypes.h b/Source/Claireon/Private/Tests/ClaireonTestTypes.h
+index 1ea4951..dd70218 100644
+--- a/Source/Claireon/Private/Tests/ClaireonTestTypes.h
++++ b/Source/Claireon/Private/Tests/ClaireonTestTypes.h
+@@ -89,7 +89,7 @@ class UClaireonUObjectInspectFixture : public UObject
+ 
+ public:
+ 	/** BlueprintReadOnly target for spec case 4. */
+-	UPROPERTY(BlueprintReadOnly)
++	UPROPERTY(BlueprintReadOnly, Category = "Test")
+ 	int32 BpReadOnly = 7;
+ 
+ 	/** Plain UPROPERTY (no BP specifier) for spec case 5. */
+diff --git a/Source/Claireon/Private/Tools/ClaireonTool_BlueprintCompileBatch.cpp b/Source/Claireon/Private/Tools/ClaireonTool_BlueprintCompileBatch.cpp
+index 2809763..5132ecc 100644
+--- a/Source/Claireon/Private/Tools/ClaireonTool_BlueprintCompileBatch.cpp
++++ b/Source/Claireon/Private/Tools/ClaireonTool_BlueprintCompileBatch.cpp
+@@ -18,6 +18,7 @@
+ #include "Kismet2/KismetEditorUtilities.h"
+ #include "Logging/TokenizedMessage.h"
+ #include "Misc/UObjectToken.h"
++#include "Misc/EngineVersionComparison.h"
+ #include "UObject/SoftObjectPath.h"
+ 
+ FString ClaireonTool_BlueprintCompileBatch::GetCategory() const { return kBPCategory; }
+@@ -94,6 +95,11 @@ TSharedPtr<FJsonObject> ClaireonTool_BlueprintCompileBatch::GetInputSchema() con
+ 			 "Default: 50. Set to 0 for unlimited."));
+ 	Properties->SetObjectField(TEXT("max_count"), MaxCountProp);
+ 
++	TSharedPtr<FJsonObject> NexusExactProp = MakeShared<FJsonObject>();
++	NexusExactProp->SetStringField(TEXT("type"), TEXT("boolean"));
++	NexusExactProp->SetStringField(TEXT("description"),
++		TEXT("Nexus fixed exact-asset, no-save compile; refuses folder expansion, cleanup and source removal"));
++	Properties->SetObjectField(TEXT("nexus_exact_no_save"), NexusExactProp);
+ 	Schema->SetObjectField(TEXT("properties"), Properties);
+ 
+ 	return Schema;
+@@ -142,12 +148,16 @@ namespace ClaireonTool_BlueprintCompileBatch_Private
+ 		const FString& BlueprintPath,
+ 		bool bRemoveUnused,
+ 		bool bFailOnWarnings,
++		bool bNexusExactNoSave,
+ 		int32& OutSucceeded,
+ 		int32& OutFailed)
+ 	{
+ 		double StartTime = FPlatformTime::Seconds();
+ 
+-		UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *BlueprintPath);
++		// Loading a Blueprint can itself queue a compile without SkipSave.
++		// The fixed no-save form therefore requires the object already loaded.
++		UBlueprint* Blueprint = bNexusExactNoSave
++			? FindObject<UBlueprint>(nullptr, *BlueprintPath) : LoadObject<UBlueprint>(nullptr, *BlueprintPath);
+ 		if (!IsValid(Blueprint))
+ 		{
+ 			OutFailed++;
+@@ -156,13 +166,25 @@ namespace ClaireonTool_BlueprintCompileBatch_Private
+ 			ResultObj->SetStringField(TEXT("blueprint_path"), BlueprintPath);
+ 			ResultObj->SetStringField(TEXT("status"), TEXT("failed"));
+ 			TArray<TSharedPtr<FJsonValue>> Errors;
+-			Errors.Add(MakeShared<FJsonValueString>(TEXT("Failed to load Blueprint")));
++			Errors.Add(MakeShared<FJsonValueString>(bNexusExactNoSave
++				? TEXT("Exact no-save compile requires the Blueprint to be already loaded")
++				: TEXT("Failed to load Blueprint")));
+ 			ResultObj->SetArrayField(TEXT("errors"), Errors);
+ 			ResultObj->SetArrayField(TEXT("warnings"), TArray<TSharedPtr<FJsonValue>>());
+ 			ResultObj->SetNumberField(TEXT("compile_time_ms"), 0.0);
+ 			return ResultObj;
+ 		}
+ 
++		if (bNexusExactNoSave && Blueprint->bBeingCompiled)
++		{
++			OutFailed++;
++			TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
++			ResultObj->SetStringField(TEXT("blueprint_path"), BlueprintPath);
++			ResultObj->SetStringField(TEXT("status"), TEXT("busy"));
++			ResultObj->SetBoolField(TEXT("mutation_started"), false);
++			return ResultObj;
++		}
++
+ 		// Optionally remove unused variables / nodes
+ 		int32 RemovedVariables = 0;
+ 		if (bRemoveUnused)
+@@ -182,12 +204,21 @@ namespace ClaireonTool_BlueprintCompileBatch_Private
+ 		ResultsLog.SetSourcePath(Blueprint->GetPathName());
+ 		ResultsLog.BeginEvent(TEXT("BatchCompile"));
+ 		EBlueprintCompileOptions CompileOptions = EBlueprintCompileOptions::BatchCompile;
++		if (bNexusExactNoSave)
++		{
++			CompileOptions |= EBlueprintCompileOptions::SkipSave;
++#if !UE_VERSION_OLDER_THAN(5, 8, 0)
++			CompileOptions |= EBlueprintCompileOptions::SkipGarbageCollection;
++#endif
++		}
+ 		FKismetEditorUtilities::CompileBlueprint(Blueprint, CompileOptions, &ResultsLog);
+ 		ResultsLog.EndEvent();
+ 
+ 		double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
+ 
+-		bool bCompileSucceeded = (Blueprint->Status != BS_Error);
++		bool bCompileSucceeded = bNexusExactNoSave
++			? (Blueprint->Status == BS_UpToDate || Blueprint->Status == BS_UpToDateWithWarnings)
++			: (Blueprint->Status != BS_Error);
+ 		if (bFailOnWarnings && Blueprint->Status == BS_UpToDateWithWarnings)
+ 		{
+ 			bCompileSucceeded = false;
+@@ -204,17 +235,30 @@ namespace ClaireonTool_BlueprintCompileBatch_Private
+ 
+ 		TArray<TSharedPtr<FJsonValue>> Errors;
+ 		TArray<TSharedPtr<FJsonValue>> Warnings;
++		int32 TotalErrors = 0, TotalWarnings = 0;
++		bool bDiagnosticsTruncated = false, bSyntheticError = false;
+ 		for (const TSharedRef<FTokenizedMessage>& Message : ResultsLog.Messages)
+ 		{
+-			const FString MessageText = BatchCompileFormatMessage(Message);
++			FString MessageText = BatchCompileFormatMessage(Message);
++			if (bNexusExactNoSave && MessageText.Len() > 4096)
++			{
++				MessageText.LeftInline(4096);
++				bDiagnosticsTruncated = true;
++			}
+ 			switch (Message->GetSeverity())
+ 			{
+ 			case EMessageSeverity::Error:
+-				Errors.Add(MakeShared<FJsonValueString>(MessageText));
++				++TotalErrors;
++				if (!bNexusExactNoSave || Errors.Num() + Warnings.Num() < 100)
++					Errors.Add(MakeShared<FJsonValueString>(MessageText));
++				else bDiagnosticsTruncated = true;
+ 				break;
+ 			case EMessageSeverity::Warning:
+ 			case EMessageSeverity::PerformanceWarning:
+-				Warnings.Add(MakeShared<FJsonValueString>(MessageText));
++				++TotalWarnings;
++				if (!bNexusExactNoSave || Errors.Num() + Warnings.Num() < 100)
++					Warnings.Add(MakeShared<FJsonValueString>(MessageText));
++				else bDiagnosticsTruncated = true;
+ 				break;
+ 			default:
+ 				break;
+@@ -226,6 +270,12 @@ namespace ClaireonTool_BlueprintCompileBatch_Private
+ 		// warnings[] instead, so only the hard-error status gets the fallback.)
+ 		if (Blueprint->Status == BS_Error && Errors.Num() == 0)
+ 		{
++			if (bNexusExactNoSave && Warnings.Num() >= 100)
++			{
++				Warnings.Pop();
++				bDiagnosticsTruncated = true;
++			}
++			bSyntheticError = true;
+ 			Errors.Add(MakeShared<FJsonValueString>(FString::Printf(
+ 				TEXT("Compile failed for %s but the compiler log captured no error messages; see the editor log for details"),
+ 				*BlueprintPath)));
+@@ -239,6 +289,22 @@ namespace ClaireonTool_BlueprintCompileBatch_Private
+ 		ResultObj->SetNumberField(TEXT("error_count"), Errors.Num());
+ 		ResultObj->SetNumberField(TEXT("warning_count"), Warnings.Num());
+ 		ResultObj->SetNumberField(TEXT("compile_time_ms"), ElapsedMs);
++		if (bNexusExactNoSave)
++		{
++			ResultObj->SetNumberField(TEXT("nexusCompileVersion"), 1);
++			ResultObj->SetNumberField(TEXT("total_errors"), TotalErrors);
++			ResultObj->SetNumberField(TEXT("total_warnings"), TotalWarnings);
++			ResultObj->SetBoolField(TEXT("diagnostics_truncated"), bDiagnosticsTruncated);
++			ResultObj->SetBoolField(TEXT("synthetic_error"), bSyntheticError);
++			ResultObj->SetBoolField(TEXT("skip_save"), true);
++			ResultObj->SetBoolField(TEXT("cleanup_expired"), false);
++			ResultObj->SetBoolField(TEXT("source_cleanup"), false);
++			ResultObj->SetStringField(TEXT("resolved_object_path"), Blueprint->GetPathName());
++			ResultObj->SetStringField(TEXT("compiler_status"),
++				Blueprint->Status == BS_UpToDate ? TEXT("up_to_date") :
++				Blueprint->Status == BS_UpToDateWithWarnings ? TEXT("warnings") :
++				Blueprint->Status == BS_Error ? TEXT("error") : TEXT("unknown"));
++		}
+ 
+ 		if (bRemoveUnused && RemovedVariables > 0)
+ 		{
+@@ -282,6 +348,24 @@ IClaireonTool::FToolResult ClaireonTool_BlueprintCompileBatch::Execute(const TSh
+ 		return MakeErrorResult(TEXT("Invalid arguments"));
+ 	}
+ 
++	bool bNexusExactNoSave = false;
++	if (Arguments->HasField(TEXT("nexus_exact_no_save"))
++		&& !Arguments->TryGetBoolField(TEXT("nexus_exact_no_save"), bNexusExactNoSave))
++		return MakeErrorResult(TEXT("nexus_exact_no_save must be a boolean"));
++	if (bNexusExactNoSave)
++	{
++		const TArray<TSharedPtr<FJsonValue>>* ExactPaths = nullptr;
++		bool bRemove = false, bFailWarnings = false;
++		double Max = 0;
++		if (!Arguments->TryGetArrayField(TEXT("paths"), ExactPaths) || !ExactPaths || ExactPaths->Num() != 1
++			|| !(*ExactPaths)[0].IsValid() || (*ExactPaths)[0]->Type != EJson::String
++			|| (*ExactPaths)[0]->AsString().IsEmpty()
++			|| !Arguments->TryGetNumberField(TEXT("max_count"), Max) || Max != 1
++			|| !Arguments->TryGetBoolField(TEXT("remove_unused"), bRemove) || bRemove
++			|| !Arguments->TryGetBoolField(TEXT("failOnWarnings"), bFailWarnings) || bFailWarnings)
++			return MakeErrorResult(TEXT("Nexus exact compile requires one explicit asset, max_count=1 and no source removal"));
++	}
++
+ 	// Parse options
+ 	bool bFailOnWarnings = false;
+ 	if (Arguments->HasField(TEXT("failOnWarnings")))
+@@ -320,6 +404,7 @@ IClaireonTool::FToolResult ClaireonTool_BlueprintCompileBatch::Execute(const TSh
+ 	}
+ 	if (InputObjectPaths.Num() == 0)
+ 	{
++		if (bNexusExactNoSave) return MakeErrorResult(TEXT("Nexus exact compile path is invalid"));
+ 		InputObjectPaths.Add(TEXT("/Game"));
+ 		InputPackagePaths.Add(TEXT("/Game"));
+ 	}
+@@ -330,7 +415,15 @@ IClaireonTool::FToolResult ClaireonTool_BlueprintCompileBatch::Execute(const TSh
+ 	TArray<FString> BlueprintPaths;
+ 	for (int32 Idx = 0; Idx < InputObjectPaths.Num(); ++Idx)
+ 	{
+-		BatchResolvePath(InputObjectPaths[Idx], InputPackagePaths[Idx], AssetRegistry, BlueprintPaths);
++		if (bNexusExactNoSave)
++		{
++			const FAssetData Asset = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(InputObjectPaths[Idx]));
++			if (!Asset.IsValid() || !ClaireonBlueprintHelpers::IsBlueprintAssetClass(Asset.AssetClassPath.GetAssetName().ToString())
++				|| Asset.GetObjectPathString() != InputObjectPaths[Idx])
++				return MakeErrorResult(TEXT("Nexus exact compile requires one existing exact Blueprint asset"));
++			BlueprintPaths.Add(Asset.GetObjectPathString());
++		}
++		else BatchResolvePath(InputObjectPaths[Idx], InputPackagePaths[Idx], AssetRegistry, BlueprintPaths);
+ 	}
+ 
+ 	FString SourceDescription = FString::Join(InputObjectPaths, TEXT(", "));
+@@ -385,7 +478,7 @@ IClaireonTool::FToolResult ClaireonTool_BlueprintCompileBatch::Execute(const TSh
+ 
+ 	for (int32 i = 0; i < Total; ++i)
+ 	{
+-		TSharedPtr<FJsonObject> Result = BatchCompileOneBlueprint(BlueprintPaths[i], bRemoveUnused, bFailOnWarnings, NumSucceeded, NumFailed);
++		TSharedPtr<FJsonObject> Result = BatchCompileOneBlueprint(BlueprintPaths[i], bRemoveUnused, bFailOnWarnings, bNexusExactNoSave, NumSucceeded, NumFailed);
+ 		ResultsArray.Add(MakeShared<FJsonValueObject>(Result));
+ 
+ 		// Tick the editor thread after every compile to keep the editor responsive
+diff --git a/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp b/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp
+index 1c7166a..fda5d49 100644
+--- a/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp
++++ b/Source/Claireon/Private/Tools/ClaireonTool_ExecutePython.cpp
+@@ -467,6 +467,14 @@ TSharedPtr<FJsonObject> ClaireonTool_ExecutePython::GetInputSchema() const
+ 			 "at most once per invocation and coalesced with occurrence counts."));
+ 	Properties->SetObjectField(TEXT("quiet"), QuietProp);
+ 
++	// Nexus compatibility: opt out per call, before any script can execute.
++	TSharedPtr<FJsonObject> NexusSkipAutoSaveProp = MakeShared<FJsonObject>();
++	NexusSkipAutoSaveProp->SetStringField(TEXT("type"), TEXT("boolean"));
++	NexusSkipAutoSaveProp->SetBoolField(TEXT("default"), false);
++	NexusSkipAutoSaveProp->SetStringField(TEXT("description"),
++		TEXT("Nexus reviewed compatibility v1: true skips this invocation's pre-Python and deferred-action automatic package saves. Does not suppress explicit saves inside called tools."));
++	Properties->SetObjectField(TEXT("nexus_skip_auto_save"), NexusSkipAutoSaveProp);
++
+ 	Schema->SetObjectField(TEXT("properties"), Properties);
+ 
+ 	TArray<TSharedPtr<FJsonValue>> Required;
+@@ -516,6 +524,8 @@ IClaireonTool::FToolResult ClaireonTool_ExecutePython::Execute(const TSharedPtr<
+ 	// every advisory hint channel for this invocation.
+ 	bool bQuietHints = false;
+ 	Arguments->TryGetBoolField(TEXT("quiet"), bQuietHints);
++	bool bNexusSkipAutoSave = false;
++	Arguments->TryGetBoolField(TEXT("nexus_skip_auto_save"), bNexusSkipAutoSave);
+ 
+ 	FClaireonBridge::EnsureRegistered();
+ 
+@@ -566,7 +576,10 @@ IClaireonTool::FToolResult ClaireonTool_ExecutePython::Execute(const TSharedPtr<
+ 	}
+ 
+ 	// Step 4b: Auto-save dirty packages before crash-risk Python execution
+-	FClaireonAutoSave::SaveIfNeeded(/*bIsPythonExecution=*/true);
++	if (!bNexusSkipAutoSave)
++	{
++		FClaireonAutoSave::SaveIfNeeded(/*bIsPythonExecution=*/true);
++	}
+ 
+ 	// Step 5: Construct FPythonCommandEx — use ExecuteFile (matches original editor.python.execute)
+ 	FPythonCommandEx PythonCommand;
+@@ -670,7 +683,10 @@ IClaireonTool::FToolResult ClaireonTool_ExecutePython::Execute(const TSharedPtr<
+ 		// no path filter. Captured here and attached to the result below; the
+ 		// return value used to be discarded, so a write into a tracked asset left
+ 		// no trace in the envelope at all.
+-		FClaireonAutoSave::SaveIfNeeded(/*bIsPythonExecution=*/false, &AutoSavedPackages);
++		if (!bNexusSkipAutoSave)
++		{
++			FClaireonAutoSave::SaveIfNeeded(/*bIsPythonExecution=*/false, &AutoSavedPackages);
++		}
+ 
+ 		TArray<FClaireonDeferredAction> Actions = FClaireonBridge::DrainDeferredActions();
+ 		for (const FClaireonDeferredAction& Action : Actions)
+diff --git a/Source/Claireon/Public/ClaireonSessionManager.h b/Source/Claireon/Public/ClaireonSessionManager.h
+index 55d1a40..a635df8 100644
+--- a/Source/Claireon/Public/ClaireonSessionManager.h
++++ b/Source/Claireon/Public/ClaireonSessionManager.h
+@@ -115,7 +115,7 @@ public:
+ 	 * Operators can call session_release on the blocking session id to recover.
+ 	 */
+ 	FMCPOpenSessionResult OpenEditorWideSession(const FString& ToolName,
+-		double TimeoutMinutes = ClaireonDefaultSessionTimeoutMinutes);
++		double TimeoutMinutes = ClaireonDefaultSessionTimeoutMinutes, bool bCleanupExpired = true);
+ 
+ 	/** Close the editor-wide session by id. Returns true if the supplied id matched the active editor-wide session. */
+ 	bool CloseEditorWideSession(const FString& SessionId);

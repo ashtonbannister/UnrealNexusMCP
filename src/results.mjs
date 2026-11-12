@@ -1,0 +1,520 @@
+import { isDeepStrictEqual } from 'node:util';
+import { nativeOutcomeUnknown } from './native-outcomes.mjs';
+import { validatePngScanlineIntegrity } from './png-scanline-integrity.mjs';
+
+// Interpret only one unambiguous provider JSON envelope, never nested asset data.
+// UE-MCP may append editor attribution or prepend modal notices as prose.
+function payloadOf(result) {
+  if (result.structuredContent && typeof result.structuredContent === 'object'
+    && !Array.isArray(result.structuredContent)) return result.structuredContent;
+  const parsed = [];
+  for (const part of result.content ?? []) {
+    if (part.type !== 'text') continue;
+    try {
+      const data = JSON.parse(part.text);
+      if (data && typeof data === 'object' && !Array.isArray(data)) parsed.push(data);
+    } catch { /* Preserve prose, but it is not a machine-readable outcome. */ }
+  }
+  return parsed.length === 1 ? parsed[0] : null;
+}
+// Native save rows are per resolved package, not per requested object: two
+// requested objects may collapse to one package row. A shorter receipt cannot
+// prove whether a path was an alias or omitted, so it is conservatively fenced.
+const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const nonempty = value => typeof value === 'string' && value.length > 0;
+const count = value => Number.isSafeInteger(value) && value >= 0;
+// Only ASCII spaces at the end are normalized. Unreal's treatment of other
+// Unicode whitespace is not established for the selected engine.
+const savePath = value => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.replace(/ +$/u, '');
+  return trimmed === value.trim() ? trimmed : null;
+};
+function coherentExactAssetSave(payload, args, isFailure = false) {
+  if (!Array.isArray(args.assetPaths) || !args.assetPaths.length || !Array.isArray(payload.results)
+    || payload.results.length < 1 || payload.results.length > args.assetPaths.length
+    || payload.force !== (args.force ?? false)
+    || !count(payload.savedCount) || !count(payload.notDirtyCount) || !count(payload.failedCount)
+    || (isFailure ? payload.failedCount < 1 || !nonempty(payload.error) : payload.failedCount !== 0 || Object.hasOwn(payload,'error'))
+    || payload.savedCount + payload.notDirtyCount + payload.failedCount !== payload.results.length
+    || Object.hasOwn(payload,'refused') || payload.rollbackPossible !== false || !nonempty(payload.rollbackNote)) return false;
+  if (payload.savedCount > 0 ? payload.updated !== true || Object.hasOwn(payload,'unchanged')
+    : payload.updated !== false || payload.unchanged !== true) return false;
+  const normalized = args.assetPaths.map(savePath);
+  if (normalized.includes(null)) return false;
+  const requested = new Set(normalized);
+  if (payload.results.length !== requested.size) return false;
+  const paths = new Set(), packages = new Set();
+  let saved = 0, clean = 0, failed = 0;
+  for (const row of payload.results) {
+    if (!record(row) || !nonempty(row.path) || !requested.has(row.path) || paths.has(row.path)
+      || !nonempty(row.package) || packages.has(row.package) || typeof row.wasDirty !== 'boolean') return false;
+    paths.add(row.path); packages.add(row.package);
+    if (row.status === 'saved') {
+      if (typeof row.stillDirty !== 'boolean' || (!row.wasDirty && !payload.force)) return false;
+      saved++;
+    } else if (row.status === 'notDirty') {
+      if (row.wasDirty || payload.force) return false;
+      clean++;
+    } else if (row.status === 'failed' && isFailure) {
+      if (typeof row.stillDirty !== 'boolean' || !nonempty(row.reason) || (!row.wasDirty && !payload.force)) return false;
+      failed++;
+    } else return false;
+  }
+  if (saved !== payload.savedCount || clean !== payload.notDirtyCount || failed !== payload.failedCount) return false;
+  if (isFailure) {
+    const first = payload.results.find(row => row.status === 'failed');
+    return payload.error === `${failed} of ${saved + failed} packages did not reach disk. The first: ${first.package}: ${first.reason}`;
+  }
+  return true;
+}
+// Native validates the complete selector before entering its save loop and
+// explicitly reports every refused input. Do not infer package aliases here.
+function exactAssetPreflightRefusal(payload, args) {
+  if (!Array.isArray(args.assetPaths) || !args.assetPaths.length || !Array.isArray(payload.refused)
+    || !payload.refused.length || payload.refused.length > args.assetPaths.length
+    || Object.keys(payload).length !== 3 || !nonempty(payload.error)) return false;
+  const remaining = new Map();
+  for (const path of args.assetPaths) {
+    const normalized = savePath(path);
+    if (normalized === null) return false;
+    remaining.set(normalized, (remaining.get(normalized) ?? 0) + 1);
+  }
+  for (const row of payload.refused) {
+    if (!record(row) || !nonempty(row.path) || row.status !== 'refused' || !nonempty(row.reason)
+      || !remaining.get(row.path)) return false;
+    remaining.set(row.path, remaining.get(row.path) - 1);
+  }
+  const first = payload.refused[0];
+  return payload.error === `${payload.refused.length} of ${args.assetPaths.length} assetPaths cannot be saved, so nothing was written. The first: '${first.path}' - ${first.reason}`;
+}
+function levelGuardReceipt(payload, expectedArgs) {
+  return payload?.nexusGuardVersion === 1 && payload.expectedLevelPackage === expectedArgs.expectedLevelPackage
+    && payload.levelPackage === expectedArgs.expectedLevelPackage && payload.externalDeletionAllowed === false
+    && payload.deletedCount === 0 && (payload.deleted === undefined || (Array.isArray(payload.deleted) && payload.deleted.length === 0));
+}
+function levelGuardRefusal(payload, expectedArgs) {
+  if (payload?.nexusGuardVersion !== 1 || payload.mutationStarted !== false || !nonempty(payload.error)
+    || payload.expectedLevelPackage !== expectedArgs.expectedLevelPackage || typeof payload.actualLevelPackage !== 'string') return false;
+  return (payload.reason === 'level_mismatch' && payload.actualLevelPackage !== '' && payload.actualLevelPackage !== expectedArgs.expectedLevelPackage)
+    || (payload.reason === 'external_deletion_required' && payload.actualLevelPackage === expectedArgs.expectedLevelPackage)
+    || (payload.reason === 'no_current_level' && payload.actualLevelPackage === '');
+}
+
+function coherentLevelSave(payload, isFailure = false) {
+  if (!nonempty(payload.levelName) || !nonempty(payload.levelPath) || !nonempty(payload.levelPackage)
+    || typeof payload.usesExternalActors !== 'boolean' || !count(payload.externalPackagesLoaded)
+    || !count(payload.landscapesMerged) || !count(payload.savedCount) || !count(payload.failedCount)
+    || (isFailure ? payload.failedCount < 1 || !nonempty(payload.error) : payload.failedCount !== 0 || Object.hasOwn(payload,'error'))
+    || !count(payload.skippedCount) || !count(payload.deletedCount) || !Array.isArray(payload.saved)
+    || payload.saved.length !== payload.savedCount) return false;
+  if (payload.savedCount + payload.deletedCount > 0
+    ? payload.rollbackPossible !== false || !nonempty(payload.rollbackNote)
+    : Object.hasOwn(payload,'rollbackPossible') || Object.hasOwn(payload,'rollbackNote')) return false;
+  const rows = (field, n) => payload[field] === undefined ? n === 0
+    : Array.isArray(payload[field]) && payload[field].length === n;
+  if (!rows('skipped',payload.skippedCount) || !rows('deleted',payload.deletedCount)
+    || !rows('failed',payload.failedCount)) return false;
+  if (!payload.saved.every(row => record(row) && nonempty(row.package) && row.saved === true)) return false;
+  if (!(payload.skipped ?? []).every(row => record(row) && nonempty(row.package)
+    && row.saved === false && row.skipped === true)) return false;
+  if (!(payload.deleted ?? []).every(row => record(row) && nonempty(row.package)
+    && row.emptyPackage === true && typeof row.deleted === 'boolean'
+    && (row.deleted ? !Object.hasOwn(row,'neverOnDisk') : row.neverOnDisk === true))) return false;
+  if (!(payload.failed ?? []).every(row => record(row) && nonempty(row.package) && nonempty(row.error)
+    && (row.saved === false || (row.emptyPackage === true && row.saved === undefined)))) return false;
+  if (isFailure && payload.error !== payload.failed[0].error) return false;
+  const levelRows = [...payload.saved,...(payload.skipped ?? []),...(payload.failed ?? [])];
+  const packages = [...levelRows,...(payload.deleted ?? [])].map(row => row.package);
+  return levelRows.filter(row => row.package === payload.levelPackage).length === 1
+    && new Set(packages).size === packages.length;
+}
+// EngineWire's pinned native transport limits returned PNG bytes to 3 MiB.
+// Validates bounded PNG framing and scanlines, not full decoding or pixels.
+function viewportImageReceipt(result, expectedArgs) {
+  const envelope = result.structuredContent;
+  if (!record(envelope) || envelope.success !== true || envelope.operation !== 'execute'
+    || !record(envelope.data) || result.isError === true) return false;
+  const {width,height,view,sizeBytes,mimeType} = envelope.data;
+  // The selected native route always requests inline image output. Its pinned
+  // default bounding box is 1600x900; explicit resolution is also a downscale
+  // bounding box, not an exact rerender or a preallocation limit.
+  const resolution = expectedArgs.resolution ?? '1600x900';
+  const box = typeof resolution === 'string' && /^([1-9][0-9]{0,3})x([1-9][0-9]{0,3})$/u.exec(resolution);
+  if (!box || width > Number(box[1]) || height > Number(box[2])) return false;
+  const maxBytes = 3 * 1024 * 1024, maxPixels = 4 * 1024 * 1024;
+  if (!Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0
+    || width > Math.floor(maxPixels / height)
+    || !['editor_viewport','pie_game','pie_ejected'].includes(view) || mimeType !== 'image/png'
+    || !Number.isSafeInteger(sizeBytes) || sizeBytes < 45 || sizeBytes > maxBytes) return false;
+  const images = result.content.filter(part => part?.type === 'image');
+  if (images.length !== 1 || images[0].mimeType !== 'image/png' || typeof images[0].data !== 'string') return false;
+  const encoded = images[0].data;
+  if (encoded.length !== 4 * Math.ceil(sizeBytes / 3)
+    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(encoded)) return false;
+  const png = Buffer.from(encoded,'base64');
+  if (png.length !== sizeBytes || png.toString('base64') !== encoded) return false;
+  try {
+    validatePngScanlineIntegrity(png,{width,height,maxEncodedBytes:maxBytes,maxPixels,
+      maxInflatedBytes:40 * 1024 * 1024,maxDimension:9999,maxChunks:4096});
+  } catch { return false; }
+  return true;
+}
+// A direct PIE image must preserve the exact host-generated request identity,
+// target and one validated PNG. The backend socket bounds reassembly first.
+function pieImageReceipt(result, payload, expectedArgs) {
+  if (!record(payload) || result.isError === true || payload.success !== true
+    || payload.nexusCaptureVersion !== 1 || payload.nonce !== expectedArgs.nonce
+    || payload.worldPath !== expectedArgs.worldPath || payload.pieInstance !== expectedArgs.pieInstance
+    || !Number.isSafeInteger(payload.width) || payload.width < 1 || payload.width > 4096
+    || !Number.isSafeInteger(payload.height) || payload.height < 1 || payload.height > 4096
+    || payload.width > Math.floor(4194304 / payload.height)
+    || !Number.isSafeInteger(payload.pngBytes) || payload.pngBytes < 45 || payload.pngBytes > 8 * 1024 * 1024
+    || (payload.paramsNotRead !== undefined && (!Array.isArray(payload.paramsNotRead)
+      || payload.paramsNotRead.some(x => ['nonce','worldPath','pieInstance'].includes(x))))
+    || Object.hasOwn(payload,'pngBase64')) return false;
+  const images = result.content.filter(part => part?.type === 'image');
+  if (images.length !== 1 || images[0].mimeType !== 'image/png' || typeof images[0].data !== 'string') return false;
+  const encoded = images[0].data;
+  if (encoded.length !== 4 * Math.ceil(payload.pngBytes / 3) || !/^[A-Za-z0-9+/]*={0,2}$/u.test(encoded)) return false;
+  const png = Buffer.from(encoded, 'base64');
+  if (png.length !== payload.pngBytes || png.toString('base64') !== encoded) return false;
+  try {
+    validatePngScanlineIntegrity(png,{width:payload.width,height:payload.height,maxEncodedBytes:8 * 1024 * 1024,
+      maxPixels:4194304,maxInflatedBytes:40 * 1024 * 1024,maxDimension:4096,maxChunks:4096});
+  } catch { return false; }
+  return true;
+}
+const levelPieRefusal = payload => Object.keys(payload).length === 2
+  && payload.error === 'Play In Editor is running; stop it before saving the level. Saving during PIE is what produced an unexplained failure before.';
+export function normalizeResult(operation, result, expectedArgs = {}) {
+  if (!result || typeof result !== 'object' || !Array.isArray(result.content)) {
+    throw new Error('Malformed backend MCP result');
+  }
+  const payload = payloadOf(result);
+  let failed = result.isError === true || payload?.ok === false || payload?.success === false || payload?.bIsError === true;
+  let policy = 'backend-response-only';
+  let outcomeUnknown = nativeOutcomeUnknown(operation.provider,result);
+  if (operation.provider === 'unrealagentplayer') {
+    policy = 'uap-json-envelope';
+    if (payload?.error?.code === 'UE_STATUS_UNVERIFIED') { failed = true; outcomeUnknown = true; }
+    if (!payload || typeof payload.ok !== 'boolean' || typeof payload.phase !== 'string' || !payload.phase) failed = true;
+    if (operation.id === 'pie.status' && payload?.ok === true
+      && (!['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)
+        || typeof payload.elapsed !== 'number' || !Number.isFinite(payload.elapsed) || payload.elapsed < 0)) {
+      failed = true; outcomeUnknown = true;
+    }
+    if (operation.id === 'pie.start.viewport'
+      && (payload?.playing !== true || !['Playing','Paused'].includes(payload?.phase))) failed = true;
+    if (operation.id === 'pie.stop' && (payload?.stopped !== true || payload?.phase !== 'NotPlaying')) failed = true;
+  }
+  if (operation.provider === 'unrealagentplayer' && operation.effect === 'lifecycle') {
+    // Native start deadlines return a normal MCP response while queued work can
+    // still take effect. Stop can likewise return before teardown is complete.
+    outcomeUnknown = !payload
+      || (payload.ok === true && (!/^[0-9a-f]{32}$/iu.test(payload.editorEpoch ?? '')
+        || !/^[0-9a-f]{32}$/iu.test(payload.sessionId ?? '')))
+      || typeof payload.phase !== 'string' || !['NotPlaying','Starting','Playing','Paused','Ending'].includes(payload.phase)
+      || ['UE_CONNECTION_RESET','UE_CROSSED_RESPONSE','PYTHON_RUNTIME','UE_STATUS_UNVERIFIED'].includes(payload.error?.code)
+      || (payload.queued === true && payload.confirmed !== true)
+      || ['Starting','Ending'].includes(payload.phase)
+      || (operation.id === 'pie.stop' && payload.stopped === false
+        && payload.phase !== 'NotPlaying');
+    if (outcomeUnknown) failed = true;
+  }
+  const ueRefusalPrefix = operation.provider === 'ue-mcp' && result.isError === true
+    && result.content[0]?.type === 'text'
+    && /^Error \[(?:NOT_CONNECTED|INVALID_PARAMS)\]: /u.test(result.content[0].text);
+  // A refusal prefix mixed with JSON completion envelopes is contradictory.
+  const ueEnvelopes = operation.provider === 'ue-mcp' ? result.content.flatMap(part => {
+    if (part?.type !== 'text') return [];
+    try { const value = JSON.parse(part.text); return value && typeof value === 'object' && !Array.isArray(value) ? [value] : []; }
+    catch { return []; }
+  }) : [];
+  if (ueRefusalPrefix && (ueEnvelopes.length || result.structuredContent)) outcomeUnknown = true;
+  if (operation.provider === 'ue-mcp' && (ueEnvelopes.length > 1
+    || (result.structuredContent && ueEnvelopes.length === 1
+      && !isDeepStrictEqual(result.structuredContent,ueEnvelopes[0])))) outcomeUnknown = true;
+  // Pinned UE native handlers use HandlerResult.h's boolean success envelope;
+  // the selected Node-local PCG waiter also supplies a boolean success field.
+  // A dialog refusal can explicitly report that work had already started.
+  if (operation.provider === 'ue-mcp' && payload?.partiallyApplied === true) outcomeUnknown = true;
+  if (operation.provider === 'ue-mcp' && typeof payload?.success !== 'boolean') {
+    failed = true;
+    // Only reviewed pre-dispatch refusals can substitute for a native JSON receipt.
+    const refusal = ueRefusalPrefix && !ueEnvelopes.length && !result.structuredContent;
+    if (!refusal) outcomeUnknown = true;
+  }
+  if (operation.id.startsWith('input.action.hold.')) {
+    policy = 'require-owned-local-input-hold-receipt';
+    const unread = payload?.paramsNotRead;
+    const unreadUnsafe = unread !== undefined && (!record(unread) || !Array.isArray(unread.params)
+      || unread.params.some(name => ['native_id','owner_token','action_path','world_path','pie_instance','client_id',
+        'lease_seconds','value_x','value_y','value_z'].includes(name)));
+    const base = payload?.success === true && result.isError !== true && payload.nexusHoldVersion === 1
+      && payload.native_id === expectedArgs.native_id && payload.continuousSlotTouched === false
+      && !Object.hasOwn(payload,'owner_token') && !unreadUnsafe;
+    const start = operation.id === 'input.action.hold.start' && payload?.started === true
+      && payload.action === expectedArgs.action_path && payload.world_path === expectedArgs.world_path
+      && payload.pie_instance === expectedArgs.pie_instance && payload.client_id === expectedArgs.client_id
+      && payload.lease_seconds === expectedArgs.lease_seconds && payload.firstFramePending === true;
+    const update = operation.id === 'input.action.hold.update' && payload?.updated === true && count(payload.framesQueued);
+    const stop = operation.id === 'input.action.hold.stop' && payload?.stopped === true
+      && count(payload.framesQueued) && payload.oneFrameMayRemain === true && typeof payload.expiredOrEnded === 'boolean';
+    const expired = operation.id === 'input.action.hold.update' && payload?.success === false
+      && payload.nexusHoldVersion === 1 && payload.native_id === expectedArgs.native_id
+      && payload.reason === 'expired_or_ended' && payload.mutationStarted === false && nonempty(payload.error)
+      && result.isError !== true && !unreadUnsafe;
+    if (!base || !(start || update || stop)) {
+      failed = true;
+      if (!expired) outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'blueprint.create' || operation.id === 'blueprint.variable.add') {
+    policy = operation.id === 'blueprint.create' ? 'require-blueprint-create-receipt' : 'require-blueprint-variable-save-receipt';
+    const unread = payload?.paramsNotRead;
+    const critical = operation.id === 'blueprint.create'
+      ? ['assetPath','parentClass','onConflict'] : ['assetPath','name','varType','onConflict','category','tooltip','instanceEditable'];
+    const unreadUnsafe = unread !== undefined && (!record(unread) || !Array.isArray(unread.params)
+      || unread.params.some(name => critical.includes(name)));
+    let valid = false, partial = false;
+    if (operation.id === 'blueprint.create') {
+      const name = expectedArgs.assetPath?.slice(expectedArgs.assetPath.lastIndexOf('/') + 1);
+      valid = payload?.success === true && payload.path === expectedArgs.assetPath
+        && payload.objectPath === expectedArgs.assetPath + '.' + name && nonempty(payload.parentClass)
+        && payload.created === true && payload.existed === false;
+    } else {
+      const identity = payload?.path === expectedArgs.assetPath && payload.variableName === expectedArgs.name
+        && payload.variableType === expectedArgs.varType && nonempty(payload.resolvedType)
+        && payload.created === true && payload.existed === false
+        && ['category','tooltip','instanceEditable'].every(key => !Object.hasOwn(expectedArgs,key) || payload[key] === expectedArgs[key]);
+      valid = identity && payload?.success === true && payload.saved === true;
+      partial = identity && payload?.success === false && payload.saved === false && nonempty(payload.saveError)
+        && payload.error === `The change was applied in memory but '${expectedArgs.assetPath}' was not written: ${payload.saveError}`;
+    }
+    if (result.isError === true || unreadUnsafe || (!valid && !partial)) {
+      failed = true; outcomeUnknown = true;
+    } else if (partial) failed = true;
+  }
+  if (operation.id === 'screenshot.pie') {
+    policy = 'require-correlated-direct-pie-image';
+    if (!pieImageReceipt(result,payload,expectedArgs)) {
+      failed = true;
+      // Capture failures can leave a Slate readback queued. Do not retry blindly.
+      outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'screenshot.viewport.current') {
+    policy = 'require-inline-current-viewport-image';
+    if (!viewportImageReceipt(result,expectedArgs)) {
+      failed = true;
+      // Native errors, including TIMEOUT, may follow dispatch; no reviewed
+      // screenshot-specific pre-dispatch refusal is assumed here.
+      outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'level.current.inspect' && payload?.success === true
+    && (!nonempty(payload.levelPackage) || !nonempty(payload.worldPath) || !nonempty(payload.levelPath)
+      || typeof payload.isPersistent !== 'boolean')) {
+    failed = true; outcomeUnknown = true;
+  }
+  if (operation.id === 'level.save.current' && payload?.paramsNotRead !== undefined) {
+    const unread=payload.paramsNotRead;
+    if (!record(unread) || !Array.isArray(unread.params)
+      || unread.params.some(name => ['expectedLevelPackage','nexusNoExternalDelete','commitDeletes','includeExternalActors'].includes(name))) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'asset.save.exact' || operation.id === 'level.save.current') {
+    policy = operation.id === 'asset.save.exact' ? 'require-coherent-exact-asset-save-receipt' : 'require-coherent-level-save-receipt';
+    if (payload?.success === true && (result.isError === true
+      || !(operation.id === 'asset.save.exact' ? coherentExactAssetSave(payload,expectedArgs) : (levelGuardReceipt(payload,expectedArgs) && coherentLevelSave(payload))))) {
+      // A returned but contradictory success cannot establish which work completed.
+      failed = true; outcomeUnknown = true;
+    }
+    if (payload?.success === false) {
+      const known = operation.id === 'asset.save.exact'
+        ? exactAssetPreflightRefusal(payload,expectedArgs) || coherentExactAssetSave(payload,expectedArgs,true)
+        : levelPieRefusal(payload) || levelGuardRefusal(payload,expectedArgs) || (levelGuardReceipt(payload,expectedArgs) && coherentLevelSave(payload,true));
+      if (!known) outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'pcg.graph.connect.persisted') {
+    policy = 'require-verified-persisted-pcg-edge';
+    // The pinned native existing-edge path returns before its save attempt.
+    // An in-memory no-op receipt does not prove the edge was persisted.
+    if (payload?.edgeVerified !== true || payload?.saved !== true) failed = true;
+    // A success receipt without the exact requested identity cannot be safely
+    // correlated to this dispatch. Unreal renders pin FNames; exact comparison
+    // can conservatively reject a legitimate case-normalized label.
+    const identityMatches = payload && [
+      ['assetPath','assetPath'],['sourceNodeName','sourceNode'],
+      ['targetNodeName','targetNode'],['sourcePinLabel','sourcePin'],
+      ['targetPinLabel','targetPin'],
+    ].every(([receiptField,argument]) => typeof payload[receiptField] === 'string'
+      && payload[receiptField] === expectedArgs[argument]);
+    if (payload?.success === true) {
+      const existingEdge = payload.created === false && payload.existed === true
+        && payload.edgeVerified === true && payload.rollbackPossible === false
+        && !Object.hasOwn(payload, 'saved') && !Object.hasOwn(payload, 'transient');
+      const createdAndSaved = payload.created === true && payload.existed === false
+        && payload.edgeVerified === true && payload.saved === true && !Object.hasOwn(payload, 'transient');
+      const createdTransient = payload.created === true && payload.existed === false
+        && payload.edgeVerified === true && payload.saved === false && payload.transient === true;
+      if (!identityMatches || result.isError === true
+        || (!existingEdge && !createdAndSaved && !createdTransient)) outcomeUnknown = true;
+    }
+    if (payload?.success === false) {
+      // At this pin a plain MCPError can occur after Graph->Modify/AddEdge.
+      // Only two exact preflight errors and a correlated, explicit save failure
+      // establish what happened without additional native evidence.
+      const exactPinRefusal = Object.keys(payload).length === 2
+        && ['No suitable output pin found on source node',
+          'No suitable input pin found on target node'].includes(payload.error);
+      const knownSaveFailure = identityMatches && payload.created === true
+        && payload.existed === false && payload.edgeVerified === true
+        && payload.saved === false && typeof payload.saveError === 'string';
+      if (!exactPinRefusal && !knownSaveFailure) outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'actor.transform.editor') {
+    policy = 'require-correlated-actor-transform-receipt';
+    const knownRefusal = ueRefusalPrefix && !ueEnvelopes.length && !result.structuredContent;
+    const vector = (v, keys) => record(v) && keys.every((key) => typeof v[key] === 'number' && Number.isFinite(v[key]));
+    if (!knownRefusal && (result.isError === true || payload?.success !== true || payload.updated !== true
+      || payload.actorPath !== expectedArgs.actorPath || !vector(payload.location,['x','y','z'])
+      || !vector(payload.rotation,['pitch','yaw','roll']) || !vector(payload.scale,['x','y','z']))) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'actor.place.editor') {
+    policy = 'require-correlated-actor-placement-receipt';
+    // Native placement returns the requested class and label but not the resolved
+    // world, actor path, transform or mesh; do not claim those were verified.
+    const knownRefusal = ueRefusalPrefix && !ueEnvelopes.length && !result.structuredContent;
+    if (!knownRefusal && (payload?.success !== true || result.isError === true || payload.created !== true
+      || payload.existed !== false || payload.actorLabel !== expectedArgs.label
+      || payload.actorClass !== expectedArgs.actorClass)) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
+  if (['actor.inspect.editor','actor.inspect.pie'].includes(operation.id) && payload?.success === true) {
+    policy = 'require-matching-actor-path';
+    // UE trims paths and has a case-insensitive fallback. Conservatively fence
+    // normalized paths rather than claiming an exact string match.
+    if (result.isError === true || typeof expectedArgs.actorPath !== 'string'
+      || payload.actorPath !== expectedArgs.actorPath || payload.path !== expectedArgs.actorPath) {
+      failed = true; outcomeUnknown = true;
+    }
+    // The native receipt does not report the resolved world or PIE instance.
+  }
+  if (operation.id === 'actor.delete.editor') {
+    policy = 'require-checked-actor-deletion';
+    const valid = payload?.success === true && result.isError !== true && payload.deleted === true
+      && payload.nexusCheckedActorDeleteVersion === 1 && payload.actorPath === expectedArgs.actorPath
+      && payload.rollbackLossy === true;
+    if (!valid) {failed = true; outcomeUnknown = true;}
+  }
+  if (['actor.tags.list.editor','actor.tag.add.editor'].includes(operation.id) && payload?.success === true) {
+    policy = 'require-matching-actor-tags';
+    const tags = Array.isArray(payload.tags) && payload.tags.every(tag => typeof tag === 'string');
+    const added = operation.id !== 'actor.tag.add.editor' || (payload.tag === expectedArgs.tag
+      && ((payload.updated === true && payload.existed !== true) || (payload.existed === true && payload.created === false && payload.updated !== true)));
+    const page = operation.id !== 'actor.tags.list.editor' || (Number.isSafeInteger(payload.count) && payload.count === payload.tags?.length
+      && typeof payload.hasMore === 'boolean' && (!payload.hasMore || nonempty(payload.nextCursor)));
+    if (result.isError === true || payload.actorPath !== expectedArgs.actorPath || !tags || !added || !page) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'actor.bounds.editor' && payload?.success === true) {
+    policy = 'require-matching-actor-bounds';
+    const vector = v => record(v) && ['x','y','z'].every(k => typeof v[k] === 'number' && Number.isFinite(v[k]));
+    if (result.isError === true || payload.actorPath !== expectedArgs.actorPath
+      || !vector(payload.origin) || !vector(payload.extent)
+      || ['x','y','z'].some(k => payload.extent[k] < 0)) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'pcg.generation.execute') {
+    policy = 'require-correlated-pcg-generation-acknowledgement';
+    // The pinned handler selects the first component, starts a run and may
+    // change its seed before returning. A receipt is not a completion claim.
+    if (payload?.success === true) {
+      const run = payload.lastRun;
+      const coherent = result.isError !== true && payload.updated === true
+        && typeof expectedArgs.actorPath === 'string' && payload.actorPath === expectedArgs.actorPath
+        && typeof payload.componentName === 'string' && payload.componentName.length > 0
+        && Number.isSafeInteger(payload.runId) && payload.runId > 0 && payload.runId <= 2147483647
+        && record(run) && run.id === payload.runId
+        && ['generating','generated','cancelled','cleaned','not_started'].includes(run.state)
+        && Number.isInteger(payload.seed) && payload.seed >= -2147483648 && payload.seed <= 2147483647
+        && (!Object.hasOwn(expectedArgs,'seed') || payload.seed === expectedArgs.seed);
+      if (!coherent) { failed = true; outcomeUnknown = true; }
+    } else if (payload?.success === false) {
+      // An unmarked native error does not establish whether the generation or
+      // seed change happened. Preserve it; do not replay or infer rollback.
+      outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'input.action.once') {
+    policy = 'require-correlated-local-input-receipt';
+    if (payload?.success === true) {
+      const correlated = payload.action === expectedArgs.action_path
+        && ['Boolean','Axis1D','Axis2D','Axis3D'].includes(payload.value_type)
+        && payload.idempotencyObservable === false && nonempty(payload.idempotencyNote)
+        && payload.rollbackPossible === false && nonempty(payload.rollbackNote)
+        && !Object.hasOwn(payload,'relayed') && result.isError !== true;
+      if (!correlated) { failed = true; outcomeUnknown = true; }
+    } else if (payload?.success === false) {
+      // A generic returned error does not identify whether a frame was injected.
+      outcomeUnknown = true;
+    }
+  }
+  if (operation.id === 'pcg.generation.wait') {
+    policy = 'require-exact-generated-run';
+    // The pinned waiter uses timed_out for both an elapsed deadline and a
+    // failed state read. Neither establishes that the native run has stopped.
+    if (payload?.state === 'timed_out') { failed = true; outcomeUnknown = true; }
+    // Native success:true also covers cancelled, idle, cleaned and not_started.
+    if (!payload || payload.state !== 'generated'
+      || payload.runId !== expectedArgs.runId || payload.lastRun?.id !== expectedArgs.runId
+      || payload.lastRun?.state !== 'generated') failed = true;
+    // Native/preflight failures may omit identity; any identity actually
+    // reported by either a success or failure must match the selected target.
+    if (payload && ((Object.hasOwn(payload,'componentName') && payload.componentName !== expectedArgs.componentName)
+      || (Object.hasOwn(payload,'actorPath') && payload.actorPath !== expectedArgs.actorPath)
+      || (Object.hasOwn(payload,'runId') && payload.runId !== expectedArgs.runId))) {
+      failed = true; outcomeUnknown = true;
+    }
+    // A successful native state includes the component name; failed preflight
+    // responses may omit it. Cancellation can carry a later lastRun ID.
+    const terminalMatch = ['cancelled','cleaned','not_started'].includes(payload?.state)
+      && payload.lastRun?.id === expectedArgs.runId && payload.lastRun?.state === payload.state;
+    const superseded = payload?.state === 'cancelled' && Number.isSafeInteger(payload.lastRun?.id)
+      && payload.lastRun.id > expectedArgs.runId;
+    if (payload?.success === true && payload.state !== 'generated'
+      && (result.isError === true || payload.runId !== expectedArgs.runId
+        || payload.componentName !== expectedArgs.componentName || (!terminalMatch && !superseded))) {
+      failed = true; outcomeUnknown = true;
+    }
+    // The pinned waiter returns the native component name, but drops actorPath.
+    // Never infer the actor from its echoed request or from the run ID alone.
+    if (payload?.success === true && payload.state === 'generated'
+      && (result.isError === true || payload.runId !== expectedArgs.runId
+        || payload.lastRun?.id !== expectedArgs.runId || payload.lastRun?.state !== 'generated'
+        || payload.componentName !== expectedArgs.componentName
+        || (Object.hasOwn(payload,'actorPath') && payload.actorPath !== expectedArgs.actorPath))) {
+      failed = true; outcomeUnknown = true;
+    }
+  }
+  if (outcomeUnknown) failed = true;
+  return {
+    ...result,
+    ...(failed ? { isError: true } : {}),
+    _meta: { ...result._meta, 'unreal-nexus/result-policy': {
+      policy, outcomeUnknown,
+      classification: outcomeUnknown ? 'outcome-unknown' : failed ? 'failure-or-unmet-contract' : 'response-received',
+      note: 'Receipt is not independent proof of editor identity, completion, correctness or persistence.',
+    } },
+  };
+}

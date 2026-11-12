@@ -1,0 +1,27 @@
+# Windows actor placement observation — 2026-11-11
+
+Scope: a user-requested test in the running Henday Heat editor (PID 39912, world `Untitled_1`). This is a limited live observation, not full native or release qualification. No explicit save was requested or invoked by the test. Unreal displayed an autosave notification during earlier editor interaction; autosave activity was not independently established.
+
+- A `Cube` was placed through the editor UI.
+- `NexusTest_Sphere` and `NexusTest_Cylinder` were placed through fixed, direct UE-MCP calls before Nexus exposed actor placement. Each returned `created: true`, and a later UE-MCP outliner query found both in the editor world with the requested locations.
+- `NexusTest_Cone` was placed through the new `actor.place.editor` Nexus route using the running editor's configured target. Nexus returned a correlated success receipt; a separate fixed UE-MCP outliner query found the named static-mesh actor at the requested location in `Untitled_1`.
+
+The native placement receipt does not independently report the resolved world, actor object path, actual transform or mesh assignment. The outliner observations establish the returned labels, class, world name and positions, not visual appearance or exact mesh assignment. The route does not save the level. Unknown outcomes require reconciliation before retry; native inverse descriptors are not a rollback guarantee. Existing editor and gateway clients were left running, and separate clients do not share the test gateway's queue.
+
+A subsequent `actor.list.editor` call through the updated Nexus coordinator used `nameFilter: "NexusTest_"` and `limit: 10`. It returned the three named actors, their paths and requested positions in `Untitled_1`, with `hasMore: false`, `total: 3` and `streamingSkipped: 128`. This is one live coordinator read; excluded streaming actors and other filters/pages were not tested. The native page is not an immutable snapshot and its row limit does not bound enumeration.
+
+A subsequent Nexus `actor.transform.editor` call moved the previously created `NexusTest_Cone` from `(58020, -33560, 8170)` to `(58170, -33560, 8170)`. The native response reported the exact actor path, updated transform and `packageDirty: true`. A separate Nexus `actor.list.editor` query returned the same actor path at the requested new location after the call. No explicit save was invoked; autosave behavior remains unverified. Rotation, scale, failure and recovery cases were not live-tested.
+
+A further read-only Nexus workflow discovered `NexusTest_Cone` with `actor.list.editor` and supplied its returned path to `actor.inspect.editor`. The inspection returned the same path and label, class `StaticMeshActor`, and the previously observed location `(58170, -33560, 8170)`. This checks one discover-to-inspect handoff, not every actor, world or property type.
+
+
+On 2026-11-12, Nexus revision `22c1b81` was started against the disposable
+`NexusBuildHost.uproject` in UE 5.8.4 (editor PID 40840), using a copy of the
+Henday coordinator configuration with only the project path and selected
+capabilities changed. Automatic editor selection succeeded; `actor.list.editor`
+returned successfully, `actor.place.editor` created
+`NexusConfigSmoke_20261112`, and a second list found that actor. The test used
+the staged UE-MCP owned-hold-v1 checkout and its disposable-project plugin.
+The dirty fixture map was explicitly discarded and the fixture editor closed.
+No save was requested. This does not establish the version or behavior of the
+Henday Heat plugin binary.

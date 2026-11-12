@@ -1,0 +1,365 @@
+diff --git a/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp b/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp
+index bf10ab84898871f849ad2135158db79f0db9583a..b7902b8cae6e22c9b0fb363af6bc5333bf8267aa 100644
+--- a/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp
++++ b/Plugin/Source/UnrealAgentPlayer/Private/UAPAgentSubsystem.cpp
+@@ -197,6 +197,22 @@ void UUAPAgentSubsystem::OnCancelPIE()          { CurrentPhase = EAgentPIEPhase:
+ 
+ EAgentPIEPhase UUAPAgentSubsystem::GetPIEPhase() const { return CurrentPhase; }
+ 
++FString UUAPAgentSubsystem::GetNexusPIEPhaseV1() const
++{
++    if (!GEditor) { return TEXT("Unknown"); }
++    // The native queued request precedes PostPIEStarted. Never report idle in that gap.
++    if (GEditor->IsPlaySessionRequestQueued()) { return TEXT("Starting"); }
++    const bool bActive = GEditor->IsPlayingSessionInEditor() || GEditor->PlayWorld != nullptr
++        || GEditor->bIsSimulatingInEditor;
++    if ((CurrentPhase == EAgentPIEPhase::NotPlaying && bActive)
++        || ((CurrentPhase == EAgentPIEPhase::Playing || CurrentPhase == EAgentPIEPhase::Paused) && !bActive))
++    {
++        return TEXT("Unknown");
++    }
++    const UEnum* Enum = StaticEnum<EAgentPIEPhase>();
++    return Enum ? Enum->GetNameStringByValue(static_cast<int64>(CurrentPhase)) : TEXT("Unknown");
++}
++
+ double UUAPAgentSubsystem::GetPIEElapsedSeconds() const
+ {
+     if (PIEStartTimeSeconds <= 0.0) { return 0.0; }
+diff --git a/Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h b/Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h
+index 3fd60f9e6db4f74e422f2eddb366028ae6d45843..8c16ddf302236d4d08952854c513f02e573b121f 100644
+--- a/Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h
++++ b/Plugin/Source/UnrealAgentPlayer/Public/UAPAgentSubsystem.h
+@@ -36,6 +36,10 @@ public:
+     UFUNCTION(BlueprintCallable, Category="Agent|PIE")
+     EAgentPIEPhase GetPIEPhase() const;
+ 
++    // Queue-aware observation for Nexus. Unknown means the native facts disagree.
++    UFUNCTION(BlueprintCallable, Category="Agent|PIE")
++    FString GetNexusPIEPhaseV1() const;
++
+     UFUNCTION(BlueprintCallable, Category="Agent|PIE")
+     double GetPIEElapsedSeconds() const;
+ 
+diff --git a/mcp-server/src/unreal_agent_player/errors.py b/mcp-server/src/unreal_agent_player/errors.py
+index 60ae5f5cbd23276b2752be1357fd66f89dd78d7a..4fe5369efa6c7b88e5dc22b3321e0070c2d56d6d 100644
+--- a/mcp-server/src/unreal_agent_player/errors.py
++++ b/mcp-server/src/unreal_agent_player/errors.py
+@@ -10,6 +10,7 @@ class ErrorCode(str, Enum):
+     UE_REMOTE_EXEC_OFF = "UE_REMOTE_EXEC_OFF"
+     UE_CONNECTION_RESET = "UE_CONNECTION_RESET"
+     UE_CROSSED_RESPONSE = "UE_CROSSED_RESPONSE"
++    UE_STATUS_UNVERIFIED = "UE_STATUS_UNVERIFIED"
+     UE_WRONG_INSTANCE = "UE_WRONG_INSTANCE"
+     UE_OBJECT_NOT_FOUND = "UE_OBJECT_NOT_FOUND"
+     PIE_WRONG_PHASE = "PIE_WRONG_PHASE"
+@@ -35,7 +36,7 @@ class ErrorCode(str, Enum):
+     @classmethod
+     def domain_of(cls, code: ErrorCode) -> str:
+         transport = {cls.UE_UNREACHABLE, cls.UE_REMOTE_CONTROL_OFF, cls.UE_REMOTE_EXEC_OFF,
+-                     cls.UE_CONNECTION_RESET, cls.UE_CROSSED_RESPONSE, cls.UE_WRONG_INSTANCE}
++                     cls.UE_CONNECTION_RESET, cls.UE_CROSSED_RESPONSE, cls.UE_STATUS_UNVERIFIED, cls.UE_WRONG_INSTANCE}
+         mcp_side = {cls.SCHEMA_VALIDATION, cls.TIMEOUT, cls.UIA_UNAVAILABLE, cls.UIA_PATH_NOT_FOUND}
+         if code in transport:
+             return "transport"
+diff --git a/mcp-server/src/unreal_agent_player/server.py b/mcp-server/src/unreal_agent_player/server.py
+index ac832e286b5b14da2df073f0a8efa023d52fdf02..0a8d6b185ded1bf85e5072555027169dbe862504 100644
+--- a/mcp-server/src/unreal_agent_player/server.py
++++ b/mcp-server/src/unreal_agent_player/server.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import asyncio
+ import logging
++import os
+ from pathlib import Path
+ 
+ from mcp.server import Server
+@@ -21,6 +22,25 @@ def build_server(
+     store: BaselineStore | None = None,
+     ui_driver: UIADriver | None = None,
+ ) -> Server:
++    nexus_values = tuple(os.environ.get(key) for key in (
++        "NEXUS_UAP_PROJECT_FILE", "NEXUS_UAP_EDITOR_PID", "NEXUS_UAP_RC_PORT"))
++    if any(value is not None for value in nexus_values):
++        project, pid_text, port_text = nexus_values
++        if not all(isinstance(value, str) and value for value in nexus_values):
++            raise ValueError("Nexus requires project file, editor PID and RC port together")
++        if rc is not None or py_exec is not None:
++            raise ValueError("Nexus environment cannot be combined with injected clients")
++        if not pid_text.isascii() or not pid_text.isdigit() or not 1 <= int(pid_text) <= 2147483647:
++            raise ValueError("Invalid Nexus editor PID")
++        if not port_text.isascii() or not port_text.isdigit() or not 1 <= int(port_text) <= 65535:
++            raise ValueError("Invalid Nexus RC port")
++        project_path = Path(project)
++        if not project_path.is_absolute() or project_path.suffix.lower() != ".uproject" or not project_path.is_file():
++            raise ValueError("Nexus project must be an existing absolute .uproject file")
++        rc = RemoteControlClient(host="127.0.0.1", port=int(port_text), nexus_strict_pie_status=True)
++        py_exec = PythonRemoteExecClient(
++            node_project_substr=project_path.resolve().as_posix(),
++            node_instance=f"pid:{int(pid_text)}", nexus_no_replay=True)
+     server = Server("unreal-agent-player")
+     register_all(
+         server,
+diff --git a/mcp-server/src/unreal_agent_player/tools/pie.py b/mcp-server/src/unreal_agent_player/tools/pie.py
+index fe36b3ba618a9346c07fb7dcf6f61361e12a1386..239964dc6d5a13213a16d51cf8d42887c0e2136a 100644
+--- a/mcp-server/src/unreal_agent_player/tools/pie.py
++++ b/mcp-server/src/unreal_agent_player/tools/pie.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import asyncio
++import math
+ import time
+ from typing import Any
+ 
+@@ -10,11 +11,28 @@ from unreal_agent_player.transport import SUBSYSTEM_OBJECT_PATH, RemoteControlCl
+ 
+ 
+ async def _get_phase(rc: RemoteControlClient) -> str:
++    strict = getattr(rc, "nexus_strict_pie_status", False) is True
++    if strict:
++        value = await rc.call_preset("GetNexusPIEPhaseV1")
++        if not isinstance(value, str) or value not in {"NotPlaying", "Starting", "Playing", "Paused", "Ending"}:
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "PIE phase response is missing or invalid; reconcile externally.", recoverable=False)
++        return value
+     resp = await rc.call_function(SUBSYSTEM_OBJECT_PATH, "GetPIEPhase", parameters={})
+     return str(resp.get("ReturnValue", "NotPlaying"))
+ 
+ 
+ async def _get_elapsed(rc: RemoteControlClient) -> float:
++    if getattr(rc, "nexus_strict_pie_status", False) is True:
++        value = await rc.call_preset("GetPIEElapsedSeconds")
++        try:
++            valid = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0
++        except (OverflowError, TypeError):
++            valid = False
++        if not valid:
++            raise AgentError(ErrorCode.UE_STATUS_UNVERIFIED,
++                             "PIE elapsed response is missing or invalid; reconcile externally.", recoverable=False)
++        return float(value)
+     resp = await rc.call_function(SUBSYSTEM_OBJECT_PATH, "GetPIEElapsedSeconds", parameters={})
+     return float(resp.get("ReturnValue", 0.0))
+ 
+@@ -81,7 +99,10 @@ async def pie_start(
+     try:
+         py_exec.exec_python("\n".join(lines))
+     except Exception:
+-        _machine.give_back(grant)
++        # Nexus cannot prove a thrown Python request never queued PIE. Keep the
++        # sticky grant until external reconciliation/explicit stop; no rollback.
++        if not getattr(py_exec, "nexus_no_replay", False):
++            _machine.give_back(grant)
+         raise
+     if not wait:
+         # Opt-in fire-and-forget. RequestPlaySession only QUEUES the session and the editor tick
+diff --git a/mcp-server/src/unreal_agent_player/tools/python_exec.py b/mcp-server/src/unreal_agent_player/tools/python_exec.py
+index 197383ec71f5939cb83bfafc7a8647569a95abe4..366fcf4b5eb0ce7524ce10f034499b4445dd5567 100644
+--- a/mcp-server/src/unreal_agent_player/tools/python_exec.py
++++ b/mcp-server/src/unreal_agent_player/tools/python_exec.py
+@@ -18,7 +18,7 @@ async def exec_python(
+             out_lines.append(entry.get("output", ""))
+     stdout = "".join(out_lines)
+     stderr = "".join(err_lines)
+-    if resp.get("result") == "success":
++    if resp.get("success") is True:
+         return {
+             "ok": True, "stdout": stdout, "stderr": stderr,
+             "result_repr": resp.get("result_repr", ""),
+diff --git a/mcp-server/src/unreal_agent_player/tools/status.py b/mcp-server/src/unreal_agent_player/tools/status.py
+index 2e0887e04311636f7d82e8947301a1278d7f2c75..5ff87fd29a03d7984923e17696a1924bc0455439 100644
+--- a/mcp-server/src/unreal_agent_player/tools/status.py
++++ b/mcp-server/src/unreal_agent_player/tools/status.py
+@@ -4,6 +4,7 @@ from typing import Any
+ 
+ from unreal_agent_player.errors import AgentError
+ from unreal_agent_player.transport import SUBSYSTEM_OBJECT_PATH, RemoteControlClient
++from unreal_agent_player.tools.pie import _get_phase
+ 
+ 
+ async def bridge_status(*, rc: RemoteControlClient, py_exec: Any) -> dict[str, Any]:
+@@ -11,23 +12,34 @@ async def bridge_status(*, rc: RemoteControlClient, py_exec: Any) -> dict[str, A
+     plugin_version: str | None = None
+     pie_phase: str | None = None  # populated later, in Phase 5
+     try:
+-        resp = await rc.call_function(SUBSYSTEM_OBJECT_PATH, "GetPluginVersion", parameters={})
+-        plugin_version = str(resp.get("ReturnValue", ""))
+-        rc_reachable = True
+-        try:
+-            phase_resp = await rc.call_function(
+-                SUBSYSTEM_OBJECT_PATH, "GetPIEPhase", parameters={}
+-            )
+-            pie_phase = str(phase_resp.get("ReturnValue", ""))
+-        except AgentError:
+-            pie_phase = None
++        if getattr(rc, "nexus_strict_pie_status", False) is True:
++            # The preset owns the native subsystem binding. UE 5.8 does not
++            # necessarily place that subsystem at the legacy hardcoded path.
++            pie_phase = await _get_phase(rc)
++            rc_reachable = True
++        else:
++            resp = await rc.call_function(SUBSYSTEM_OBJECT_PATH, "GetPluginVersion", parameters={})
++            plugin_version = str(resp.get("ReturnValue", ""))
++            rc_reachable = True
++            try:
++                phase_resp = await rc.call_function(
++                    SUBSYSTEM_OBJECT_PATH, "GetPIEPhase", parameters={}
++                )
++                pie_phase = str(phase_resp.get("ReturnValue", ""))
++            except AgentError:
++                pie_phase = None
+     except AgentError:
+         pass
+ 
+     remote_exec_reachable = False
+     try:
+-        endpoint = py_exec._discover_endpoint()
+-        remote_exec_reachable = endpoint is not None
++        # The current transport exposes list_nodes(), not _discover_endpoint().
++        # Count only responsive nodes matching the configured project and role/PID.
++        nodes = py_exec.list_nodes()
++        matches = [node for node in nodes if not node.get("probe_failed")
++                   and py_exec._matches_project(node) and py_exec._matches_instance(node)]
++        remote_exec_reachable = (len(matches) == 1 if getattr(py_exec, "nexus_no_replay", False) is True
++                                 else len(matches) > 0)
+     except Exception:
+         pass
+ 
+@@ -38,4 +50,22 @@ async def bridge_status(*, rc: RemoteControlClient, py_exec: Any) -> dict[str, A
+         "remote_exec_reachable": remote_exec_reachable,
+         "plugin_version": plugin_version,
+         "pie_phase": pie_phase,
++        "nexus_pie_status_validation": ({
++            "version": 3,
++            "phase": "native_queued_aware_v1",
++            "transport": "native_preset",
++            "discovery_interface": "optional_ipv4",
++            "discovery": "exact_node_match",
++            "elapsed": "finite_nonnegative",
++            "missing_or_invalid": "error",
++        } if getattr(rc, "nexus_strict_pie_status", False) is True else None),
++        "nexus_python_dispatch": ({
++            "attempts": 1, "success_field": "success", "post_send_replay": False,
++            "holds_machine_on_python_error": True,
++            "project_file": getattr(py_exec, "_node_project_substr", None),
++            "editor_pid": (int(py_exec._node_instance[4:])
++                           if getattr(py_exec, "_node_instance", "").startswith("pid:")
++                           and py_exec._node_instance[4:].isdigit() else None),
++            "rc_endpoint": getattr(rc, "_base", None),
++        } if getattr(py_exec, "nexus_no_replay", False) is True else None),
+     }
+diff --git a/mcp-server/src/unreal_agent_player/transport.py b/mcp-server/src/unreal_agent_player/transport.py
+index aefd10254fcb113bd652688a81ab2c52c81570b8..6987f91c77f804849dcdbc86775ac2c25e645f71 100644
+--- a/mcp-server/src/unreal_agent_player/transport.py
++++ b/mcp-server/src/unreal_agent_player/transport.py
+@@ -109,7 +109,9 @@ class RemoteControlClient:
+         host: str = "127.0.0.1",
+         port: int = 30010,
+         timeout: float = 10.0,
++        nexus_strict_pie_status: bool = False,
+     ):
++        self.nexus_strict_pie_status = nexus_strict_pie_status is True
+         self._base = f"http://{host}:{port}"
+         self._client = httpx.AsyncClient(timeout=timeout)
+ 
+@@ -311,9 +313,11 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+ 
+     def __init__(self, discovery_timeout: float = 3.0, exec_timeout: float = 30.0,
+                  command_ip: str = "127.0.0.1", node_project_substr: str | None = None,
+-                 node_instance: str | None = None):
++                 node_instance: str | None = None, nexus_no_replay: bool = False):
+         self._discovery_timeout = discovery_timeout
+         self._exec_timeout = exec_timeout
++        # Nexus compatibility: one submitted command, even after an unknown outcome.
++        self.nexus_no_replay = nexus_no_replay is True
+         self._command_ip = command_ip
+         # When several editors answer (e.g. two projects open at once), pick the one
+         # whose project file path contains this substring. None = any project.
+@@ -362,15 +366,24 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+             return None
+ 
+     def _make_multicast_socket(self) -> socket.socket:
++        # A trusted Nexus host may select the editor's discovery interface.
++        # With no setting, retain the upstream default. Never auto-fail over.
++        interface = os.environ.get("NEXUS_UAP_MULTICAST_INTERFACE", "0.0.0.0") if self.nexus_no_replay else "0.0.0.0"
++        interface_bytes = socket.inet_aton(interface)
+         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-        sock.bind(("0.0.0.0", self.MULTICAST_PORT))
+-        mreq = struct.pack("4s4s", socket.inet_aton(self.MULTICAST_GROUP),
+-                           socket.inet_aton("0.0.0.0"))
+-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MULTICAST_TTL)
+-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+-        return sock
++        try:
++            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
++            sock.bind((interface, self.MULTICAST_PORT))
++            mreq = struct.pack("4s4s", socket.inet_aton(self.MULTICAST_GROUP), interface_bytes)
++            sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
++            if interface != "0.0.0.0":
++                sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, interface_bytes)
++            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MULTICAST_TTL)
++            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
++            return sock
++        except Exception:
++            sock.close()
++            raise
+ 
+     # --- public API ---
+ 
+@@ -394,6 +407,19 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+         # Per CALL, not per exchange: a crossing caught during the identity probe is still a
+         # crossing the caller needs to know happened.
+         self.last_rejected = []
++        if self.nexus_no_replay:
++            try:
++                response = self._exec_python_once(code, unattended=unattended, exec_mode=exec_mode)
++            except AgentError as exc:
++                if exc.code in (ErrorCode.UE_CONNECTION_RESET, ErrorCode.UE_CROSSED_RESPONSE):
++                    raise AgentError(exc.code, f"{exc.message} Outcome unknown; do not replay.",
++                                     recoverable=False) from exc
++                raise
++            if not isinstance(response, dict) or response.get("success") is not True:
++                raise AgentError(ErrorCode.PYTHON_RUNTIME,
++                                 "Native Python did not confirm success; outcome may be partial. Do not replay.",
++                                 recoverable=False)
++            return response
+         last_exc: AgentError | None = None
+         for attempt in range(self.CONNECTION_RETRIES):
+             try:
+@@ -673,10 +699,17 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+     def _matches_project(self, info: dict[str, Any]) -> bool:
+         if not self._node_project_substr:
+             return True
++        if self.nexus_no_replay:
++            native_project = pathlib.Path(str(info.get("project") or ""))
++            if not native_project.is_absolute():
++                return False
++            return native_project.resolve() == pathlib.Path(self._node_project_substr).resolve()
+         return self._node_project_substr.lower() in str(info.get("project") or "").lower()
+ 
+     def _matches_instance(self, info: dict[str, Any]) -> bool:
+         sel = self._node_instance
++        if self.nexus_no_replay and info.get("role") != "editor":
++            return False
+         if sel.lower() == "editor":
+             return info.get("role") == "editor"
+         if sel.lower().startswith("pid:"):
+@@ -785,6 +818,17 @@ _uap_out = json.dumps({'project': unreal.Paths.get_project_file_path(),
+                     if data is not None:
+                         self.last_rejected.extend(rejected)
+                         return data
++                    if self.nexus_no_replay:
++                        # sendall already happened. EOF, timeout, or a foreign reply is
++                        # NOT evidence that the target did not execute the command.
++                        self.last_rejected.extend(rejected)
++                        if reject is not None:
++                            self.last_rejected.append(reject)
++                        raise AgentError(
++                            ErrorCode.UE_CROSSED_RESPONSE if reject is not None else ErrorCode.UE_CONNECTION_RESET,
++                            "Command sent without a matching result; outcome unknown. Do not replay.",
++                            recoverable=False,
++                        )
+                     if reject is not None:
+                         # Somebody else's process answered our port. Do NOT return it, and do
+                         # NOT give up: the node we addressed may still be connecting back, so
